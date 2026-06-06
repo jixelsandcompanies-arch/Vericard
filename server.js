@@ -51,6 +51,9 @@ app.get('/', async (req, res) => {
   res.send(buildVerificationHtml(result));
 });
 app.get(['/index.html', '/portal.html', '/gate.html', '/super-admin.html'], (req, res) => sendStaticFile(res, req.path));
+app.get(['/portal', '/app'], (req, res) => sendStaticFile(res, 'portal.html'));
+app.get('/gate', (req, res) => sendStaticFile(res, 'gate.html'));
+app.get(['/super-admin', '/admin'], (req, res) => sendStaticFile(res, 'super-admin.html'));
 app.get(['/manifest.webmanifest', '/sw.js'], (req, res) => sendStaticFile(res, req.path));
 app.get(['/favicon.ico', '/favicon.png'], (req, res) => sendStaticFile(res, req.path, 'assets/vericard-logo.jpeg'));
 app.use('/css', express.static(staticFilePath('css') || join(appRoot, 'css')));
@@ -746,7 +749,6 @@ async function adminSettings() {
   return row;
 }
 
-app.get('/admin', (req, res) => sendStaticFile(res, 'super-admin.html'));
 app.get('/api/templates', (req, res) => res.json({ templates, organizationTypes, orgRegistrationFields }));
 
 app.get('/api/verify-card', async (req, res) => {
@@ -1402,6 +1404,16 @@ async function updateOrg(req, res, patch) {
   if (error) return res.status(400).json({ error: error.message });
   res.json({ organization: toOrg(data), templates });
 }
+
+app.use((req, res) => {
+  if (req.path.startsWith('/api/')) {
+    return res.status(404).json({ error: 'API endpoint not found.' });
+  }
+  if (req.method === 'GET' && req.accepts('html')) {
+    return sendStaticFile(res, 'index.html');
+  }
+  return res.status(404).send('Not found');
+});
 
 export default app;
 

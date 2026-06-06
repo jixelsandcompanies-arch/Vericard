@@ -23,7 +23,7 @@ const state = { token: '', org: null, rules: null, orgRegistrationFields: {}, ca
       gateScanPanel: document.getElementById('gateScanPanel'), gateScanForm: document.getElementById('gateScanForm'), gateScanNotice: document.getElementById('gateScanNotice'), attendanceBody: document.getElementById('attendanceBody'),
       gateStaffForm: document.getElementById('gateStaffForm'), gateStaffBody: document.getElementById('gateStaffBody'), gateDevicesBody: document.getElementById('gateDevicesBody'),
       feePanel: document.getElementById('feePanel'), feeUploadFile: document.getElementById('feeUploadFile'), uploadFeesBtn: document.getElementById('uploadFeesBtn'), refreshFeesBtn: document.getElementById('refreshFeesBtn'), feeNotice: document.getElementById('feeNotice'), feesBody: document.getElementById('feesBody'),
-      reportsPanel: document.getElementById('reportsPanel'), reportsSummary: document.getElementById('reportsSummary'), notificationsBody: document.getElementById('notificationsBody'),
+      reportsPanel: document.getElementById('reportsPanel'), reportsSummary: document.getElementById('reportsSummary'), notificationsBody: document.getElementById('notificationsBody'), securityLogsBody: document.getElementById('securityLogsBody'),
       backSettingsForm: document.getElementById('backSettingsForm'), previewEmpty: document.getElementById('previewEmpty'), idCardStage: document.getElementById('idCardStage'),
       schoolBackFields: document.getElementById('schoolBackFields'), schoolHourFields: document.getElementById('schoolHourFields'),
       idFrontLogo: document.getElementById('idFrontLogo'), idBackLogo: document.getElementById('idBackLogo'), idPhoto: document.getElementById('idPhoto'),
@@ -37,7 +37,7 @@ const state = { token: '', org: null, rules: null, orgRegistrationFields: {}, ca
     };
 
     function headers() { return { Authorization: `Bearer ${state.token}`, 'Content-Type': 'application/json' }; }
-    function qrUrl(value) { return `https://api.qrserver.com/v1/create-qr-code/?size=180x180&data=${encodeURIComponent(value)}`; }
+    function qrUrl(value) { return `/api/qr?data=${encodeURIComponent(value)}`; }
     function niceLabel(key) { return key.replace(/([A-Z])/g, ' $1').replace(/^./, (c) => c.toUpperCase()); }
     function escapeHtml(value) {
       return String(value ?? '').replace(/[&<>"']/g, (char) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[char]));
@@ -74,6 +74,9 @@ const state = { token: '', org: null, rules: null, orgRegistrationFields: {}, ca
       };
     }
     function verificationUrl(token) { return `${window.location.origin}/?token=${encodeURIComponent(token)}`; }
+    function cardVerificationUrl(card) {
+      return card?.qrPayload ? `${window.location.origin}/?q=${encodeURIComponent(card.qrPayload)}` : verificationUrl(card?.verificationToken || '');
+    }
     function hasRegisteredOrganization() { return localStorage.getItem('mapphexOrganizationRegistered') === 'true'; }
     function rememberRegisteredOrganization() { localStorage.setItem('mapphexOrganizationRegistered', 'true'); }
     function isSchoolType(type) { return type === 'school' || type === 'university'; }
@@ -743,7 +746,7 @@ const state = { token: '', org: null, rules: null, orgRegistrationFields: {}, ca
         els.idPhoto.classList.add('hidden');
         els.idPhotoPlaceholder.classList.remove('hidden');
       }
-      els.idCardQr.src = qrUrl(verificationUrl(card.verificationToken || ''));
+      els.idCardQr.src = qrUrl(cardVerificationUrl(card));
       renderBackSettings(card);
     }
 
@@ -821,6 +824,7 @@ const state = { token: '', org: null, rules: null, orgRegistrationFields: {}, ca
         loadOrgSummary().catch((error) => alert(error.message));
         loadFees().catch((error) => alert(error.message));
         loadNotifications().catch((error) => alert(error.message));
+        loadSecurityLogs().catch((error) => alert(error.message));
       }
     }
 
@@ -875,6 +879,7 @@ const state = { token: '', org: null, rules: null, orgRegistrationFields: {}, ca
           <td>${escapeHtml(card.phone || '')}</td><td>${escapeHtml(card.email || '')}</td><td>${escapeHtml(card.status || 'Pending')}</td>
           <td class="row">
             ${(card.status || 'Pending') === 'Approved' ? `<button data-id="${escapeAttr(card.id)}" data-action="view">View Card</button>` : ''}
+            <button data-id="${escapeAttr(card.id)}" data-action="rotate" class="secondary">Rotate QR</button>
             <button data-id="${escapeAttr(card.id)}" data-status="Approved">Approve</button>
             <button data-id="${escapeAttr(card.id)}" data-status="Rejected" class="secondary">Reject</button>
             <button data-id="${escapeAttr(card.id)}" data-status="Inactive" class="secondary">Inactive</button>
@@ -987,6 +992,24 @@ const state = { token: '', org: null, rules: null, orgRegistrationFields: {}, ca
         </tr>`).join('') : '<tr><td colspan="8">No parent communication logs yet.</td></tr>';
     }
 
+    async function loadSecurityLogs() {
+      const data = await api('/api/org/security-logs', { headers: headers() });
+      const logs = data.logs || [];
+      els.securityLogsBody.innerHTML = logs.length ? logs.map((log) => `
+        <tr>
+          <td>${escapeHtml(log.alertLevel || 'none')}</td>
+          <td>${escapeHtml(log.confidenceScore ?? '')}</td>
+          <td>${escapeHtml(log.result)}</td>
+          <td>${escapeHtml(log.action || '')}</td>
+          <td>${escapeHtml(log.cardName || log.gateStaffName || '')}</td>
+          <td>${escapeHtml(log.reason || '')}</td>
+          <td>${escapeHtml(log.gateName || '')}</td>
+          <td><code>${escapeHtml(log.deviceId || '')}</code></td>
+          <td>${log.latitude && log.longitude ? `${escapeHtml(log.latitude)}, ${escapeHtml(log.longitude)} (${escapeHtml(log.locationAccuracy || '?')}m)` : ''}</td>
+          <td>${log.createdAt ? new Date(log.createdAt).toLocaleString() : ''}</td>
+        </tr>`).join('') : '<tr><td colspan="10">No security logs yet.</td></tr>';
+    }
+
     async function uploadFees() {
       const file = els.feeUploadFile.files[0];
       if (!file) throw new Error('Choose a CSV file exported from Excel first.');
@@ -1003,7 +1026,21 @@ const state = { token: '', org: null, rules: null, orgRegistrationFields: {}, ca
 
     async function recordGateScan() {
       const payload = { ...Object.fromEntries(new FormData(els.gateScanForm).entries()), ...(await dashboardScanMeta()) };
-      const data = await api('/api/org/gate-scan', { method: 'POST', headers: headers(), body: JSON.stringify(payload) });
+      let data;
+      try {
+        data = await api('/api/org/gate-scan', { method: 'POST', headers: headers(), body: JSON.stringify(payload) });
+      } catch (error) {
+        if (!/override requires/i.test(error.message || '')) throw error;
+        const securityOverrideReason = prompt(`${error.message}\n\nEnter override reason:`);
+        if (!securityOverrideReason) throw error;
+        const adminPassword = prompt('Enter organization admin password to approve this override:');
+        if (!adminPassword) throw error;
+        data = await api('/api/org/gate-scan', {
+          method: 'POST',
+          headers: headers(),
+          body: JSON.stringify({ ...payload, securityOverrideReason, adminPassword })
+        });
+      }
       els.gateScanNotice.textContent = data.message || 'Gate scan recorded.';
       els.gateScanNotice.classList.remove('hidden', 'danger');
       els.gateScanForm.elements.token.value = '';
@@ -1159,7 +1196,7 @@ const state = { token: '', org: null, rules: null, orgRegistrationFields: {}, ca
     });
 
     els.refreshFeesBtn.addEventListener('click', () => {
-      Promise.all([loadFees(), loadNotifications(), loadOrgSummary()]).catch((error) => alert(friendlyError(error)));
+      Promise.all([loadFees(), loadNotifications(), loadSecurityLogs(), loadOrgSummary()]).catch((error) => alert(friendlyError(error)));
     });
 
     els.feesBody.addEventListener('click', async (event) => {
@@ -1172,6 +1209,7 @@ const state = { token: '', org: null, rules: null, orgRegistrationFields: {}, ca
           body: JSON.stringify({ type: 'fee_balance_updated' })
         });
         await loadNotifications();
+        await loadSecurityLogs();
         alert('Parent SMS/email notification queued.');
       } catch (error) {
         alert(friendlyError(error));
@@ -1242,6 +1280,12 @@ const state = { token: '', org: null, rules: null, orgRegistrationFields: {}, ca
       try {
         if (button.dataset.action === 'view') {
           showIdCard(state.cards.find((card) => card.id === button.dataset.id));
+          return;
+        }
+        if (button.dataset.action === 'rotate') {
+          if (!confirm('Rotate this card QR token? Existing printed QR codes for this card will stop working.')) return;
+          await api(`/api/org/cards/${encodeURIComponent(button.dataset.id)}/rotate-token`, { method: 'POST', headers: headers() });
+          await loadCards();
           return;
         }
         await api(`/api/org/cards/${encodeURIComponent(button.dataset.id)}/status`, { method: 'PATCH', headers: headers(), body: JSON.stringify({ status: button.dataset.status }) });

@@ -6,6 +6,7 @@ import { dirname, join, normalize, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import express from 'express';
 import { createClient } from '@supabase/supabase-js';
+import QRCode from 'qrcode';
 
 const app = express();
 const port = process.env.PORT || 3000;
@@ -34,7 +35,34 @@ const authClient = createClient(supabaseUrl || 'http://localhost', supabaseAnonK
   auth: { persistSession: false }
 });
 
+app.disable('x-powered-by');
 app.use(express.json({ limit: '8mb' }));
+
+function securityHeaders(req, res, next) {
+  const csp = [
+    "default-src 'self'",
+    "base-uri 'self'",
+    "object-src 'none'",
+    "frame-ancestors 'none'",
+    "form-action 'self'",
+    "script-src 'self' https://cdn.onesignal.com",
+    "style-src 'self' 'unsafe-inline'",
+    "img-src 'self' data: blob:",
+    "font-src 'self' data:",
+    "connect-src 'self'",
+    "worker-src 'self' blob: https://cdn.onesignal.com",
+    "manifest-src 'self'"
+  ].join('; ');
+  res.setHeader('Content-Security-Policy', csp);
+  res.setHeader('X-Frame-Options', 'DENY');
+  res.setHeader('X-Content-Type-Options', 'nosniff');
+  res.setHeader('Referrer-Policy', 'strict-origin-when-cross-origin');
+  res.setHeader('Permissions-Policy', 'camera=(self), geolocation=(self), microphone=(), payment=(), usb=()');
+  res.setHeader('Cross-Origin-Opener-Policy', 'same-origin');
+  next();
+}
+
+app.use(securityHeaders);
 
 function validateRuntimeConfig(env = process.env) {
   const errors = [];
@@ -117,8 +145,8 @@ function sendStaticFile(res, filePath, fallback = '') {
 }
 
 app.get('/', async (req, res) => {
-  if (!req.query.token) return sendStaticFile(res, 'portal.html');
-  const result = await verifyCardToken(req.query.token);
+  if (!req.query.token && !req.query.q) return sendStaticFile(res, 'portal.html');
+  const result = await verifyCardToken(req.query.q || req.query.token);
   res.send(buildVerificationHtml(result));
 });
 app.get(['/index.html', '/portal.html', '/gate.html', '/super-admin.html'], (req, res) => sendStaticFile(res, req.path));
@@ -140,6 +168,18 @@ app.get('/api/health', (req, res) => {
     supabaseConfigured: Boolean(supabaseUrl && supabaseKey),
     timestamp: new Date().toISOString()
   });
+});
+
+app.get('/api/qr', async (req, res) => {
+  const data = normalizeText(req.query.data);
+  if (!data || data.length > 2048) return res.status(400).send('Invalid QR data');
+  try {
+    const png = await QRCode.toBuffer(data, { type: 'png', margin: 0, width: 240, errorCorrectionLevel: 'M' });
+    res.setHeader('Cache-Control', 'no-store');
+    res.type('png').send(png);
+  } catch {
+    res.status(500).send('Unable to generate QR');
+  }
 });
 
 const templates = [
@@ -277,8 +317,8 @@ function verifyPassword(password, salt, passwordHash) {
   return secureEqualText(hashPassword(password, salt).passwordHash, passwordHash);
 }
 
-function signToken(payload) {
-  const body = Buffer.from(JSON.stringify({ ...payload, exp: Date.now() + 1000 * 60 * 60 * 12 })).toString('base64url');
+function signToken(payload, ttlMs = 1000 * 60 * 60 * 12) {
+  const body = Buffer.from(JSON.stringify({ ...payload, iat: Date.now(), exp: Date.now() + ttlMs })).toString('base64url');
   const sig = crypto.createHmac('sha256', sessionSecret).update(body).digest('base64url');
   return `${body}.${sig}`;
 }
@@ -287,9 +327,35 @@ function readToken(token) {
   const [body, sig] = String(token || '').split('.');
   if (!body || !sig) return null;
   const expected = crypto.createHmac('sha256', sessionSecret).update(body).digest('base64url');
-  if (sig !== expected) return null;
-  const payload = JSON.parse(Buffer.from(body, 'base64url').toString());
-  return payload.exp > Date.now() ? payload : null;
+  if (!secureEqualText(sig, expected)) return null;
+  try {
+    const payload = JSON.parse(Buffer.from(body, 'base64url').toString());
+    return payload.exp > Date.now() ? payload : null;
+  } catch {
+    return null;
+  }
+}
+
+function signCardQr(card) {
+  return signToken({ scope: 'card-qr', cardId: card.id, token: card.verification_token }, 1000 * 60 * 60 * 24 * 365 * 5);
+}
+
+function readCardQr(value) {
+  const payload = readToken(value);
+  return payload?.scope === 'card-qr' && payload.cardId && payload.token ? payload : null;
+}
+
+function signGateChallenge({ session, card, action, token }) {
+  return signToken({ scope: 'gate-scan', sessionId: session.id, cardId: card.id, action, token }, 45 * 1000);
+}
+
+function readGateChallenge(value) {
+  const payload = readToken(value);
+  return payload?.scope === 'gate-scan' ? payload : null;
+}
+
+function signDeviceRequest(secret, payload) {
+  return crypto.createHmac('sha256', secret).update(payload).digest('base64url');
 }
 
 function bearer(req) {
@@ -308,6 +374,26 @@ function requireOrg(req, res, next) {
   if (!token || token.scope !== 'org') return res.status(401).json({ error: 'Organization login required.' });
   req.orgId = token.orgId;
   next();
+}
+
+async function requireFreshAdminPassword(req, res) {
+  const adminPassword = normalizeText(req.body.adminPassword);
+  if (!adminPassword) {
+    res.status(403).json({ error: 'Current admin password is required for this action.' });
+    return null;
+  }
+  let settings;
+  try {
+    settings = await adminSettings();
+  } catch (error) {
+    res.status(500).json({ error: error.message });
+    return null;
+  }
+  if (!verifyPassword(adminPassword, settings.salt, settings.password_hash)) {
+    res.status(403).json({ error: 'Current admin password is invalid.' });
+    return null;
+  }
+  return settings;
 }
 
 function orgDefaults(name) {
@@ -422,9 +508,13 @@ function extractVerificationToken(value) {
   if (!text) return '';
   try {
     const parsed = new URL(text);
+    const signed = parsed.searchParams.get('q');
+    if (signed) return readCardQr(signed)?.token || '';
     return parsed.searchParams.get('token') || text;
   } catch {
-    return text.replace(/^.*[?&]token=/, '').split('&')[0];
+    const signed = text.replace(/^.*[?&]q=/, '').split('&')[0];
+    if (signed && signed !== text) return readCardQr(signed)?.token || '';
+    return readCardQr(text)?.token || text.replace(/^.*[?&]token=/, '').split('&')[0];
   }
 }
 
@@ -646,6 +736,8 @@ function toSecurityLog(row) {
     action: row.action,
     result: row.result,
     reason: row.reason,
+    confidenceScore: row.confidence_score ?? 100,
+    alertLevel: row.alert_level || 'none',
     gateStaffId: row.gate_staff_id,
     gateStaffName: row.gate_staff_name,
     gateName: row.gate_name,
@@ -658,6 +750,16 @@ function toSecurityLog(row) {
     source: row.source,
     createdAt: row.created_at
   };
+}
+
+function securityConfidence(meta = {}, result = 'denied') {
+  let score = result === 'allowed' ? 100 : 35;
+  if (meta.locationAccuracy !== null && meta.locationAccuracy !== undefined) score -= Math.min(35, Math.max(0, Number(meta.locationAccuracy) - 25) / 3);
+  if (!meta.locationCapturedAt) score -= 15;
+  if (!meta.signature) score -= 20;
+  score = Math.max(0, Math.min(100, Math.round(score)));
+  const alertLevel = result === 'denied' ? 'high' : score < 60 ? 'medium' : score < 85 ? 'low' : 'none';
+  return { confidenceScore: score, alertLevel };
 }
 
 function movementClosedFor(card, org, action) {
@@ -732,6 +834,8 @@ function scanMeta(req, source = 'gate-app') {
   const capturedAtMs = Date.parse(req.body.locationCapturedAt || '');
   return {
     deviceId: normalizeText(req.body.deviceId),
+    signature: normalizeText(req.body.deviceSignature),
+    signaturePayload: normalizeText(req.body.deviceSignaturePayload),
     latitude: Number.isFinite(latitude) ? latitude : null,
     longitude: Number.isFinite(longitude) ? longitude : null,
     locationAccuracy: Number.isFinite(locationAccuracy) ? locationAccuracy : null,
@@ -740,6 +844,16 @@ function scanMeta(req, source = 'gate-app') {
     userAgent: normalizeText(req.body.userAgent) || req.get('user-agent') || '',
     source
   };
+}
+
+function validDeviceSignature(device, meta) {
+  if (!device?.device_secret) return true;
+  if (!meta.signature || !meta.signaturePayload) return false;
+  if (!meta.signaturePayload.startsWith(`${meta.deviceId}:`)) return false;
+  const parts = meta.signaturePayload.split(':');
+  const timestamp = Number(parts[1]);
+  if (!Number.isFinite(timestamp) || Math.abs(Date.now() - timestamp) > 2 * 60 * 1000) return false;
+  return secureEqualText(meta.signature, signDeviceRequest(device.device_secret, meta.signaturePayload));
 }
 
 function gateConfigFor(org, gateName = '') {
@@ -786,6 +900,7 @@ async function gateDeviceDecision(org, staff, meta, gateName) {
     gate_staff_id: staff.id,
     gate_name: gateName || staff.gate_name || 'Main Gate',
     device_id: meta.deviceId,
+    device_secret: crypto.randomBytes(32).toString('hex'),
     user_agent: meta.userAgent || '',
     last_seen_at: new Date().toISOString(),
     updated_at: new Date().toISOString()
@@ -800,7 +915,9 @@ async function gateDeviceDecision(org, staff, meta, gateName) {
     await db.from('gate_devices').insert({ id: `DEVICE-${Date.now()}`, ...payload, status: 'Pending' });
     return { allowed: false, reason: 'New scanner device is pending admin approval.' };
   }
+  const deviceSecret = existing.device_secret || crypto.randomBytes(32).toString('hex');
   await db.from('gate_devices').update({
+    device_secret: deviceSecret,
     user_agent: meta.userAgent || '',
     last_seen_at: new Date().toISOString(),
     updated_at: new Date().toISOString()
@@ -812,7 +929,7 @@ async function gateDeviceDecision(org, staff, meta, gateName) {
   if (approvedGate && normalizeText(gateName) && approvedGate.toLowerCase() !== normalizeText(gateName).toLowerCase()) {
     return { allowed: false, reason: 'Scanner device is approved for a different gate.' };
   }
-  return { allowed: true, device: existing };
+  return { allowed: true, device: { ...existing, device_secret: deviceSecret } };
 }
 
 async function gpsDecision(org, gateName, meta) {
@@ -879,10 +996,12 @@ async function sessionDeviceDecision(org, session, meta) {
   if (device.status === 'Blocked') return { allowed: false, reason: 'Scanner device is blocked.' };
   if (device.status !== 'Approved') return { allowed: false, reason: 'Scanner device is pending admin approval.' };
   if (device.gate_staff_id && device.gate_staff_id !== session.gate_staff_id) return { allowed: false, reason: 'Scanner device is approved for a different gate staff member.' };
+  if (!validDeviceSignature(device, meta)) return { allowed: false, reason: 'Scanner device signature is missing or invalid.' };
   return { allowed: true, device };
 }
 
 async function logScanSecurity({ org, card = null, action = '', result = 'denied', reason = '', session = null, staff = null, gateName = '', meta = {}, source = '' }) {
+  const confidence = securityConfidence(meta, result);
   const row = {
     organization_id: org?.id || null,
     organization_name: org?.name || '',
@@ -891,6 +1010,8 @@ async function logScanSecurity({ org, card = null, action = '', result = 'denied
     action,
     result,
     reason,
+    confidence_score: confidence.confidenceScore,
+    alert_level: confidence.alertLevel,
     gate_staff_id: staff?.id || session?.gate_staff_id || null,
     gate_staff_name: staff?.full_name || session?.staff_name || '',
     gate_name: gateName || session?.gate_name || '',
@@ -998,6 +1119,7 @@ function toCard(row) {
     position: row.position,
     photo: row.photo,
     verificationToken: row.verification_token,
+    qrPayload: signCardQr(row),
     status: row.status,
     inactiveReason: row.inactive_reason,
     approvedBy: row.approved_by,
@@ -1040,7 +1162,11 @@ function cardValidity(card, org) {
 }
 
 async function verifyCardToken(token) {
-  const { data: card, error } = await db.from('cards').select('*').eq('verification_token', token || '').maybeSingle();
+  const signed = readCardQr(token);
+  const normalizedToken = signed?.token || extractVerificationToken(token);
+  let query = db.from('cards').select('*').eq('verification_token', normalizedToken || '');
+  if (signed?.cardId) query = query.eq('id', signed.cardId);
+  const { data: card, error } = await query.maybeSingle();
   if (error || !card) return { valid: false, reason: 'Card token was not found.' };
   const org = card.organization_id ? await getOrg(card.organization_id) : null;
   const validity = cardValidity(card, org);
@@ -1137,6 +1263,25 @@ async function loadOrganizationsById() {
 
 async function audit(action, cardId = '', actor = 'system') {
   await db.from('audit_log').insert({ action, card_id: cardId || null, actor });
+}
+
+async function cleanupSecurityData(retentionDays = Number(process.env.SECURITY_LOG_RETENTION_DAYS || 180)) {
+  const now = new Date();
+  const resetCutoff = new Date(now.getTime() - 7 * 24 * 60 * 60 * 1000).toISOString();
+  const sessionCutoff = new Date(now.getTime() - 7 * 24 * 60 * 60 * 1000).toISOString();
+  const logCutoff = new Date(now.getTime() - Math.max(30, retentionDays) * 24 * 60 * 60 * 1000).toISOString();
+  const [resetExpired, resetUsed, sessions, logs] = await Promise.all([
+    db.from('password_resets').delete({ count: 'exact' }).lt('expires_at', resetCutoff),
+    db.from('password_resets').delete({ count: 'exact' }).not('used_at', 'is', null).lt('used_at', resetCutoff),
+    db.from('gate_sessions').delete({ count: 'exact' }).lt('expires_at', sessionCutoff).neq('status', 'On Duty'),
+    db.from('scan_security_logs').delete({ count: 'exact' }).lt('created_at', logCutoff)
+  ]);
+  return {
+    expiredResetCodes: resetExpired.count || 0,
+    usedResetCodes: resetUsed.count || 0,
+    gateSessions: sessions.count || 0,
+    securityLogs: logs.count || 0
+  };
 }
 
 async function adminSettings() {
@@ -1287,6 +1432,14 @@ app.patch('/api/cards/:id/status', requireAdmin, async (req, res) => {
   res.json({ card: toCard(data) });
 });
 
+app.post('/api/cards/:id/rotate-token', requireAdmin, async (req, res) => {
+  const patch = { verification_token: crypto.randomBytes(24).toString('hex'), updated_at: new Date().toISOString() };
+  const { data, error } = await db.from('cards').update(patch).eq('id', req.params.id).select('*').single();
+  if (error) return res.status(400).json({ error: error.message });
+  await audit('Rotated card QR token', req.params.id, req.admin.user);
+  res.json({ card: toCard(data) });
+});
+
 app.get('/api/backup', requireAdmin, async (req, res) => {
   const [cards, organizations, log, attendance, fees, notifications, securityLogs, gateStaff, gateSessions, gateDevices] = await Promise.all([
     db.from('cards').select('*'),
@@ -1315,8 +1468,11 @@ app.get('/api/backup', requireAdmin, async (req, res) => {
 });
 
 app.post('/api/restore', requireAdmin, async (req, res) => {
+  const settings = await requireFreshAdminPassword(req, res);
+  if (!settings) return;
   if (Array.isArray(req.body.cards)) await db.from('cards').upsert(req.body.cards);
   if (Array.isArray(req.body.organizations)) await db.from('organizations').upsert(req.body.organizations);
+  await audit('Restored backup JSON', '', req.admin.user);
   res.json({ ok: true });
 });
 
@@ -1334,9 +1490,20 @@ app.get('/api/organizations', requireAdmin, async (req, res) => {
 
 app.delete('/api/organizations', requireAdmin, async (req, res) => {
   if (req.body.confirm !== 'DELETE ORGANIZATIONS') return res.status(400).json({ error: 'Confirmation text is required.' });
+  const settings = await requireFreshAdminPassword(req, res);
+  if (!settings) return;
   const { count: cardCount } = await db.from('cards').delete({ count: 'exact' }).not('organization_id', 'is', null);
   const { count: orgCount } = await db.from('organizations').delete({ count: 'exact' }).neq('id', '');
+  await audit('Deleted all organization accounts', '', req.admin.user);
   res.json({ deletedOrganizations: orgCount || 0, deletedOrganizationCards: cardCount || 0 });
+});
+
+app.post('/api/maintenance/cleanup', requireAdmin, async (req, res) => {
+  const settings = await requireFreshAdminPassword(req, res);
+  if (!settings) return;
+  const deleted = await cleanupSecurityData(Number(req.body.retentionDays || process.env.SECURITY_LOG_RETENTION_DAYS || 180));
+  await audit('Cleaned up expired security data', '', req.admin.user);
+  res.json({ deleted });
 });
 
 app.patch('/api/organizations/:id/subscription', requireAdmin, async (req, res) => {
@@ -1405,7 +1572,7 @@ app.post('/api/org-forgot-password', resetRateLimit, async (req, res) => {
 
 app.post('/api/org-reset-password', authRateLimit, async (req, res) => {
   const email = normalizeText(req.body.email).toLowerCase();
-  const { data } = await db.from('password_resets').select('*').ilike('email', email).eq('code', req.body.code).gt('expires_at', new Date().toISOString()).order('created_at', { ascending: false }).limit(1).maybeSingle();
+  const { data } = await db.from('password_resets').select('*').ilike('email', email).eq('code', req.body.code).is('used_at', null).gt('expires_at', new Date().toISOString()).order('created_at', { ascending: false }).limit(1).maybeSingle();
   if (!data) return res.status(400).json({ error: 'Invalid or expired code.' });
   const { data: org } = await db.from('organizations').select('*').ilike('email', email).maybeSingle();
   if (!org) return res.status(404).json({ error: 'Registered organization admin email not found.' });
@@ -1413,12 +1580,13 @@ app.post('/api/org-reset-password', authRateLimit, async (req, res) => {
   if (passwordError) return res.status(400).json({ error: passwordError });
   const update = await updateOrgAuthPassword(org, req.body.password || '');
   if (update.error) return res.status(400).json({ error: update.error });
+  await db.from('password_resets').update({ used_at: new Date().toISOString() }).eq('id', data.id);
   res.json({ ok: true });
 });
 
 app.post('/api/reset-password', authRateLimit, async (req, res) => {
   const email = normalizeEmail(req.body.email);
-  const { data } = await db.from('password_resets').select('*').ilike('email', email).eq('code', req.body.code).gt('expires_at', new Date().toISOString()).order('created_at', { ascending: false }).limit(1).maybeSingle();
+  const { data } = await db.from('password_resets').select('*').ilike('email', email).eq('code', req.body.code).is('used_at', null).gt('expires_at', new Date().toISOString()).order('created_at', { ascending: false }).limit(1).maybeSingle();
   if (!data) return res.status(400).json({ error: 'Invalid or expired code.' });
   const settings = await adminSettings();
   if (email !== normalizeEmail(settings.email)) return res.status(400).json({ error: 'Invalid or expired code.' });
@@ -1426,6 +1594,7 @@ app.post('/api/reset-password', authRateLimit, async (req, res) => {
   if (passwordError) return res.status(400).json({ error: passwordError });
   const { salt, passwordHash } = hashPassword(req.body.password || '');
   await db.from('admin_settings').update({ salt, password_hash: passwordHash, updated_at: new Date().toISOString() }).eq('id', settings.id);
+  await db.from('password_resets').update({ used_at: new Date().toISOString() }).eq('id', data.id);
   res.json({ ok: true });
 });
 
@@ -1587,6 +1756,15 @@ app.get('/api/org/notifications', requireOrg, async (req, res) => {
   res.json({ notifications: (data || []).map(toNotification) });
 });
 
+app.get('/api/org/security-logs', requireOrg, async (req, res) => {
+  const result = normalizeText(req.query.result);
+  let query = db.from('scan_security_logs').select('*').eq('organization_id', req.orgId).order('created_at', { ascending: false }).limit(500);
+  if (['allowed', 'denied'].includes(result)) query = query.eq('result', result);
+  const { data, error } = await query;
+  if (error) return res.status(500).json({ error: error.message });
+  res.json({ logs: (data || []).map(toSecurityLog) });
+});
+
 app.get('/api/org/backup', requireOrg, async (req, res) => {
   const org = await getOrg(req.orgId);
   if (!org) return res.status(404).json({ error: 'Organization not found.' });
@@ -1711,7 +1889,7 @@ app.post('/api/gate/login', authRateLimit, async (req, res) => {
   const { data, error } = await db.from('gate_sessions').insert(session).select('*').single();
   if (error) return res.status(400).json({ error: error.message });
   await audit('Gate staff started duty', staff.id, staff.full_name);
-  res.json({ session: toGateSession(data), organization: toOrg(org), staff: toGateStaff(staff) });
+  res.json({ session: toGateSession(data), organization: toOrg(org), staff: toGateStaff(staff), deviceSecret: device.device?.device_secret || '' });
 });
 
 app.post('/api/gate/logout', async (req, res) => {
@@ -1759,7 +1937,8 @@ app.post('/api/gate/preview', gateRateLimit, async (req, res) => {
     organization: { id: org.id, name: org.name, type: org.type, typeLabel: organizationTypes[org.type]?.label || org.type },
     action,
     fee,
-    state: openRecord ? 'Inside' : 'Outside'
+    state: openRecord ? 'Inside' : 'Outside',
+    scanChallenge: signGateChallenge({ session, card, action, token })
   });
 });
 
@@ -1769,14 +1948,19 @@ app.post('/api/gate/confirm', gateRateLimit, async (req, res) => {
   const action = req.body.action === 'leave' ? 'leave' : 'enter';
   const meta = scanMeta(req, 'gate-app');
   const context = { org, action, session, gateName: session.gate_name, meta, source: 'gate-app' };
+  const challenge = readGateChallenge(req.body.scanChallenge);
+  const token = extractVerificationToken(req.body.token);
+  if (!challenge || challenge.sessionId !== session.id || challenge.action !== action || challenge.token !== token) {
+    return denyScan(res, 409, 'Gate scan preview expired or does not match this confirmation. Preview the card again.', context);
+  }
   const device = await sessionDeviceDecision(org, session, meta);
   if (!device.allowed) return denyScan(res, 403, device.reason, context);
   const gps = await gpsDecision(org, session.gate_name, meta);
   if (!gps.allowed) return denyScan(res, 403, gps.reason, context);
-  const token = extractVerificationToken(req.body.token);
   const { data: card } = await db.from('cards').select('*').eq('verification_token', token).maybeSingle();
   if (!card) return denyScan(res, 404, 'Card token was not found.', context);
   context.card = card;
+  if (challenge.cardId !== card.id) return denyScan(res, 409, 'Gate scan challenge belongs to a different card. Preview the card again.', context);
   if (card.organization_id !== org.id) return denyScan(res, 403, 'This card does not belong to this organization.', context);
   const validity = cardValidity(card, org);
   if (!validity.valid) return denyScan(res, 403, validity.reason, context);
@@ -1846,7 +2030,13 @@ app.post('/api/org/gate-scan', requireOrg, gateRateLimit, async (req, res) => {
   const meta = scanMeta(req, 'admin-dashboard');
   const context = { org, action, gateName, meta, source: 'admin-dashboard' };
   const gps = await gpsDecision(org, gateName, meta);
-  if (!gps.allowed) return denyScan(res, 403, gps.reason, context);
+  if (!gps.allowed) {
+    const overrideReason = normalizeText(req.body.securityOverrideReason);
+    const overridePassword = normalizeText(req.body.adminPassword);
+    if (!overrideReason || !overridePassword) return denyScan(res, 403, `${gps.reason} Admin override requires current password and reason.`, context);
+    if (!await verifyOrgPassword(org, overridePassword)) return denyScan(res, 403, 'Admin override password is invalid.', context);
+    await logScanSecurity({ ...context, result: 'allowed', reason: `Admin override: ${overrideReason}. Original block: ${gps.reason}` });
+  }
   const { data: card, error } = await db.from('cards').select('*').eq('verification_token', token).maybeSingle();
   if (error || !card) return denyScan(res, 404, 'Card token was not found.', context);
   context.card = card;
@@ -1918,6 +2108,14 @@ app.patch('/api/org/cards/:id/status', requireOrg, async (req, res) => {
   if (req.body.status === 'Approved') patch.approved_at = new Date().toISOString();
   const { data, error } = await db.from('cards').update(patch).eq('id', req.params.id).eq('organization_id', req.orgId).select('*').single();
   if (error) return res.status(400).json({ error: error.message });
+  res.json({ card: toCard(data) });
+});
+
+app.post('/api/org/cards/:id/rotate-token', requireOrg, async (req, res) => {
+  const patch = { verification_token: crypto.randomBytes(24).toString('hex'), updated_at: new Date().toISOString() };
+  const { data, error } = await db.from('cards').update(patch).eq('id', req.params.id).eq('organization_id', req.orgId).select('*').single();
+  if (error) return res.status(400).json({ error: error.message });
+  await audit('Organization rotated card QR token', req.params.id, req.orgId);
   res.json({ card: toCard(data) });
 });
 
@@ -2009,7 +2207,8 @@ async function createOrganization(body, status, subscriptionStatus) {
   };
   let { data, error } = await db.from('organizations').insert(row).select('*').single();
   if (error && isMissingColumnError(error, 'auth_user_id')) {
-    const { auth_user_id: _authUserId, ...legacyRow } = row;
+    const legacyRow = { ...row };
+    delete legacyRow.auth_user_id;
     ({ data, error } = await db.from('organizations').insert(legacyRow).select('*').single());
   }
   return error ? { error: error.message } : { data };
@@ -2045,7 +2244,10 @@ export {
   app,
   cardRow,
   createRateLimit,
+  distanceMeters,
   extractVerificationToken,
+  gateConfigFor,
+  gpsSecurity,
   hashPassword,
   normalizeEmail,
   normalizeIdentifier,
@@ -2054,6 +2256,7 @@ export {
   secureEqualText,
   signToken,
   validatePassword,
+  validCoordinate,
   validateRuntimeConfig,
   verifyPassword
 };

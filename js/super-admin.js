@@ -1,6 +1,6 @@
 const state = {
       user: sessionStorage.getItem('mapphexAdminUser') || 'admin',
-      pin: sessionStorage.getItem('mapphexAdminPin') || '',
+      pin: '',
       token: sessionStorage.getItem('mapphexAdminToken') || '',
       records: [],
       editingId: '',
@@ -118,11 +118,21 @@ const state = {
     }
 
     function qrUrl(data) {
-      return `https://api.qrserver.com/v1/create-qr-code/?size=240x240&margin=0&data=${encodeURIComponent(data)}`;
+      return `/api/qr?data=${encodeURIComponent(data)}`;
+    }
+
+    function promptAdminPassword(action) {
+      const password = prompt(`Enter current admin password to ${action}:`);
+      if (!password) throw new Error('Current admin password is required.');
+      return password;
     }
 
     function verificationUrl(token) {
       return `${window.location.origin}/?token=${encodeURIComponent(token)}`;
+    }
+
+    function cardVerificationUrl(card) {
+      return card?.qrPayload ? `${window.location.origin}/?q=${encodeURIComponent(card.qrPayload)}` : verificationUrl(card?.verificationToken || '');
     }
 
     function claimUrl(token) {
@@ -260,6 +270,7 @@ const state = {
           <td>
             ${(r.status || 'Pending') === 'Approved' ? `<button data-action="view" data-id="${escapeAttr(r.id)}">View Card</button>` : ''}
             ${(r.status || 'Pending') === 'Approved' ? `<button data-action="notify" data-id="${escapeAttr(r.id)}">Notify</button>` : ''}
+            <button data-action="rotate" data-id="${escapeAttr(r.id)}">Rotate QR</button>
             <button data-action="approve" data-id="${escapeAttr(r.id)}">Approve</button>
             <button data-action="reject" data-id="${escapeAttr(r.id)}">Reject</button>
             <button data-action="inactive" data-id="${escapeAttr(r.id)}">Inactive</button>
@@ -287,7 +298,7 @@ const state = {
         els.cardPhoto.classList.add('hidden');
         els.cardPhotoPlaceholder.classList.remove('hidden');
       }
-      els.cardQr.src = qrUrl(verificationUrl(card.verificationToken || ''));
+      els.cardQr.src = qrUrl(cardVerificationUrl(card));
       const link = claimUrl(card.verificationToken || '');
       const message = `Hello ${card.name || 'there'}, your VeriCard ID card has been approved. Open this link to view/download your ID card: ${link}`;
       els.notifyText.textContent = `Notify ${card.name || 'worker'} that the ID card is ready.`;
@@ -422,11 +433,12 @@ const state = {
     }
 
     async function restoreJson(file) {
-      const text = await file.text();
+      const backup = JSON.parse(await file.text());
+      backup.adminPassword = promptAdminPassword('restore backup data');
       const response = await fetch('/api/restore', {
         method: 'POST',
         headers: { ...headers(), 'Content-Type': 'application/json' },
-        body: text
+        body: JSON.stringify(backup)
       });
       const data = await readJson(response);
       if (!response.ok) throw new Error(data.error || 'Unable to restore backup.');
@@ -535,10 +547,11 @@ const state = {
     async function deleteAllOrganizations() {
       const confirmation = prompt('Type DELETE ORGANIZATIONS to delete all subscriber organization accounts and their organization cards.');
       if (confirmation !== 'DELETE ORGANIZATIONS') return;
+      const adminPassword = promptAdminPassword('delete all organization accounts');
       const response = await fetch('/api/organizations', {
         method: 'DELETE',
         headers: { ...headers(), 'Content-Type': 'application/json' },
-        body: JSON.stringify({ confirm: confirmation })
+        body: JSON.stringify({ confirm: confirmation, adminPassword })
       });
       const data = await readJson(response);
       if (!response.ok) throw new Error(data.error || 'Unable to delete organization accounts.');
@@ -618,7 +631,6 @@ const state = {
       state.user = els.user.value.trim() || 'admin';
       state.pin = els.pin.value.trim();
       sessionStorage.setItem('mapphexAdminUser', state.user);
-      sessionStorage.setItem('mapphexAdminPin', state.pin);
       try {
         await login();
         await loadCards();
@@ -686,6 +698,13 @@ const state = {
         if (button.dataset.action === 'inactive') {
           const reason = prompt('Reason for marking this worker inactive?', card.inactiveReason || 'Left company') || 'This worker is no longer active.';
           Object.assign(card, (await setStatus(card.id, 'Inactive', reason)).card);
+        }
+        if (button.dataset.action === 'rotate') {
+          if (!confirm('Rotate this card QR token? Existing printed QR codes for this card will stop working.')) return;
+          const response = await fetch(`/api/cards/${encodeURIComponent(card.id)}/rotate-token`, { method: 'POST', headers: headers() });
+          const data = await readJson(response);
+          if (!response.ok) throw new Error(data.error || 'Unable to rotate QR token.');
+          Object.assign(card, data.card);
         }
         if (button.dataset.action === 'edit') startEdit(card);
         if (button.dataset.action === 'edit') showTab('edit');

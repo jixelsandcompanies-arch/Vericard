@@ -1,6 +1,7 @@
 const state = {
   sessionToken: sessionStorage.getItem('mapphexGateSession') || '',
   deviceId: localStorage.getItem('vericardGateDeviceId') || '',
+  deviceSecret: localStorage.getItem('vericardGateDeviceSecret') || '',
   preview: null,
   lastPayload: null,
   lastLocation: null
@@ -55,11 +56,24 @@ function currentLocation() {
 async function scannerMeta() {
   const location = await currentLocation();
   state.lastLocation = location.latitude !== undefined ? location : state.lastLocation;
-  return {
+  const meta = {
     deviceId: state.deviceId,
     userAgent: navigator.userAgent,
     ...location
   };
+  if (state.deviceSecret) {
+    meta.deviceSignaturePayload = `${state.deviceId}:${Date.now()}`;
+    meta.deviceSignature = await hmacSha256(state.deviceSecret, meta.deviceSignaturePayload);
+  }
+  return meta;
+}
+
+async function hmacSha256(secret, payload) {
+  const key = await crypto.subtle.importKey('raw', new TextEncoder().encode(secret), { name: 'HMAC', hash: 'SHA-256' }, false, ['sign']);
+  const signature = await crypto.subtle.sign('HMAC', key, new TextEncoder().encode(payload));
+  const bytes = Array.from(new Uint8Array(signature));
+  const binary = bytes.map((byte) => String.fromCharCode(byte)).join('');
+  return btoa(binary).replace(/\+/g, '-').replace(/\//g, '_').replace(/=+$/g, '');
 }
 
 async function api(path, options = {}) {
@@ -95,7 +109,7 @@ function clearPreview() {
 
 function renderPreview(data, payload) {
   state.preview = data;
-  state.lastPayload = payload;
+  state.lastPayload = { ...payload, scanChallenge: data.scanChallenge };
   const card = data.card;
   els.personName.textContent = card.name || '';
   els.personMeta.textContent = `${card.roleLabel || card.roleType || ''} | ${card.number || ''} | ${card.classGrade || ''}`;
@@ -117,6 +131,10 @@ els.gateLoginForm.addEventListener('submit', async (event) => {
   try {
     const payload = { ...Object.fromEntries(new FormData(els.gateLoginForm).entries()), ...(await scannerMeta()) };
     const data = await api('/api/gate/login', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(payload) });
+    if (data.deviceSecret) {
+      state.deviceSecret = data.deviceSecret;
+      localStorage.setItem('vericardGateDeviceSecret', state.deviceSecret);
+    }
     showDuty(data.session, data.organization);
   } catch (error) {
     els.loginNotice.textContent = error.message;

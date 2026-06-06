@@ -67,6 +67,7 @@ create table if not exists password_resets (
   email text not null,
   code text not null,
   expires_at timestamptz not null,
+  used_at timestamptz,
   created_at timestamptz not null default now()
 );
 
@@ -157,6 +158,7 @@ create table if not exists gate_devices (
   gate_staff_id text not null,
   gate_name text not null default 'Main Gate',
   device_id text not null,
+  device_secret text not null default '',
   user_agent text not null default '',
   status text not null default 'Pending',
   last_seen_at timestamptz,
@@ -174,6 +176,8 @@ create table if not exists scan_security_logs (
   action text not null default '',
   result text not null default 'denied',
   reason text not null default '',
+  confidence_score integer not null default 100,
+  alert_level text not null default 'none',
   gate_staff_id text,
   gate_staff_name text not null default '',
   gate_name text not null default '',
@@ -224,6 +228,8 @@ alter table parent_notifications add column if not exists parent_email text not 
 alter table parent_notifications add column if not exists channel text not null default 'sms';
 alter table parent_notifications add column if not exists delivery_status text not null default 'Queued';
 alter table parent_notifications alter column status set default 'Queued';
+alter table password_resets add column if not exists used_at timestamptz;
+alter table gate_devices add column if not exists device_secret text not null default '';
 alter table gate_sessions add column if not exists device_id text not null default '';
 alter table gate_sessions add column if not exists user_agent text not null default '';
 alter table attendance_records add column if not exists device_id text not null default '';
@@ -233,6 +239,8 @@ alter table attendance_records add column if not exists longitude numeric;
 alter table attendance_records add column if not exists location_accuracy numeric;
 alter table attendance_records add column if not exists security_status text not null default '';
 alter table attendance_records add column if not exists security_reason text not null default '';
+alter table scan_security_logs add column if not exists confidence_score integer not null default 100;
+alter table scan_security_logs add column if not exists alert_level text not null default 'none';
 
 create unique index if not exists organizations_email_unique_idx on organizations (lower(email));
 create unique index if not exists organizations_business_number_unique_idx on organizations (lower(business_number));

@@ -4,7 +4,10 @@ import test from 'node:test';
 process.env.NODE_ENV = 'test';
 
 const {
+  distanceMeters,
   extractVerificationToken,
+  gateConfigFor,
+  gpsSecurity,
   hashPassword,
   normalizeEmail,
   normalizeIdentifier,
@@ -13,6 +16,7 @@ const {
   signToken,
   validatePassword,
   validateRuntimeConfig,
+  validCoordinate,
   verifyPassword
 } = await import('../server.js');
 
@@ -62,4 +66,38 @@ test('production runtime config rejects unsafe defaults', () => {
   assert.ok(errors.some((error) => error.includes('ADMIN_PASSWORD')));
   assert.ok(errors.some((error) => error.includes('SUPABASE_URL')));
   assert.ok(errors.some((error) => error.includes('EXPOSE_RESET_CODES')));
+});
+
+test('GPS coordinate validation rejects impossible coordinates', () => {
+  assert.equal(validCoordinate(-1.286389, 36.817223), true);
+  assert.equal(validCoordinate(91, 36.817223), false);
+  assert.equal(validCoordinate(-1.286389, 181), false);
+  assert.equal(validCoordinate(Number.NaN, 36.817223), false);
+});
+
+test('distanceMeters returns realistic short distances', () => {
+  const distance = distanceMeters(-1.286389, 36.817223, -1.286489, 36.817223);
+
+  assert.ok(distance > 10);
+  assert.ok(distance < 12);
+});
+
+test('gateConfigFor prefers named gate settings and falls back to organization gate settings', () => {
+  const org = {
+    back_settings: {
+      gateLatitude: '-1.0',
+      gateLongitude: '36.0',
+      gateRadiusMeters: '100',
+      gates: [{ name: 'North', latitude: '-1.5', longitude: '36.5', radiusMeters: '50' }]
+    }
+  };
+
+  assert.deepEqual(gateConfigFor(org, 'North'), { latitude: -1.5, longitude: 36.5, radiusMeters: 50 });
+  assert.deepEqual(gateConfigFor(org, 'South'), { latitude: -1, longitude: 36, radiusMeters: 100 });
+});
+
+test('GPS security thresholds are strict enough for gate scanning', () => {
+  assert.equal(gpsSecurity.maxAccuracyMeters, 100);
+  assert.equal(gpsSecurity.maxLocationAgeMs, 120000);
+  assert.ok(gpsSecurity.maxJumpSpeedMetersPerSecond > 0);
 });

@@ -66,6 +66,15 @@ app.use('/assets', express.static(staticFilePath('assets') || join(appRoot, 'ass
 app.use('/features', express.static(staticFilePath('features') || join(appRoot, 'features')));
 app.use(express.static(staticFilePath('.') || appRoot));
 
+app.get('/api/health', (req, res) => {
+  res.json({
+    ok: true,
+    app: 'VeriCard',
+    supabaseConfigured: Boolean(supabaseUrl && supabaseKey),
+    timestamp: new Date().toISOString()
+  });
+});
+
 const templates = [
   { id: 'sample', name: 'Classic Blue', description: 'Clean corporate card with QR verification.' },
   { id: 'school', name: 'School', description: 'Student and staff registration fields.' },

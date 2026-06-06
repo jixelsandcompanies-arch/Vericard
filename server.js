@@ -347,6 +347,11 @@ function normalizeText(value) {
   return String(value || '').trim();
 }
 
+function isMissingColumnError(error, column) {
+  const text = `${error?.message || ''} ${error?.details || ''} ${error?.hint || ''}`;
+  return text.toLowerCase().includes(`'${column.toLowerCase()}' column`) || text.toLowerCase().includes(`${column.toLowerCase()} column`);
+}
+
 function validatePassword(value) {
   if (String(value || '').length < 8) return 'Password must be at least 8 characters.';
   return '';
@@ -1996,7 +2001,11 @@ async function createOrganization(body, status, subscriptionStatus) {
     back_settings: { ...orgDefaults(body.name.trim()), ...backSettings },
     master_card: masterCard
   };
-  const { data, error } = await db.from('organizations').insert(row).select('*').single();
+  let { data, error } = await db.from('organizations').insert(row).select('*').single();
+  if (error && isMissingColumnError(error, 'auth_user_id')) {
+    const { auth_user_id: _authUserId, ...legacyRow } = row;
+    ({ data, error } = await db.from('organizations').insert(legacyRow).select('*').single());
+  }
   return error ? { error: error.message } : { data };
 }
 

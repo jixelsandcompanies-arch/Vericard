@@ -1,0 +1,2 @@
+html[data-organization-feature="security"] .feature-security { border-left: 4px solid var(--gold); }
+html[data-organization-feature="security"] #gateScanPanel h2::after { content: " - Duty proof"; color: var(--muted); font-size: 12px; }

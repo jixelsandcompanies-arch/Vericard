@@ -1,0 +1,2 @@
+html[data-organization-feature="government"] .feature-government { border-left: 4px solid var(--gold); }
+html[data-organization-feature="government"] #gateScanPanel h2::after { content: " - Office access"; color: var(--muted); font-size: 12px; }

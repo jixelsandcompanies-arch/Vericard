@@ -1,0 +1,260 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>VeriCard Portal</title>
+  <link rel="stylesheet" href="/css/super-admin.css">
+</head>
+<body>
+  <header class="admin-header">
+    <div class="admin-header-inner">
+      <div class="admin-brand">
+        <strong>VeriCard Portal</strong>
+        <span>ID registration, approval, and verification control</span>
+      </div>
+      <div class="header-actions">
+        <div class="admin-status">Secure admin access</div>
+        <button class="logout-btn" type="button" id="logoutBtn">Logout</button>
+      </div>
+    </div>
+  </header>
+  <main>
+    <div class="topbar">
+      <h1>VeriCard Portal</h1>
+      <div class="login-form">
+        <input id="user" placeholder="Username" value="admin">
+        <div class="password-wrap">
+          <input id="pin" type="password" placeholder="Password">
+          <button type="button" class="toggle-password" data-target="pin" aria-label="Show admin PIN">Eye</button>
+        </div>
+        <button id="loginBtn" type="button">Login</button>
+        <button id="forgotToggleBtn" class="link-button" type="button">Forgot password?</button>
+        <div class="reset-box hidden" id="resetBox">
+          <input id="resetEmail" type="email" placeholder="Registered admin email">
+          <button id="sendResetBtn" type="button" class="secondary">Send Verification Code</button>
+          <input id="resetCode" inputmode="numeric" placeholder="Verification code">
+          <div class="password-wrap">
+            <input id="resetPassword" type="password" placeholder="New password">
+            <button type="button" class="toggle-password" data-target="resetPassword" aria-label="Show reset password">Eye</button>
+          </div>
+          <button id="resetPasswordBtn" type="button">Reset Password</button>
+        </div>
+      </div>
+    </div>
+
+    <section id="adminArea" class="admin-shell hidden">
+      <button class="mobile-menu-btn secondary" type="button" id="menuBtn">Menu</button>
+      <aside class="panel side-menu" id="sideMenu">
+        <h2>Dashboard</h2>
+        <button type="button" class="active" data-tab="dashboard">Dashboard</button>
+        <button type="button" data-tab="registrations">Registrations</button>
+        <button type="button" data-tab="attendance">Attendance</button>
+        <button type="button" data-tab="reports">Reports</button>
+        <button type="button" data-tab="card">ID Card</button>
+        <button type="button" data-tab="edit">Edit Card</button>
+        <button type="button" data-tab="create">Create Card</button>
+        <button type="button" data-tab="organizations">Organizations</button>
+        <button type="button" data-tab="settings">Admin Settings</button>
+        <button type="button" data-tab="audit">Audit</button>
+      </aside>
+
+      <div class="admin-content">
+      <section class="panel tab-panel" data-panel="dashboard">
+        <h2>Dashboard</h2>
+        <div class="dashboard-grid" id="dashboardSummary"></div>
+      </section>
+
+      <form class="panel tab-panel hidden" id="editForm" data-panel="edit">
+        <h2>Edit Card</h2>
+        <label>ID No.<input id="editId" disabled></label>
+        <label>Name<input id="editName" required></label>
+        <label>Location<input id="editLocation" required></label>
+        <label>Branch<input id="editBranch" required></label>
+        <label>National ID<input id="editNationalId" required></label>
+        <label>Phone<input id="editPhone" required></label>
+        <label>Email<input id="editEmail" type="email" required></label>
+        <label>Position<input id="editPosition" required></label>
+        <label>Inactive reason<input id="editInactiveReason" placeholder="Example: Left company"></label>
+        <label>Status
+          <select id="editStatus">
+            <option>Pending</option>
+            <option>Approved</option>
+            <option>Rejected</option>
+            <option>Suspended</option>
+            <option>Lost</option>
+            <option>Inactive</option>
+          </select>
+        </label>
+        <div class="controls">
+          <button type="submit">Save Changes</button>
+          <button type="button" class="secondary" id="clearBtn">Clear</button>
+        </div>
+      </form>
+
+      <form class="panel tab-panel hidden" id="createForm" data-panel="create">
+        <h2>Create Card Manually</h2>
+        <label>Name<input id="createName" required></label>
+        <label>Location<input id="createLocation" required></label>
+        <label>Branch<input id="createBranch" required></label>
+        <label>National ID<input id="createNationalId" required></label>
+        <label>Phone<input id="createPhone" required></label>
+        <label>Email<input id="createEmail" type="email" required></label>
+        <label>Position<input id="createPosition" required></label>
+        <label>Picture<input id="createPhoto" type="file" accept="image/*" required></label>
+        <button type="submit">Create Pending Card</button>
+      </form>
+
+      <form class="panel tab-panel hidden" id="passwordForm" data-panel="settings">
+        <h2>Change Admin Login</h2>
+        <label>Username<input id="newUser" value="admin" required></label>
+        <label>Admin email<input id="newEmail" type="email" placeholder="admin@example.com" required></label>
+        <label>New Password
+          <div class="password-wrap">
+            <input id="newPassword" type="password" required>
+            <button type="button" class="toggle-password" data-target="newPassword" aria-label="Show new password">Eye</button>
+          </div>
+        </label>
+        <button type="submit">Change Password</button>
+      </form>
+
+      <div class="panel tab-panel hidden" data-panel="registrations">
+        <h2>Registrations</h2>
+        <div class="controls">
+          <input id="search" placeholder="Search or type pending">
+          <input id="branchFilter" placeholder="Filter branch">
+          <button type="button" class="secondary" id="pendingBtn">Pending Only</button>
+          <button type="button" class="secondary" id="allBtn">All</button>
+          <button type="button" id="exportBtn">Export CSV</button>
+          <button type="button" id="backupBtn">Backup JSON</button>
+          <label class="button secondary">Restore JSON<input id="restoreInput" type="file" accept="application/json" hidden></label>
+        </div>
+        <div class="summary" id="summary"></div>
+        <div class="table-wrap">
+          <table>
+            <thead>
+              <tr><th>Photo</th><th>ID</th><th>Name</th><th>National ID</th><th>Location</th><th>Branch</th><th>Phone</th><th>Email</th><th>Position</th><th>Status</th><th>Validity</th><th>Action</th></tr>
+            </thead>
+            <tbody id="rows"></tbody>
+          </table>
+        </div>
+      </div>
+
+      <div class="panel tab-panel hidden" data-panel="card">
+        <h2>Approved ID Card</h2>
+        <div class="controls">
+          <button type="button" id="printCardBtn">Print Card</button>
+          <button type="button" class="secondary" id="downloadCardBtn">Download PNG</button>
+        </div>
+        <div class="notice-box hidden" id="notifyBox">
+          <div id="notifyText"></div>
+          <a id="workerClaimLink" href="#" target="_blank" rel="noopener">Worker download link</a>
+          <div class="controls">
+            <a class="button" id="whatsappNotifyLink" href="#" target="_blank" rel="noopener">Send WhatsApp</a>
+            <button type="button" class="secondary" id="copyWorkerLinkBtn">Copy Worker Link</button>
+          </div>
+        </div>
+        <p id="cardEmpty">Approve a worker or click View Card on an approved record to show the ID card here.</p>
+        <div class="card-stage hidden" id="cardStage">
+          <article class="id-card">
+            <div class="logo-front text-logo">VeriCard</div>
+            <div class="front-shape"></div>
+            <div class="photo-ring"><span id="cardPhotoPlaceholder">PHOTO</span><img id="cardPhoto" class="hidden" alt=""></div>
+            <div class="front-info">
+              <div class="detail-line"><span class="detail-label">Name:</span><span class="person-name" id="cardName"></span></div>
+              <div class="detail-line"><span class="detail-label">ID NO:</span><span class="id-number" id="cardPrintedId">29352273</span></div>
+              <div class="detail-line"><span class="detail-label">Position:</span><span class="person-role" id="cardPosition"></span></div>
+            </div>
+          </article>
+
+          <article class="id-card">
+            <div class="qr-box"><img id="cardQr" crossorigin="anonymous" alt="Worker verification QR"></div>
+            <div class="back-text">
+              <div>If found please return to:</div>
+              <div class="indent">VeriCard</div>
+              <div class="indent">P.O BOX 480-50101 Butere.</div>
+              <div class="indent">Phone:+254 713 111 666</div>
+              <div class="responsibility-title">Cardholder Responsibilities:</div>
+              <ol class="rules">
+                <li>This ID card is the property of VeriCard.</li>
+                <li>Use of this card is strictly for the person to whom it is issued.</li>
+                <li>Must be displayed at all times while on company premises.</li>
+                <li>Report lost/stolen cards immediately to HR.</li>
+              </ol>
+            </div>
+            <div class="logo-back text-logo">VeriCard</div>
+          </article>
+        </div>
+      </div>
+
+      <div class="panel tab-panel hidden" data-panel="attendance">
+        <h2>Attendance Backup</h2>
+        <div class="controls">
+          <button type="button" id="loadAttendanceBtn">Refresh Attendance</button>
+        </div>
+        <div class="table-wrap">
+          <table>
+            <thead><tr><th>Organization</th><th>Student</th><th>No.</th><th>Class</th><th>Date</th><th>Entered</th><th>Left</th><th>Status</th></tr></thead>
+            <tbody id="attendanceRows"><tr><td colspan="8">Refresh attendance after login.</td></tr></tbody>
+          </table>
+        </div>
+      </div>
+
+      <div class="panel tab-panel hidden" data-panel="reports">
+        <h2>Fee and Parent Communication Reports</h2>
+        <div class="controls">
+          <button type="button" id="loadReportsBtn">Refresh Reports</button>
+        </div>
+        <h3>Fee Balances</h3>
+        <div class="table-wrap">
+          <table>
+            <thead><tr><th>Organization</th><th>Admission No.</th><th>Student</th><th>Class</th><th>Balance</th><th>Status</th><th>Due Date</th></tr></thead>
+            <tbody id="feeReportRows"><tr><td colspan="7">Refresh reports after login.</td></tr></tbody>
+          </table>
+        </div>
+        <h3>Parent Communication Logs</h3>
+        <div class="table-wrap">
+          <table>
+            <thead><tr><th>Organization</th><th>Student</th><th>Parent Phone</th><th>Type</th><th>Message</th><th>Date</th></tr></thead>
+            <tbody id="notificationReportRows"><tr><td colspan="6">Refresh reports after login.</td></tr></tbody>
+          </table>
+        </div>
+      </div>
+
+      <div class="panel tab-panel hidden" data-panel="audit">
+        <h2>Audit</h2>
+        <div class="controls">
+          <button type="button" class="secondary" id="auditBtn">Refresh Audit</button>
+        </div>
+        <pre class="audit" id="auditBox"></pre>
+      </div>
+
+      <div class="panel tab-panel hidden" data-panel="organizations">
+        <h2>Organizations</h2>
+        <div class="controls">
+          <a class="button secondary" href="/portal.html" target="_blank" rel="noopener">Open Organization Portal</a>
+          <button type="button" id="loadOrganizationsBtn">Refresh Organizations</button>
+          <button type="button" id="createSampleClientBtn">Create Sample Client</button>
+          <button type="button" class="secondary" id="deleteOrganizationsBtn">Delete All Organization Accounts</button>
+        </div>
+        <div class="table-wrap">
+          <table>
+            <thead>
+              <tr><th>Name</th><th>Type</th><th>Business No.</th><th>Email</th><th>Phone</th><th>Account</th><th>Subscription</th><th>Master Card</th><th>Action</th></tr>
+            </thead>
+            <tbody id="organizationsRows"><tr><td colspan="9">Refresh organizations after login.</td></tr></tbody>
+          </table>
+        </div>
+      </div>
+      </div>
+    </section>
+  </main>
+
+  <script src="/js/super-admin.js"></script>
+  <footer class="admin-footer">
+    <div class="admin-footer-inner">VeriCard Portal</div>
+  </footer>
+</body>
+</html>
+
+

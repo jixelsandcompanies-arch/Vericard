@@ -1,0 +1,2 @@
+html[data-organization-feature="custom"] .feature-custom { border-left: 4px solid var(--gold); }
+html[data-organization-feature="custom"] #gateScanPanel h2::after { content: " - Custom access"; color: var(--muted); font-size: 12px; }

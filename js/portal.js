@@ -371,8 +371,19 @@ const state = { token: '', org: null, rules: null, orgRegistrationFields: {}, ca
       gallery.innerHTML = smartTemplates.map((template) => `
         <button type="button" class="template ${template.id === activeId ? 'active' : ''}" data-template-id="${template.id}" style="--template-color:${template.color};--template-accent:${template.accent};">
           <span class="template-preview template-${template.layout}">
-            ${state.org?.logo ? `<img src="${state.org.logo}" alt="">` : '<b>ID</b>'}
-            <i></i><em></em>
+            <span class="mini-card mini-front">
+              <span class="mini-band"></span>
+              <span class="mini-logo">${state.org?.logo ? `<img src="${state.org.logo}" alt="">` : '<b>ID</b>'}</span>
+              <span class="mini-photo"></span>
+              <span class="mini-lines"><i></i><i></i><i></i></span>
+              <span class="mini-qr"></span>
+            </span>
+            <span class="mini-card mini-back">
+              <span class="mini-back-title"></span>
+              <span class="mini-back-lines"><i></i><i></i><i></i></span>
+              <span class="mini-back-qr"></span>
+              <span class="mini-back-rule"></span>
+            </span>
           </span>
           <strong>${template.name}</strong>
           <small>${template.description}</small>

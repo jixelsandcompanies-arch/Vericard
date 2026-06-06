@@ -25,15 +25,15 @@ const state = { token: '', org: null, rules: null, orgRegistrationFields: {}, ca
       feePanel: document.getElementById('feePanel'), feeUploadFile: document.getElementById('feeUploadFile'), uploadFeesBtn: document.getElementById('uploadFeesBtn'), refreshFeesBtn: document.getElementById('refreshFeesBtn'), feeNotice: document.getElementById('feeNotice'), feesBody: document.getElementById('feesBody'),
       reportsPanel: document.getElementById('reportsPanel'), reportsSummary: document.getElementById('reportsSummary'), notificationsBody: document.getElementById('notificationsBody'),
       backSettingsForm: document.getElementById('backSettingsForm'), previewEmpty: document.getElementById('previewEmpty'), idCardStage: document.getElementById('idCardStage'),
-      setupSchoolBackFields: document.getElementById('setupSchoolBackFields'), schoolBackFields: document.getElementById('schoolBackFields'), schoolHourFields: document.getElementById('schoolHourFields'), dashboardSignatureValue: document.getElementById('dashboardSignatureValue'),
+      schoolBackFields: document.getElementById('schoolBackFields'), schoolHourFields: document.getElementById('schoolHourFields'), dashboardSignatureValue: document.getElementById('dashboardSignatureValue'), dashboardSignaturePreview: document.getElementById('dashboardSignaturePreview'), dashboardSignatureFile: document.getElementById('dashboardSignatureFile'),
       idFrontLogo: document.getElementById('idFrontLogo'), idBackLogo: document.getElementById('idBackLogo'), idPhoto: document.getElementById('idPhoto'),
       idPhotoPlaceholder: document.getElementById('idPhotoPlaceholder'), idCardName: document.getElementById('idCardName'), idCardNumber: document.getElementById('idCardNumber'),
       idCardRole: document.getElementById('idCardRole'), idCardQr: document.getElementById('idCardQr'), backReturnTitle: document.getElementById('backReturnTitle'),
       frontAuthorityName: document.getElementById('frontAuthorityName'), frontAuthoritySignature: document.getElementById('frontAuthoritySignature'), frontAuthoritySignatureText: document.getElementById('frontAuthoritySignatureText'),
       backMission: document.getElementById('backMission'), backVision: document.getElementById('backVision'), backIdentityNumber: document.getElementById('backIdentityNumber'),
-      backReturnName: document.getElementById('backReturnName'), backPoBox: document.getElementById('backPoBox'), backAddress1: document.getElementById('backAddress1'), backAddress2: document.getElementById('backAddress2'),
-      backDesk: document.getElementById('backDesk'), backResponsibilityTitle: document.getElementById('backResponsibilityTitle'),
-      backLostInstruction: document.getElementById('backLostInstruction'), backResponsibilities: document.getElementById('backResponsibilities')
+      backReturnName: document.getElementById('backReturnName'), backPoBox: document.getElementById('backPoBox'),
+      backPhone: document.getElementById('backPhone'), backResponsibilityTitle: document.getElementById('backResponsibilityTitle'),
+      backLostInstruction: document.getElementById('backLostInstruction')
     };
 
     function headers() { return { Authorization: `Bearer ${state.token}`, 'Content-Type': 'application/json' }; }
@@ -82,14 +82,12 @@ const state = { token: '', org: null, rules: null, orgRegistrationFields: {}, ca
       `;
     }
     function renderSchoolBackFields() {
+      if (!els.schoolBackFields) return;
       const type = state.org?.type || els.orgType.value || 'custom';
-      if (els.schoolBackFields) els.schoolBackFields.innerHTML = isSchoolType(type)
+      els.schoolBackFields.innerHTML = isSchoolType(type)
         ? '<label>Mission<textarea name="mission"></textarea></label><label>Vision<textarea name="vision"></textarea></label>'
         : '';
-      if (els.setupSchoolBackFields) els.setupSchoolBackFields.innerHTML = isSchoolType(type)
-        ? '<label>Mission<textarea name="mission" required></textarea></label><label>Vision<textarea name="vision" required></textarea></label>'
-        : '';
-      if (els.schoolHourFields) els.schoolHourFields.innerHTML = type === 'school'
+      els.schoolHourFields.innerHTML = type === 'school'
         ? '<label>School type<select name="schoolType"><option value="day">Day school</option><option value="boarding">Boarding school</option><option value="mixed">Mixed day/boarding school</option></select></label><label>Weekend release allowed<select name="weekendReleaseAllowed"><option value="no">No</option><option value="yes">Yes</option></select></label><label>Holiday dates<textarea name="holidayDates" placeholder="2026-08-01, 2026-12-20 or one date per line"></textarea></label><label>Holiday notes<textarea name="holidayNotes" placeholder="Holiday/release reason notes"></textarea></label><label>School start time<input name="schoolStartTime" type="time" value="08:00"></label><label>School end time<input name="schoolEndTime" type="time" value="16:00"></label>'
         : '';
     }
@@ -370,10 +368,7 @@ const state = { token: '', org: null, rules: null, orgRegistrationFields: {}, ca
       const activeId = smartTemplates.some((template) => template.id === selectedId) ? selectedId : smartTemplates[0]?.id;
       const gallery = scope === 'setup' ? els.setupTemplateGallery : els.templateGallery;
       const select = scope === 'setup' ? els.setupTemplateSelect : els.templateSelect;
-      const activeTemplate = smartTemplates.find((template) => template.id === activeId);
-      const visibleTemplates = scope === 'setup' ? smartTemplates : activeTemplate ? [activeTemplate] : [];
-      gallery.classList.toggle('selected-only', scope !== 'setup');
-      gallery.innerHTML = visibleTemplates.map((template) => `
+      gallery.innerHTML = smartTemplates.map((template) => `
         <button type="button" class="template ${template.id === activeId ? 'active' : ''}" data-template-id="${template.id}" style="--template-color:${template.color};--template-accent:${template.accent};">
           <span class="template-preview template-${template.layout}">
             <span class="mini-card mini-front">
@@ -392,8 +387,7 @@ const state = { token: '', org: null, rules: null, orgRegistrationFields: {}, ca
           </span>
           <strong>${template.name}</strong>
           <small>${template.description}</small>
-          ${scope === 'setup' && template.recommended ? '<span class="template-badge">Recommended</span>' : ''}
-          ${scope !== 'setup' ? '<span class="template-badge">Selected template</span>' : ''}
+          ${template.recommended ? '<span class="template-badge">Recommended</span>' : ''}
         </button>`).join('');
       select.innerHTML = smartTemplates.map((template) => `<option value="${template.id}" ${template.id === activeId ? 'selected' : ''}>${template.name}</option>`).join('');
       if (activeId) select.value = activeId;
@@ -419,12 +413,12 @@ const state = { token: '', org: null, rules: null, orgRegistrationFields: {}, ca
       }[type] || ['Signature', 'Member', 'Access', 'Visitor', 'Team', 'Identity'];
       const layouts = ['primary', 'clean', 'bold', 'qr', 'primary', 'clean'];
       const tones = [
-        ['Classic', primary, accent, 'White card with a small logo-color accent.'],
+        ['Classic', primary, accent, 'Logo-led front card with a strong brand band.'],
         ['Clear', primary, alternate, 'Clean daily-use design with easy field scanning.'],
-        ['Simple', primary, accent, 'Minimal white layout for fast visual checking.'],
-        ['QR Focus', primary, accent, 'Verification-first card with a clear scan area.'],
-        ['Formal', primary, '#111827', 'Reserved white layout for administrators and leaders.'],
-        ['Soft', primary, accent, 'Light white layout for events, visitors, and guardians.']
+        ['Bold', alternate, accent, 'High-contrast layout for fast visual checking.'],
+        ['QR Focus', primary, accent, 'Verification-first card with a stronger scan area.'],
+        ['Formal', primary, '#111827', 'Reserved official layout for administrators and leaders.'],
+        ['Bright', accent, primary, 'Livelier layout for events, visitors, and guardians.']
       ];
       const generated = Array.from({ length: 50 }, (_, index) => {
         const tone = tones[index % tones.length];
@@ -480,6 +474,18 @@ const state = { token: '', org: null, rules: null, orgRegistrationFields: {}, ca
       };
       const [input, preview] = targets[scope] || targets.dashboard;
       const removeButton = document.querySelector(`[data-logo-remove="${scope}"]`);
+      input.value = value || '';
+      setImage(preview, value || '');
+      if (removeButton) removeButton.classList.toggle('hidden', !value);
+    }
+
+    function setSignatureValue(scope, value) {
+      const targets = {
+        dashboard: [els.dashboardSignatureValue, els.dashboardSignaturePreview]
+      };
+      const [input, preview] = targets[scope] || targets.dashboard;
+      const removeButton = document.querySelector(`[data-signature-remove="${scope}"]`);
+      if (!input || !preview) return;
       input.value = value || '';
       setImage(preview, value || '');
       if (removeButton) removeButton.classList.toggle('hidden', !value);
@@ -585,6 +591,29 @@ const state = { token: '', org: null, rules: null, orgRegistrationFields: {}, ca
       });
     }
 
+    function setupSignatureUploader(scope) {
+      const box = document.querySelector(`[data-signature-drop="${scope}"]`);
+      const fileInput = els.dashboardSignatureFile;
+      const pickButton = document.querySelector(`[data-signature-pick="${scope}"]`);
+      const removeButton = document.querySelector(`[data-signature-remove="${scope}"]`);
+      if (!box || !fileInput || !pickButton || !removeButton) return;
+      pickButton.addEventListener('click', () => fileInput.click());
+      removeButton.addEventListener('click', () => {
+        fileInput.value = '';
+        setSignatureValue(scope, '');
+      });
+      fileInput.addEventListener('change', async () => {
+        try { setSignatureValue(scope, await readLogoFile(fileInput.files[0])); }
+        catch (error) { alert(friendlyError(error)); }
+      });
+      box.addEventListener('keydown', (event) => {
+        if (event.key === 'Enter' || event.key === ' ') {
+          event.preventDefault();
+          fileInput.click();
+        }
+      });
+    }
+
     async function loadScanRegistration() {
       els.scanPanel.classList.remove('hidden');
       try {
@@ -625,7 +654,7 @@ const state = { token: '', org: null, rules: null, orgRegistrationFields: {}, ca
       for (const element of els.backSettingsForm.elements) {
         if (element.name && settings[element.name] !== undefined) element.value = settings[element.name] || '';
       }
-      if (els.dashboardSignatureValue) els.dashboardSignatureValue.value = settings.authoritySignature || '';
+      setSignatureValue('dashboard', settings.authoritySignature || '');
     }
 
     function renderBackSettings(card = null) {
@@ -641,17 +670,14 @@ const state = { token: '', org: null, rules: null, orgRegistrationFields: {}, ca
       els.backReturnTitle.textContent = settings.returnTitle || '';
       els.backReturnName.textContent = settings.returnName || '';
       els.backPoBox.textContent = settings.poBox ? `P.O. Box: ${settings.poBox}` : '';
-      els.backAddress1.textContent = settings.addressLine1 || '';
-      els.backAddress2.textContent = settings.addressLine2 || '';
-      els.backDesk.textContent = settings.returnDesk ? `Return to: ${settings.returnDesk}` : '';
+      els.backPhone.textContent = settings.phone ? `Phone: ${settings.phone}` : '';
       els.backResponsibilityTitle.textContent = settings.responsibilityTitle || 'Cardholder Responsibilities:';
       els.backLostInstruction.textContent = settings.lostInstruction || '';
-      els.backResponsibilities.textContent = settings.cardholderResponsibilities || '';
     }
 
     function hideBackSettingsWhenComplete() {
       const settings = state.org?.backSettings || {};
-      const complete = Boolean(settings.returnName && settings.returnDesk && settings.authorityName && settings.authoritySignature);
+      const complete = Boolean(settings.returnName && settings.phone && settings.lostInstruction && settings.authorityName && settings.authoritySignature);
       els.backSettingsForm.classList.toggle('hidden', complete);
     }
 
@@ -715,16 +741,15 @@ const state = { token: '', org: null, rules: null, orgRegistrationFields: {}, ca
       els.portalTitle.textContent = `${data.organization.name} ID Cards Portal`;
       els.sessionStatus.textContent = `${data.organization.name} - ${data.organization.subscriptionStatus}`;
       els.logoutBtn.classList.remove('hidden');
-      if (needsInitialSetup(data.organization)) {
+      if (needsInitialTemplateChoice(data.organization)) {
         showInitialTemplateSetup();
         return;
       }
       openDashboard(state.locked);
     }
 
-    function needsInitialSetup(org) {
-      const settings = org?.backSettings || {};
-      return !org?.templateId || org.templateId === 'sample' || !settings.authorityName || !settings.authoritySignature;
+    function needsInitialTemplateChoice(org) {
+      return !org.templateId || org.templateId === 'sample';
     }
 
     function showInitialTemplateSetup() {
@@ -735,27 +760,6 @@ const state = { token: '', org: null, rules: null, orgRegistrationFields: {}, ca
       setLogoValue('setup', state.org.logo || '');
       setBrandColorValue('setup', state.org.brandColor || '#061a30');
       renderTemplateGallery(state.templates, state.org.templateId || 'sample', 'setup');
-      fillInitialSetupForm();
-    }
-
-    function fillInitialSetupForm() {
-      const settings = { ...(state.org?.backSettings || {}) };
-      renderSchoolBackFields();
-      const defaults = {
-        returnTitle: settings.returnTitle || 'If found please return to:',
-        returnName: settings.returnName || state.org?.name || '',
-        returnDesk: settings.returnDesk || 'Admin Office',
-        responsibilityTitle: settings.responsibilityTitle || 'Cardholder Responsibilities:',
-        cardholderResponsibilities: settings.cardholderResponsibilities || 'Use only by the approved cardholder. Display this card while on duty or premises.',
-        lostInstruction: settings.lostInstruction || 'Report lost cards immediately.',
-        authorityName: settings.authorityName || state.org?.ownerName || '',
-        authoritySignature: settings.authoritySignature || state.org?.authoritySignature || state.org?.ownerName || ''
-      };
-      for (const element of els.initialTemplateForm.elements) {
-        if (!element.name) continue;
-        const value = settings[element.name] ?? defaults[element.name];
-        if (value !== undefined) element.value = value || '';
-      }
     }
 
     function openDashboard(locked) {
@@ -782,9 +786,6 @@ const state = { token: '', org: null, rules: null, orgRegistrationFields: {}, ca
 
     async function saveInitialTemplate() {
       if (!els.setupTemplateSelect.value) throw new Error('Choose a template before continuing.');
-      const form = new FormData(els.initialTemplateForm);
-      const backSettings = Object.fromEntries(form.entries());
-      if (!backSettings.authorityName || !backSettings.authoritySignature) throw new Error('Authorized name and electronic signature full name are required.');
       const data = await api('/api/org/branding', {
         method: 'PATCH',
         headers: headers(),
@@ -792,18 +793,10 @@ const state = { token: '', org: null, rules: null, orgRegistrationFields: {}, ca
       });
       state.org = data.organization;
       state.templates = data.templates || state.templates;
-      const backData = await api('/api/org/back-settings', {
-        method: 'PATCH',
-        headers: headers(),
-        body: JSON.stringify({ backSettings })
-      });
-      state.org = backData.organization;
-      state.templates = backData.templates || state.templates;
       state.locked = state.org.subscriptionStatus !== 'Active';
       setLogoValue('dashboard', state.org.logo || '');
       setBrandColorValue('dashboard', state.org.brandColor || '#061a30');
       openDashboard(state.locked);
-      if (!state.locked) await loadMasterCard();
     }
 
     async function loadMasterCard() {
@@ -1184,6 +1177,7 @@ const state = { token: '', org: null, rules: null, orgRegistrationFields: {}, ca
     setupLogoUploader('register');
     setupLogoUploader('setup');
     setupLogoUploader('dashboard');
+    setupSignatureUploader('dashboard');
     initializeEntryView();
     loadSetup().catch((error) => alert(friendlyError(error)));
 

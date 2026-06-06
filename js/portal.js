@@ -415,12 +415,12 @@ const state = { token: '', org: null, rules: null, orgRegistrationFields: {}, ca
       }[type] || ['Signature', 'Member', 'Access', 'Visitor', 'Team', 'Identity'];
       const layouts = ['primary', 'clean', 'bold', 'qr', 'primary', 'clean'];
       const tones = [
-        ['Classic', primary, accent, 'Logo-led front card with a strong brand band.'],
+        ['Classic', primary, accent, 'White card with a small logo-color accent.'],
         ['Clear', primary, alternate, 'Clean daily-use design with easy field scanning.'],
-        ['Bold', alternate, accent, 'High-contrast layout for fast visual checking.'],
-        ['QR Focus', primary, accent, 'Verification-first card with a stronger scan area.'],
-        ['Formal', primary, '#111827', 'Reserved official layout for administrators and leaders.'],
-        ['Bright', accent, primary, 'Livelier layout for events, visitors, and guardians.']
+        ['Simple', primary, accent, 'Minimal white layout for fast visual checking.'],
+        ['QR Focus', primary, accent, 'Verification-first card with a clear scan area.'],
+        ['Formal', primary, '#111827', 'Reserved white layout for administrators and leaders.'],
+        ['Soft', primary, accent, 'Light white layout for events, visitors, and guardians.']
       ];
       const generated = Array.from({ length: 50 }, (_, index) => {
         const tone = tones[index % tones.length];

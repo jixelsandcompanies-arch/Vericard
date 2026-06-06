@@ -41,32 +41,31 @@
     .template strong { color: var(--ink); font-size: 13px; }
     .template small { color: var(--muted); font-weight: 700; line-height: 1.3; }
     .template-badge { width: fit-content; border-radius: 999px; background: var(--template-accent); color: #111827; padding: 3px 7px; font-size: 10px; font-weight: 900; }
-    .template-preview { height: 126px; border: 1px solid var(--line); border-radius: 8px; background: #eef3f8; position: relative; overflow: hidden; display: grid; grid-template-columns: 1fr 1fr; gap: 7px; padding: 7px; }
+    .template-preview { height: 126px; border: 1px solid var(--line); border-radius: 8px; background: #f8fafc; position: relative; overflow: hidden; display: grid; grid-template-columns: 1fr 1fr; gap: 7px; padding: 7px; }
     .mini-card { position: relative; display: block; min-width: 0; aspect-ratio: 1.58 / 1; border-radius: 7px; overflow: hidden; border: 1px solid rgba(12, 28, 45, .18); background: #fff; box-shadow: 0 7px 14px rgba(15, 23, 42, .13); }
-    .mini-front { background: linear-gradient(135deg, #fff 0 54%, color-mix(in srgb, var(--template-color) 8%, #f8fbff) 54%); }
-    .mini-back { background: linear-gradient(180deg, #fff, color-mix(in srgb, var(--template-accent) 10%, #f8fbff)); }
-    .mini-band { position: absolute; inset: auto 0 0 0; height: 27%; background: var(--template-color); }
+    .mini-front, .mini-back { background: #fff; }
+    .mini-band { position: absolute; inset: auto 0 0 0; height: 9%; background: var(--template-color); }
     .mini-logo { position: absolute; left: 7%; top: 8%; width: 34%; height: 16%; display: grid; align-items: center; color: var(--template-color); font-size: 8px; font-weight: 900; line-height: 1; }
     .mini-logo img { width: 100%; height: 100%; object-fit: contain; }
-    .mini-photo { position: absolute; left: 8%; top: 31%; width: 24%; aspect-ratio: 1; border-radius: 50%; background: #fff; border: 3px solid var(--template-accent); box-shadow: 0 2px 5px rgba(15,23,42,.18); }
+    .mini-photo { position: absolute; left: 8%; top: 31%; width: 24%; aspect-ratio: 1; border-radius: 50%; background: #fff; border: 2px solid color-mix(in srgb, var(--template-color) 45%, #d7dfe9); box-shadow: 0 2px 5px rgba(15,23,42,.14); }
     .mini-lines { position: absolute; left: 38%; right: 8%; top: 35%; display: grid; gap: 5px; }
-    .mini-lines i, .mini-back-lines i { display: block; height: 4px; border-radius: 99px; background: color-mix(in srgb, var(--template-color) 68%, #d9e0ea); }
+    .mini-lines i, .mini-back-lines i { display: block; height: 4px; border-radius: 99px; background: #cbd5e1; }
     .mini-lines i:nth-child(2) { width: 72%; }
     .mini-lines i:nth-child(3) { width: 52%; }
-    .mini-qr { position: absolute; right: 8%; bottom: 8%; width: 20%; aspect-ratio: 1; border-radius: 3px; background: repeating-linear-gradient(45deg, #fff 0 3px, var(--template-accent) 3px 5px); border: 2px solid #fff; }
+    .mini-qr { position: absolute; right: 8%; bottom: 8%; width: 20%; aspect-ratio: 1; border-radius: 3px; background: repeating-linear-gradient(45deg, #fff 0 3px, #111827 3px 5px); border: 1px solid var(--line); }
     .mini-back-title { position: absolute; left: 8%; top: 10%; width: 56%; height: 5px; border-radius: 99px; background: var(--template-color); }
     .mini-back-lines { position: absolute; left: 8%; right: 32%; top: 26%; display: grid; gap: 5px; }
     .mini-back-lines i { height: 3px; background: #96a3b3; }
     .mini-back-lines i:nth-child(2) { width: 86%; }
     .mini-back-lines i:nth-child(3) { width: 64%; }
-    .mini-back-qr { position: absolute; right: 8%; top: 20%; width: 20%; aspect-ratio: 1; border-radius: 3px; background: repeating-linear-gradient(90deg, #fff 0 3px, var(--template-color) 3px 5px); border: 1px solid var(--template-color); }
-    .mini-back-rule { position: absolute; left: 8%; right: 8%; bottom: 11%; height: 16%; border-radius: 5px; background: color-mix(in srgb, var(--template-accent) 55%, #fff); }
-    .template-primary .mini-band { height: 34%; }
-    .template-clean .mini-band { top: 0; bottom: auto; height: 18%; }
+    .mini-back-qr { position: absolute; right: 8%; top: 20%; width: 20%; aspect-ratio: 1; border-radius: 3px; background: repeating-linear-gradient(90deg, #fff 0 3px, #111827 3px 5px); border: 1px solid var(--line); }
+    .mini-back-rule { position: absolute; left: 8%; right: 8%; bottom: 11%; height: 16%; border-radius: 5px; background: #f1f5f9; border-left: 3px solid var(--template-color); }
+    .template-primary .mini-band { height: 12%; }
+    .template-clean .mini-band { top: 0; bottom: auto; height: 8%; }
     .template-clean .mini-front { background: #fff; }
-    .template-bold .mini-front { background: var(--template-color); }
-    .template-bold .mini-band { left: auto; top: 0; right: 0; bottom: 0; width: 28%; height: auto; background: var(--template-accent); }
-    .template-bold .mini-logo, .template-bold .mini-lines i { color: #fff; background: rgba(255,255,255,.75); }
+    .template-bold .mini-front { background: #fff; }
+    .template-bold .mini-band { left: auto; top: 0; right: 0; bottom: 0; width: 8%; height: auto; background: var(--template-color); }
+    .template-bold .mini-logo { color: var(--template-color); }
     .template-qr .mini-qr { width: 28%; border-color: var(--template-color); }
     .template-qr .mini-photo { border-radius: 5px; }
     .feature-list { margin: 0; padding-left: 18px; display: grid; gap: 7px; font-weight: 700; }
@@ -91,27 +90,27 @@
     .scan-confirm { display: grid; grid-template-columns: 120px 1fr; gap: 12px; align-items: center; }
     .master-card { width: 330px; height: 520px; border: 1px solid var(--line); border-radius: 22px; background: #fff; overflow: hidden; position: relative; box-shadow: 0 10px 22px rgba(31,47,68,.13); }
     .master-logo { position: absolute; top: 22px; left: 42px; width: 246px; height: 112px; object-fit: contain; }
-    .master-band { position: absolute; left: 24px; right: 24px; top: 158px; height: 166px; border-radius: 16px; background: var(--blue); color: #fff; padding: 18px; display: grid; align-content: center; gap: 8px; }
-    .master-band strong { color: var(--gold); font-size: 24px; }
+    .master-band { position: absolute; left: 24px; right: 24px; top: 158px; height: 166px; border-radius: 16px; background: #fff; color: var(--ink); border: 1px solid var(--line); border-top: 8px solid var(--blue); padding: 14px 18px 18px; display: grid; align-content: center; gap: 8px; }
+    .master-band strong { color: var(--blue); font-size: 24px; }
     .master-meta { position: absolute; left: 34px; right: 34px; top: 346px; display: grid; gap: 8px; font-size: 13px; font-weight: 800; }
     .qr { width: 106px; height: 106px; border: 1px solid var(--line); background: #fff; padding: 5px; justify-self: center; }
     .qr img { width: 100%; height: 100%; object-fit: contain; }
     .card-stage { display: grid; grid-template-columns: repeat(2, 330px); gap: 18px; justify-content: start; overflow-x: auto; }
     .id-card { width: 330px; height: 520px; background: #fff; border: 1px solid var(--line); border-radius: 22px; position: relative; overflow: hidden; box-shadow: 0 10px 22px rgba(31,47,68,.13); }
     .logo-front { position: absolute; top: 20px; left: 40px; width: 250px; height: 124px; object-fit: contain; }
-    .front-shape { position: absolute; left: 24px; top: 328px; width: 282px; height: 130px; background: var(--blue); border-radius: 18px; }
-    .front-shape::before { content: ""; position: absolute; left: 18px; right: 18px; top: 11px; height: 3px; background: var(--gold); border-radius: 10px; }
-    .photo-ring { position: absolute; left: 79px; top: 148px; width: 172px; height: 172px; border-radius: 50%; border: 5px solid var(--gold); background: #f8fbff; display: grid; place-items: center; overflow: hidden; z-index: 1; }
+    .front-shape { position: absolute; left: 24px; top: 328px; width: 282px; height: 130px; background: #fff; border: 1px solid var(--line); border-top: 8px solid var(--blue); border-radius: 18px; }
+    .front-shape::before { content: ""; position: absolute; left: 18px; right: 18px; top: 11px; height: 3px; background: color-mix(in srgb, var(--blue) 30%, #d7dfe9); border-radius: 10px; }
+    .photo-ring { position: absolute; left: 79px; top: 148px; width: 172px; height: 172px; border-radius: 50%; border: 4px solid color-mix(in srgb, var(--blue) 42%, #d7dfe9); background: #f8fbff; display: grid; place-items: center; overflow: hidden; z-index: 1; }
     .photo-ring img { width: 100%; height: 100%; object-fit: cover; object-position: center top; }
     .photo-ring span { color: #8ca3be; font-size: 26px; font-weight: 800; }
     .front-info { position: absolute; left: 44px; right: 44px; top: 345px; z-index: 2; }
     .front-authority { position: absolute; left: 42px; right: 42px; bottom: 20px; display: grid; grid-template-columns: 1fr 92px; gap: 8px; align-items: end; font-size: 11px; font-weight: 800; color: var(--ink); }
     .front-authority img { max-width: 92px; max-height: 42px; object-fit: contain; justify-self: end; }
     #frontAuthoritySignatureText { justify-self: end; border-bottom: 1px solid var(--ink); max-width: 120px; overflow-wrap: anywhere; text-align: right; font-size: 12px; font-style: italic; line-height: 1.15; }
-    .detail-line { display: grid; grid-template-columns: 74px 1fr; gap: 7px; padding: 5px 0; border-bottom: 1px solid rgba(255,255,255,.18); }
-    .detail-label { color: rgba(255,255,255,.78); font-size: 11px; font-weight: 900; text-transform: uppercase; }
-    .person-name { color: var(--gold); font-size: 18px; font-weight: 800; overflow-wrap: anywhere; }
-    .id-number, .person-role { color: #fff; font-size: 14px; font-weight: 800; overflow-wrap: anywhere; }
+    .detail-line { display: grid; grid-template-columns: 74px 1fr; gap: 7px; padding: 5px 0; border-bottom: 1px solid #e8eef5; }
+    .detail-label { color: var(--muted); font-size: 11px; font-weight: 900; text-transform: uppercase; }
+    .person-name { color: var(--blue); font-size: 18px; font-weight: 800; overflow-wrap: anywhere; }
+    .id-number, .person-role { color: var(--ink); font-size: 14px; font-weight: 800; overflow-wrap: anywhere; }
     .card-qr { position: absolute; left: 93px; top: 28px; width: 144px; height: 144px; padding: 8px; border: 2px solid var(--blue); background: #fff; }
     .card-qr img { width: 100%; height: 100%; object-fit: contain; }
     .back-text { position: absolute; left: 34px; right: 30px; top: 122px; font-weight: 700; font-size: 12.5px; line-height: 1.28; }

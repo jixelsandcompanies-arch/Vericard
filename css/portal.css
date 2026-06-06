@@ -94,7 +94,7 @@
     .photo-ring img { width: 100%; height: 100%; object-fit: cover; object-position: center top; }
     .photo-ring span { color: #8ca3be; font-size: 26px; font-weight: 800; }
     .front-info { position: absolute; left: 44px; right: 44px; top: 345px; z-index: 2; }
-    .front-authority { position: absolute; left: 42px; right: 42px; bottom: 20px; display: grid; grid-template-columns: 1fr 92px; gap: 8px; align-items: end; font-size: 11px; font-weight: 800; color: var(--ink); }
+    .front-authority { position: absolute; left: 42px; right: 42px; bottom: 20px; display: grid; gap: 8px; align-items: end; font-size: 11px; font-weight: 800; color: var(--ink); }
     .front-authority img { max-width: 92px; max-height: 42px; object-fit: contain; justify-self: end; }
     .detail-line { display: grid; grid-template-columns: 74px 1fr; gap: 7px; padding: 5px 0; border-bottom: 1px solid rgba(255,255,255,.18); }
     .detail-label { color: rgba(255,255,255,.78); font-size: 11px; font-weight: 900; text-transform: uppercase; }
@@ -140,4 +140,3 @@
       input, select, textarea, button, .button { min-height: 44px; }
     }
     @media print { header, .no-print, .panel:not(#masterPanel):not(#idPreviewPanel) { display: none !important; } body { background: #fff; } #masterPanel, #idPreviewPanel { border: 0; padding: 0; } .master-card, .id-card { box-shadow: none; } }
-

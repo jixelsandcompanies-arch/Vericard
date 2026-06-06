@@ -65,7 +65,6 @@
         <label>Password<input name="password" type="password" minlength="8" required></label>
         <label>Confirm password<input name="confirmPassword" type="password" minlength="8" required></label>
         <input name="logo" id="registerLogoValue" type="hidden">
-        <input name="authoritySignature" id="registerSignatureValue" type="hidden">
         <label>Brand color<input name="brandColor" id="registerBrandColor" type="color" value="#061a30"></label>
         <div class="upload-box" data-logo-drop="register" tabindex="0">
           <div class="upload-row">
@@ -80,20 +79,6 @@
             </div>
           </div>
           <input id="registerLogoFile" type="file" accept="image/png,image/jpeg,image/webp,image/gif,image/svg+xml" hidden>
-        </div>
-        <div class="upload-box" data-signature-drop="register" tabindex="0">
-          <div class="upload-row">
-            <img class="logo-preview hidden" id="registerSignaturePreview" alt="">
-            <div class="logo-copy">
-              <strong id="registerSignatureLabel">Digital signature</strong>
-              <span>Used on the front of approved ID cards and master card.</span>
-              <div class="logo-actions">
-                <button type="button" class="secondary" data-signature-pick="register">Choose Signature</button>
-                <button type="button" class="secondary hidden" data-signature-remove="register">Remove</button>
-              </div>
-            </div>
-          </div>
-          <input id="registerSignatureFile" type="file" accept="image/png,image/jpeg,image/webp,image/gif,image/svg+xml" hidden>
         </div>
         <button type="submit">Create Organization</button>
       </form>
@@ -356,21 +341,6 @@
         <label>Gate latitude<input name="gateLatitude" inputmode="decimal" placeholder="-1.286389"></label>
         <label>Gate longitude<input name="gateLongitude" inputmode="decimal" placeholder="36.817223"></label>
         <label>Allowed gate radius in meters<input name="gateRadiusMeters" type="number" min="1" step="1" placeholder="100"></label>
-        <input name="authoritySignature" id="dashboardSignatureValue" type="hidden">
-        <div class="upload-box" data-signature-drop="dashboard" tabindex="0">
-          <div class="upload-row">
-            <img class="logo-preview hidden" id="dashboardSignaturePreview" alt="">
-            <div class="logo-copy">
-              <strong>Upload signature image</strong>
-              <span>Optional. If uploaded, it appears with the typed electronic signature on ID cards.</span>
-              <div class="logo-actions">
-                <button type="button" class="secondary" data-signature-pick="dashboard">Choose Signature</button>
-                <button type="button" class="secondary hidden" data-signature-remove="dashboard">Remove</button>
-              </div>
-            </div>
-          </div>
-          <input id="dashboardSignatureFile" type="file" accept="image/png,image/jpeg,image/webp,image/gif,image/svg+xml" hidden>
-        </div>
         <button type="submit">Save Back Settings</button>
       </form>
 
@@ -391,7 +361,6 @@
             </div>
             <div class="front-authority">
               <span id="frontAuthorityName"></span>
-              <img id="frontAuthoritySignature" class="hidden" alt="">
             </div>
           </article>
           <article class="id-card">

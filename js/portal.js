@@ -8,7 +8,6 @@ const state = { token: '', org: null, rules: null, orgRegistrationFields: {}, ca
       orgRegisterForm: document.getElementById('orgRegisterForm'), registerBackBtn: document.getElementById('registerBackBtn'), loginForm: document.getElementById('loginForm'), loginNotice: document.getElementById('loginNotice'),
       loginBackBtn: document.getElementById('loginBackBtn'), orgForgotToggleBtn: document.getElementById('orgForgotToggleBtn'), orgResetForm: document.getElementById('orgResetForm'), orgSendResetBtn: document.getElementById('orgSendResetBtn'),
       registerLogoValue: document.getElementById('registerLogoValue'), registerBrandColor: document.getElementById('registerBrandColor'), registerLogoPreview: document.getElementById('registerLogoPreview'), registerLogoFile: document.getElementById('registerLogoFile'),
-      registerSignatureValue: document.getElementById('registerSignatureValue'), registerSignaturePreview: document.getElementById('registerSignaturePreview'), registerSignatureFile: document.getElementById('registerSignatureFile'), registerSignatureLabel: document.getElementById('registerSignatureLabel'),
       templateSetup: document.getElementById('templateSetup'), initialTemplateForm: document.getElementById('initialTemplateForm'), templateSetupNotice: document.getElementById('templateSetupNotice'),
       setupLogoValue: document.getElementById('setupLogoValue'), setupBrandColor: document.getElementById('setupBrandColor'), setupLogoPreview: document.getElementById('setupLogoPreview'), setupLogoFile: document.getElementById('setupLogoFile'),
       setupTemplateSelect: document.getElementById('setupTemplateSelect'), setupTemplateGallery: document.getElementById('setupTemplateGallery'),
@@ -26,11 +25,11 @@ const state = { token: '', org: null, rules: null, orgRegistrationFields: {}, ca
       feePanel: document.getElementById('feePanel'), feeUploadFile: document.getElementById('feeUploadFile'), uploadFeesBtn: document.getElementById('uploadFeesBtn'), refreshFeesBtn: document.getElementById('refreshFeesBtn'), feeNotice: document.getElementById('feeNotice'), feesBody: document.getElementById('feesBody'),
       reportsPanel: document.getElementById('reportsPanel'), reportsSummary: document.getElementById('reportsSummary'), notificationsBody: document.getElementById('notificationsBody'),
       backSettingsForm: document.getElementById('backSettingsForm'), previewEmpty: document.getElementById('previewEmpty'), idCardStage: document.getElementById('idCardStage'),
-      schoolBackFields: document.getElementById('schoolBackFields'), schoolHourFields: document.getElementById('schoolHourFields'), dashboardSignatureValue: document.getElementById('dashboardSignatureValue'), dashboardSignaturePreview: document.getElementById('dashboardSignaturePreview'), dashboardSignatureFile: document.getElementById('dashboardSignatureFile'),
+      schoolBackFields: document.getElementById('schoolBackFields'), schoolHourFields: document.getElementById('schoolHourFields'),
       idFrontLogo: document.getElementById('idFrontLogo'), idBackLogo: document.getElementById('idBackLogo'), idPhoto: document.getElementById('idPhoto'),
       idPhotoPlaceholder: document.getElementById('idPhotoPlaceholder'), idFrontOrgName: document.getElementById('idFrontOrgName'), idCardName: document.getElementById('idCardName'), idCardNumber: document.getElementById('idCardNumber'), idCardExpiry: document.getElementById('idCardExpiry'),
       idCardRole: document.getElementById('idCardRole'), idCardQr: document.getElementById('idCardQr'), backReturnTitle: document.getElementById('backReturnTitle'),
-      frontAuthorityName: document.getElementById('frontAuthorityName'), frontAuthoritySignature: document.getElementById('frontAuthoritySignature'),
+      frontAuthorityName: document.getElementById('frontAuthorityName'),
       backMission: document.getElementById('backMission'), backVision: document.getElementById('backVision'), backIdentityNumber: document.getElementById('backIdentityNumber'),
       backReturnName: document.getElementById('backReturnName'), backPoBox: document.getElementById('backPoBox'), backAddress1: document.getElementById('backAddress1'), backAddress2: document.getElementById('backAddress2'),
       backPhone: document.getElementById('backPhone'), backDesk: document.getElementById('backDesk'), backResponsibilityTitle: document.getElementById('backResponsibilityTitle'),
@@ -101,7 +100,6 @@ const state = { token: '', org: null, rules: null, orgRegistrationFields: {}, ca
       }
       window.loadOrganizationFeature?.(type);
       const rule = registrationRule(type);
-      if (els.registerSignatureLabel) els.registerSignatureLabel.textContent = `${rule.signatureLabel || 'Digital signature'} image`;
       els.orgDynamicFields.innerHTML = `
         <label>${rule.nameLabel || 'Organization name'}<input name="name" required></label>
         <label>Location<input name="location" required></label>
@@ -517,19 +515,6 @@ const state = { token: '', org: null, rules: null, orgRegistrationFields: {}, ca
       if (removeButton) removeButton.classList.toggle('hidden', !value);
     }
 
-    function setSignatureValue(scope, value) {
-      const targets = {
-        register: [els.registerSignatureValue, els.registerSignaturePreview],
-        dashboard: [els.dashboardSignatureValue, els.dashboardSignaturePreview]
-      };
-      const [input, preview] = targets[scope] || targets.dashboard;
-      const removeButton = document.querySelector(`[data-signature-remove="${scope}"]`);
-      if (!input || !preview) return;
-      input.value = value || '';
-      setImage(preview, value || '');
-      if (removeButton) removeButton.classList.toggle('hidden', !value);
-    }
-
     function setBrandColorValue(scope, value) {
       const color = normalizeHexColor(value);
       const inputs = { register: els.registerBrandColor, setup: els.setupBrandColor, dashboard: els.dashboardBrandColor };
@@ -630,29 +615,6 @@ const state = { token: '', org: null, rules: null, orgRegistrationFields: {}, ca
       });
     }
 
-    function setupSignatureUploader(scope) {
-      const box = document.querySelector(`[data-signature-drop="${scope}"]`);
-      const fileInput = scope === 'register' ? els.registerSignatureFile : els.dashboardSignatureFile;
-      const pickButton = document.querySelector(`[data-signature-pick="${scope}"]`);
-      const removeButton = document.querySelector(`[data-signature-remove="${scope}"]`);
-      if (!box || !fileInput || !pickButton || !removeButton) return;
-      pickButton.addEventListener('click', () => fileInput.click());
-      removeButton.addEventListener('click', () => {
-        fileInput.value = '';
-        setSignatureValue(scope, '');
-      });
-      fileInput.addEventListener('change', async () => {
-        try { setSignatureValue(scope, await readLogoFile(fileInput.files[0])); }
-        catch (error) { alert(friendlyError(error)); }
-      });
-      box.addEventListener('keydown', (event) => {
-        if (event.key === 'Enter' || event.key === ' ') {
-          event.preventDefault();
-          fileInput.click();
-        }
-      });
-    }
-
     async function loadScanRegistration() {
       els.scanPanel.classList.remove('hidden');
       try {
@@ -706,7 +668,6 @@ const state = { token: '', org: null, rules: null, orgRegistrationFields: {}, ca
       for (const element of els.backSettingsForm.elements) {
         if (element.name && settings[element.name] !== undefined) element.value = settings[element.name] || '';
       }
-      setSignatureValue('dashboard', settings.authoritySignature || '');
     }
 
     function renderBackSettings(card = null) {
@@ -754,7 +715,6 @@ const state = { token: '', org: null, rules: null, orgRegistrationFields: {}, ca
       els.idCardExpiry.textContent = card.fields?.expiryDate || state.org?.backSettings?.cardExpiryDate || '';
       const authorityName = state.org?.backSettings?.authorityName || state.org?.ownerName || '';
       els.frontAuthorityName.textContent = authorityName ? `E-Signature: ${authorityName}` : '';
-      setImage(els.frontAuthoritySignature, state.org?.backSettings?.authoritySignature || '');
       if (card.photo) {
         els.idPhoto.src = card.photo;
         els.idPhoto.classList.remove('hidden');
@@ -1022,7 +982,6 @@ const state = { token: '', org: null, rules: null, orgRegistrationFields: {}, ca
 
     async function saveBackSettings() {
       const backSettings = Object.fromEntries(new FormData(els.backSettingsForm).entries());
-      backSettings.authoritySignature = els.dashboardSignatureValue.value || backSettings.authoritySignature || '';
       const data = await api('/api/org/back-settings', { method: 'PATCH', headers: headers(), body: JSON.stringify({ backSettings }) });
       state.org = data.organization;
       fillBackSettingsForm();
@@ -1271,7 +1230,5 @@ const state = { token: '', org: null, rules: null, orgRegistrationFields: {}, ca
     setupLogoUploader('register');
     setupLogoUploader('setup');
     setupLogoUploader('dashboard');
-    setupSignatureUploader('register');
-    setupSignatureUploader('dashboard');
     initializeEntryView();
     loadSetup().catch((error) => alert(friendlyError(error)));

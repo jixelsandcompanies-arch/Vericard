@@ -214,7 +214,7 @@ const orgRegistrationFields = {
 const organizationTypes = {
   school: { label: 'School', roles: {
     student: role('Student', ['name', 'admissionNumber', 'classGrade', 'parentGuardianName', 'parentGuardianPhone', 'photo'], ['studentCategory', 'stream', 'phone', 'email', 'parentGuardianEmail', 'parentGuardianNationalId']),
-    teacher: role('Teacher', ['name', 'nationalId', 'staffId', 'department', 'phone', 'email', 'photo'], ['subject']),
+    teacher: role('Teacher', ['name', 'nationalId', 'staffId', 'department', 'phone', 'email', 'photo'], ['subject', 'classTeacherStatus', 'assignedClass']),
     staff: role('Staff', ['name', 'nationalId', 'staffId', 'position', 'department', 'phone', 'email', 'photo']),
     guardian: role('Parent/Guardian', ['name', 'nationalId', 'phone', 'relationshipToStudent', 'studentName', 'studentAdmissionNumber', 'photo'], ['email'])
   } },
@@ -446,6 +446,12 @@ function validateRoleFields(org, roleType, fields) {
     } else {
       fields.registrationSource = 'home-master-qr';
     }
+  }
+  if (org.type === 'school' && roleType === 'teacher') {
+    fields.classTeacherStatus = normalizeText(fields.classTeacherStatus) || 'no';
+    if (!['yes', 'no'].includes(fields.classTeacherStatus)) return { error: 'Choose whether this teacher is a class teacher.' };
+    if (fields.classTeacherStatus === 'yes' && !normalizeText(fields.assignedClass)) return { error: 'Assigned class is required for a class teacher.' };
+    if (fields.classTeacherStatus === 'no') fields.assignedClass = '';
   }
   for (const field of roleRule.required) {
     const error = requiredFieldError(fields, field);

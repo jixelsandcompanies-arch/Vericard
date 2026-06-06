@@ -28,7 +28,7 @@ const state = { token: '', org: null, rules: null, orgRegistrationFields: {}, ca
       schoolBackFields: document.getElementById('schoolBackFields'), schoolHourFields: document.getElementById('schoolHourFields'),
       idFrontLogo: document.getElementById('idFrontLogo'), idBackLogo: document.getElementById('idBackLogo'), idPhoto: document.getElementById('idPhoto'),
       idPhotoPlaceholder: document.getElementById('idPhotoPlaceholder'), idFrontOrgName: document.getElementById('idFrontOrgName'), idCardName: document.getElementById('idCardName'), idCardNumber: document.getElementById('idCardNumber'), idCardExpiry: document.getElementById('idCardExpiry'),
-      idCardRole: document.getElementById('idCardRole'), idCardQr: document.getElementById('idCardQr'), backReturnTitle: document.getElementById('backReturnTitle'),
+      idCardRoleLabel: document.getElementById('idCardRoleLabel'), idCardRole: document.getElementById('idCardRole'), idCardQr: document.getElementById('idCardQr'), backReturnTitle: document.getElementById('backReturnTitle'),
       frontAuthorityName: document.getElementById('frontAuthorityName'),
       backMission: document.getElementById('backMission'), backVision: document.getElementById('backVision'), backIdentityNumber: document.getElementById('backIdentityNumber'),
       backReturnName: document.getElementById('backReturnName'), backPoBox: document.getElementById('backPoBox'), backAddress1: document.getElementById('backAddress1'), backAddress2: document.getElementById('backAddress2'),
@@ -654,6 +654,10 @@ const state = { token: '', org: null, rules: null, orgRegistrationFields: {}, ca
           teacherFields = '<label>Class teacher name<input name="classTeacherName" data-boarding-teacher></label><label>Class teacher staff ID<input name="classTeacherStaffId" data-boarding-teacher></label>';
         }
       }
+      if (state.org?.type === 'school' && els.roleType.value === 'teacher') {
+        fields = fields.filter((field) => !['classTeacherStatus', 'assignedClass'].includes(field));
+        teacherFields = '<label>Class teacher<select name="classTeacherStatus" required><option value="no">No</option><option value="yes">Yes</option></select></label><label>Assigned class<input name="assignedClass" data-class-teacher-class></label>';
+      }
       els.dynamicFields.innerHTML = fields.map((field) => {
         if (field === 'studentCategory') return '<label>Student category<select name="studentCategory" required><option value="">Choose student category</option><option value="day">Day student</option><option value="boarding">Boarding student</option></select></label>';
         const type = field === 'photo' ? 'url' : (field === 'email' ? 'email' : (field === 'dateOfBirth' ? 'date' : 'text'));
@@ -666,6 +670,13 @@ const state = { token: '', org: null, rules: null, orgRegistrationFields: {}, ca
       };
       category?.addEventListener('change', updateTeacherRequirement);
       updateTeacherRequirement();
+      const classTeacherStatus = els.dynamicFields.querySelector('[name="classTeacherStatus"]');
+      const updateAssignedClassRequirement = () => {
+        const required = classTeacherStatus?.value === 'yes';
+        els.dynamicFields.querySelectorAll('[data-class-teacher-class]').forEach((input) => { input.required = required; });
+      };
+      classTeacherStatus?.addEventListener('change', updateAssignedClassRequirement);
+      updateAssignedClassRequirement();
     }
 
     function fillBackSettingsForm() {
@@ -717,7 +728,9 @@ const state = { token: '', org: null, rules: null, orgRegistrationFields: {}, ca
       els.idFrontOrgName.textContent = state.org?.name || '';
       els.idCardName.textContent = card.name || '';
       els.idCardNumber.textContent = frontCardNumber(card);
-      els.idCardRole.textContent = card.position || card.roleType || '';
+      const isSchoolStudentCard = state.org?.type === 'school' && card.roleType === 'student';
+      els.idCardRoleLabel.textContent = isSchoolStudentCard ? 'Class:' : 'Role:';
+      els.idCardRole.textContent = isSchoolStudentCard ? [card.fields?.classGrade, card.fields?.stream].filter(Boolean).join(' - ') : (card.position || card.roleType || '');
       els.idCardExpiry.textContent = card.fields?.expiryDate || state.org?.backSettings?.cardExpiryDate || '';
       const authorityName = state.org?.backSettings?.authorityName || state.org?.ownerName || '';
       els.frontAuthorityName.textContent = authorityName ? `E-Signature: ${authorityName}` : '';

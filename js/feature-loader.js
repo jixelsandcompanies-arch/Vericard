@@ -13,7 +13,7 @@ window.VeriCardFeatures = window.VeriCardFeatures || {};
     if (loadedCss.has(type)) return;
     const link = document.createElement('link');
     link.rel = 'stylesheet';
-    link.href = `features/${type}/${type}.css`;
+    link.href = `/features/${type}/${type}.css`;
     link.dataset.featureCss = type;
     document.head.appendChild(link);
     loadedCss.add(type);
@@ -22,7 +22,7 @@ window.VeriCardFeatures = window.VeriCardFeatures || {};
   function loadJs(type) {
     if (loadedJs.has(type)) return;
     const script = document.createElement('script');
-    script.src = `features/${type}/${type}.js`;
+    script.src = `/features/${type}/${type}.js`;
     script.defer = true;
     script.dataset.featureJs = type;
     document.body.appendChild(script);
@@ -33,7 +33,7 @@ window.VeriCardFeatures = window.VeriCardFeatures || {};
     const mount = document.getElementById('organizationFeatureMount');
     if (!mount) return;
     try {
-      const response = await fetch(`features/${type}/${type}.html`);
+      const response = await fetch(`/features/${type}/${type}.html`);
       mount.innerHTML = response.ok ? await response.text() : '';
       mount.classList.toggle('hidden', !mount.innerHTML.trim());
     } catch {

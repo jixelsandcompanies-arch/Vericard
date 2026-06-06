@@ -922,7 +922,7 @@ app.get('/api/org/master-card', requireOrg, async (req, res) => {
   if (!isCurrentActiveMasterCard(org, masterCard.token)) return res.status(409).json({ error: 'No active master card is available for this organization.' });
   const updatedMasterCard = { ...masterCard, downloadedAt: new Date().toISOString(), downloadCount: masterCard.downloadCount + 1 };
   await db.from('organizations').update({ master_card: updatedMasterCard, updated_at: new Date().toISOString() }).eq('id', org.id);
-  res.json({ masterCard: { ...masterCard, organization: toOrg(org), qrUrl: `${req.protocol}://${req.get('host')}/portal.html?master=${encodeURIComponent(masterCard.token || '')}` } });
+  res.json({ masterCard: { ...masterCard, organization: toOrg(org), qrUrl: `${req.protocol}://${req.get('host')}/?master=${encodeURIComponent(masterCard.token || '')}` } });
 });
 
 app.get('/api/org/register-info', async (req, res) => {

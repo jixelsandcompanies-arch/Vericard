@@ -1,5 +1,21 @@
 {
   "version": 2,
+  "functions": {
+    "api/index.js": {
+      "includeFiles": [
+        "index.html",
+        "portal.html",
+        "gate.html",
+        "super-admin.html",
+        "css/**",
+        "js/**",
+        "assets/**",
+        "features/**",
+        "manifest.webmanifest",
+        "sw.js"
+      ]
+    }
+  },
   "rewrites": [
     {
       "source": "/(.*)",

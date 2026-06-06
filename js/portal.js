@@ -434,8 +434,15 @@ const state = { token: '', org: null, rules: null, orgRegistrationFields: {}, ca
       gallery.innerHTML = smartTemplates.map((template) => `
         <button type="button" class="template ${template.id === activeId ? 'active' : ''}" data-template-id="${template.id}" style="--template-color:${template.color};--template-accent:${template.accent};">
           <span class="template-preview template-${template.layout}">
-            ${state.org?.logo ? `<img src="${state.org.logo}" alt="">` : '<b>ID</b>'}
-            <i></i><em></em>
+            <span class="template-logo">${state.org?.logo ? `<img src="${escapeAttr(state.org.logo)}" alt="">` : '<b>ID</b>'}</span>
+            <span class="template-org">${escapeHtml(state.org?.name || template.name)}</span>
+            <span class="template-photo"></span>
+            <span class="template-band">
+              <span></span>
+              <span></span>
+              <span></span>
+            </span>
+            <span class="template-qr-mark"></span>
           </span>
           <strong>${template.name}</strong>
           <small>${template.description}</small>
@@ -624,7 +631,7 @@ const state = { token: '', org: null, rules: null, orgRegistrationFields: {}, ca
         document.title = `${data.organization.name} Registration`;
         els.portalTitle.textContent = `${data.organization.name} Registration`;
         setBrandColor(data.organization.brandColor || '#061a30');
-        els.scanNotice.textContent = `${data.organization.name} is active. Choose the correct registration type and submit for admin approval.`;
+        els.scanNotice.textContent = `${data.organization.name} is active. Choose the correct registration type for this organization and submit for admin approval.`;
         els.applyForm.classList.remove('hidden');
         els.roleType.innerHTML = Object.entries(data.rules.roles).map(([key, role]) => `<option value="${key}">${role.label}</option>`).join('');
         renderDynamicFields();

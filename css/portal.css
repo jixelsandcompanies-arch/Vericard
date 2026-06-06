@@ -48,15 +48,23 @@
     .template strong { color: var(--ink); font-size: 13px; }
     .template small { color: var(--muted); font-weight: 700; line-height: 1.3; }
     .template-badge { width: fit-content; border-radius: 999px; background: var(--template-accent); color: #111827; padding: 3px 7px; font-size: 10px; font-weight: 900; }
-    .template-preview { height: 86px; border: 1px solid var(--line); border-radius: 8px; background: #fff; position: relative; overflow: hidden; display: block; }
-    .template-preview img, .template-preview b { position: absolute; left: 13px; top: 9px; width: 70px; height: 30px; object-fit: contain; color: var(--template-color); font-weight: 900; }
-    .template-preview i { position: absolute; left: 12px; right: 12px; bottom: 10px; height: 31px; border-radius: 8px; background: var(--template-color); }
-    .template-preview em { position: absolute; right: 16px; top: 14px; width: 26px; height: 26px; border-radius: 50%; border: 4px solid var(--template-accent); background: #f8fbff; }
-    .template-primary i { height: 37px; }
-    .template-clean i { left: 0; right: 0; bottom: 0; height: 25px; border-radius: 0; }
+    .template-preview { height: 118px; border: 1px solid var(--line); border-radius: 8px; background: #fff; position: relative; overflow: hidden; display: block; box-shadow: inset 0 0 0 1px rgba(255,255,255,.7); }
+    .template-logo { position: absolute; left: 12px; top: 9px; width: 74px; height: 28px; display: grid; place-items: center; color: var(--template-color); font-weight: 900; font-size: 14px; }
+    .template-logo img { max-width: 74px; max-height: 28px; object-fit: contain; }
+    .template-org { position: absolute; left: 12px; right: 12px; top: 38px; color: var(--template-color); font-size: 8px; font-weight: 900; text-align: center; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+    .template-photo { position: absolute; left: 50%; top: 50px; width: 38px; height: 38px; transform: translateX(-50%); border-radius: 50%; border: 3px solid var(--template-accent); background: #f8fbff; }
+    .template-band { position: absolute; left: 12px; right: 12px; bottom: 9px; min-height: 34px; border-radius: 7px; background: var(--template-color); display: grid; align-content: center; gap: 4px; padding: 7px 9px; }
+    .template-band span { display: block; height: 3px; border-radius: 10px; background: rgba(255,255,255,.85); }
+    .template-band span:first-child { width: 58%; background: var(--template-accent); }
+    .template-band span:nth-child(2) { width: 82%; }
+    .template-band span:nth-child(3) { width: 68%; }
+    .template-qr-mark { position: absolute; right: 12px; top: 10px; width: 24px; height: 24px; border: 2px solid var(--template-color); background: repeating-linear-gradient(45deg, #fff 0 4px, var(--template-accent) 4px 7px); }
+    .template-clean .template-band { left: 0; right: 0; bottom: 0; border-radius: 0; min-height: 30px; }
     .template-bold { background: color-mix(in srgb, var(--template-color) 8%, #fff); }
-    .template-bold i { top: 0; bottom: 0; left: auto; right: 0; width: 44px; height: auto; border-radius: 0; }
-    .template-qr em { border-radius: 3px; border-color: var(--template-color); background: repeating-linear-gradient(45deg, #fff 0 4px, var(--template-accent) 4px 7px); }
+    .template-bold .template-band { top: 0; bottom: 0; left: auto; right: 0; width: 46px; min-height: auto; border-radius: 0; padding: 0; }
+    .template-bold .template-band span { display: none; }
+    .template-bold .template-photo { left: 42%; }
+    .template-qr .template-qr-mark { border-radius: 2px; border-color: var(--template-color); }
     .feature-list { margin: 0; padding-left: 18px; display: grid; gap: 7px; font-weight: 700; }
     .feature-note { display: grid; gap: 6px; padding-left: 12px; }
     .feature-note p { margin: 0; color: var(--muted); font-weight: 700; line-height: 1.4; }

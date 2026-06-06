@@ -40,6 +40,10 @@ const state = { token: '', org: null, rules: null, orgRegistrationFields: {}, ca
     function headers() { return { Authorization: `Bearer ${state.token}`, 'Content-Type': 'application/json' }; }
     function qrUrl(value) { return `https://api.qrserver.com/v1/create-qr-code/?size=180x180&data=${encodeURIComponent(value)}`; }
     function niceLabel(key) { return key.replace(/([A-Z])/g, ' $1').replace(/^./, (c) => c.toUpperCase()); }
+    function escapeHtml(value) {
+      return String(value ?? '').replace(/[&<>"']/g, (char) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[char]));
+    }
+    function escapeAttr(value) { return escapeHtml(value).replace(/`/g, '&#96;'); }
     function verificationUrl(token) { return `${window.location.origin}/?token=${encodeURIComponent(token)}`; }
     function hasRegisteredOrganization() { return localStorage.getItem('mapphexOrganizationRegistered') === 'true'; }
     function rememberRegisteredOrganization() { localStorage.setItem('mapphexOrganizationRegistered', 'true'); }
@@ -244,9 +248,6 @@ const state = { token: '', org: null, rules: null, orgRegistrationFields: {}, ca
         image.onerror = () => resolve(defaultPalette());
         image.src = src;
       });
-    }
-    async function extractDominantColor(src) {
-      return (await extractLogoPalette(src)).primary;
     }
     function showIntro() {
       document.title = 'VeriCard Portal';
@@ -850,13 +851,13 @@ const state = { token: '', org: null, rules: null, orgRegistrationFields: {}, ca
       }
       els.cardsBody.innerHTML = data.cards.map((card) => `
         <tr>
-          <td>${card.id}</td><td>${card.name}</td><td>${card.roleType || card.position}</td>
-          <td>${card.phone || ''}</td><td>${card.email || ''}</td><td>${card.status || 'Pending'}</td>
+          <td>${escapeHtml(card.id)}</td><td>${escapeHtml(card.name)}</td><td>${escapeHtml(card.roleType || card.position)}</td>
+          <td>${escapeHtml(card.phone || '')}</td><td>${escapeHtml(card.email || '')}</td><td>${escapeHtml(card.status || 'Pending')}</td>
           <td class="row">
-            ${(card.status || 'Pending') === 'Approved' ? `<button data-id="${card.id}" data-action="view">View Card</button>` : ''}
-            <button data-id="${card.id}" data-status="Approved">Approve</button>
-            <button data-id="${card.id}" data-status="Rejected" class="secondary">Reject</button>
-            <button data-id="${card.id}" data-status="Inactive" class="secondary">Inactive</button>
+            ${(card.status || 'Pending') === 'Approved' ? `<button data-id="${escapeAttr(card.id)}" data-action="view">View Card</button>` : ''}
+            <button data-id="${escapeAttr(card.id)}" data-status="Approved">Approve</button>
+            <button data-id="${escapeAttr(card.id)}" data-status="Rejected" class="secondary">Reject</button>
+            <button data-id="${escapeAttr(card.id)}" data-status="Inactive" class="secondary">Inactive</button>
           </td>
         </tr>`).join('');
     }
@@ -866,13 +867,13 @@ const state = { token: '', org: null, rules: null, orgRegistrationFields: {}, ca
       const rows = data.attendance || [];
       els.attendanceBody.innerHTML = rows.length ? rows.map((row) => `
         <tr>
-          <td>${row.studentName}</td>
-          <td>${row.studentNumber || ''}</td>
-          <td>${row.classGrade || ''}</td>
+          <td>${escapeHtml(row.studentName)}</td>
+          <td>${escapeHtml(row.studentNumber || '')}</td>
+          <td>${escapeHtml(row.classGrade || '')}</td>
           <td>${formatDate(row.attendanceDate)}</td>
           <td>${formatTime(row.entryAt)}</td>
           <td>${formatTime(row.exitAt)}</td>
-          <td>${row.status}</td>
+          <td>${escapeHtml(row.status)}</td>
         </tr>`).join('') : '<tr><td colspan="7">No attendance scans yet.</td></tr>';
     }
 
@@ -881,22 +882,22 @@ const state = { token: '', org: null, rules: null, orgRegistrationFields: {}, ca
       const rows = data.staff || [];
       els.gateStaffBody.innerHTML = rows.length ? rows.map((staff) => `
         <tr>
-          <td>${staff.fullName}<br>${staff.phone || ''}</td>
-          <td>${staff.staffCode}</td>
-          <td>${staff.gateName}</td>
-          <td>${staff.status}</td>
-          <td><button type="button" data-gate-staff="${staff.id}" data-status="${staff.status === 'Active' ? 'Suspended' : 'Active'}">${staff.status === 'Active' ? 'Suspend' : 'Activate'}</button></td>
+          <td>${escapeHtml(staff.fullName)}<br>${escapeHtml(staff.phone || '')}</td>
+          <td>${escapeHtml(staff.staffCode)}</td>
+          <td>${escapeHtml(staff.gateName)}</td>
+          <td>${escapeHtml(staff.status)}</td>
+          <td><button type="button" data-gate-staff="${escapeAttr(staff.id)}" data-status="${staff.status === 'Active' ? 'Suspended' : 'Active'}">${staff.status === 'Active' ? 'Suspend' : 'Activate'}</button></td>
         </tr>`).join('') : '<tr><td colspan="5">No gate staff registered yet.</td></tr>';
       const devices = data.devices || [];
       els.gateDevicesBody.innerHTML = devices.length ? devices.map((device) => `
         <tr>
-          <td>${device.deviceId}</td>
-          <td>${device.gateName || ''}</td>
-          <td>${device.status}</td>
+          <td>${escapeHtml(device.deviceId)}</td>
+          <td>${escapeHtml(device.gateName || '')}</td>
+          <td>${escapeHtml(device.status)}</td>
           <td>${formatTime(device.lastSeenAt || device.createdAt)}</td>
           <td>
-            <button type="button" data-gate-device="${device.id}" data-status="Approved">Approve</button>
-            <button type="button" class="secondary" data-gate-device="${device.id}" data-status="Blocked">Block</button>
+            <button type="button" data-gate-device="${escapeAttr(device.id)}" data-status="Approved">Approve</button>
+            <button type="button" class="secondary" data-gate-device="${escapeAttr(device.id)}" data-status="Blocked">Block</button>
           </td>
         </tr>`).join('') : '<tr><td colspan="5">No scanner devices registered yet.</td></tr>';
     }
@@ -919,11 +920,11 @@ const state = { token: '', org: null, rules: null, orgRegistrationFields: {}, ca
         ['Suspended students', summary.suspendedStudents || 0],
         ['Fee balance total', money(summary.feeBalanceTotal || 0)]
       ];
-      els.orgDashboardSummary.innerHTML = cards.map(([label, value]) => `<div class="dash-card"><strong>${value}</strong>${label}</div>`).join('');
-      els.reportsSummary.innerHTML = cards.map(([label, value]) => `<div class="dash-card"><strong>${value}</strong>${label}</div>`).join('');
+      els.orgDashboardSummary.innerHTML = cards.map(([label, value]) => `<div class="dash-card"><strong>${escapeHtml(value)}</strong>${escapeHtml(label)}</div>`).join('');
+      els.reportsSummary.innerHTML = cards.map(([label, value]) => `<div class="dash-card"><strong>${escapeHtml(value)}</strong>${escapeHtml(label)}</div>`).join('');
       const scans = data.recentScans || [];
       els.recentScansBody.innerHTML = scans.length ? scans.map((scan) => `
-        <tr><td>${scan.studentName}</td><td>${formatDate(scan.attendanceDate)}</td><td>${formatTime(scan.entryAt)}</td><td>${formatTime(scan.exitAt)}</td><td>${scan.status}</td></tr>
+        <tr><td>${escapeHtml(scan.studentName)}</td><td>${formatDate(scan.attendanceDate)}</td><td>${formatTime(scan.entryAt)}</td><td>${formatTime(scan.exitAt)}</td><td>${escapeHtml(scan.status)}</td></tr>
       `).join('') : '<tr><td colspan="5">No recent scans yet.</td></tr>';
     }
 
@@ -937,13 +938,13 @@ const state = { token: '', org: null, rules: null, orgRegistrationFields: {}, ca
       const fees = data.fees || [];
       els.feesBody.innerHTML = fees.length ? fees.map((fee) => `
         <tr>
-          <td>${fee.admissionNumber}</td>
-          <td>${fee.studentName}</td>
-          <td>${fee.classGrade || ''}</td>
+          <td>${escapeHtml(fee.admissionNumber)}</td>
+          <td>${escapeHtml(fee.studentName)}</td>
+          <td>${escapeHtml(fee.classGrade || '')}</td>
           <td>${money(fee.balance)}</td>
-          <td>${fee.dueDate || ''}</td>
-          <td>${fee.feeStatus}</td>
-          <td><button type="button" data-fee-notify="${fee.admissionNumber}">Notify Parent</button></td>
+          <td>${escapeHtml(fee.dueDate || '')}</td>
+          <td>${escapeHtml(fee.feeStatus)}</td>
+          <td><button type="button" data-fee-notify="${escapeAttr(fee.admissionNumber)}">Notify Parent</button></td>
         </tr>`).join('') : '<tr><td colspan="7">No fee records yet.</td></tr>';
     }
 
@@ -953,13 +954,13 @@ const state = { token: '', org: null, rules: null, orgRegistrationFields: {}, ca
       const logs = data.notifications || [];
       els.notificationsBody.innerHTML = logs.length ? logs.map((log) => `
         <tr>
-          <td>${log.studentName}</td>
-          <td>${log.admissionNumber || ''}</td>
-          <td>${log.parentEmail || log.parentPhone || ''}</td>
+          <td>${escapeHtml(log.studentName)}</td>
+          <td>${escapeHtml(log.admissionNumber || '')}</td>
+          <td>${escapeHtml(log.parentEmail || log.parentPhone || '')}</td>
           <td>${String(log.channel || 'sms').toUpperCase()}</td>
-          <td>${log.notificationType}</td>
-          <td>${log.deliveryStatus || log.status || 'Queued'}</td>
-          <td>${log.message}</td>
+          <td>${escapeHtml(log.notificationType)}</td>
+          <td>${escapeHtml(log.deliveryStatus || log.status || 'Queued')}</td>
+          <td>${escapeHtml(log.message)}</td>
           <td>${new Date(log.createdAt).toLocaleString()}</td>
         </tr>`).join('') : '<tr><td colspan="8">No parent communication logs yet.</td></tr>';
     }

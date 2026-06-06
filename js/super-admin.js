@@ -19,6 +19,10 @@ const state = {
       }
       return error.message || 'Something went wrong.';
     }
+    function escapeHtml(value) {
+      return String(value ?? '').replace(/[&<>"']/g, (char) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[char]));
+    }
+    function escapeAttr(value) { return escapeHtml(value).replace(/`/g, '&#96;'); }
     const els = {
       user: document.getElementById('user'),
       pin: document.getElementById('pin'),
@@ -108,7 +112,7 @@ const state = {
       if (!text) return {};
       try {
         return JSON.parse(text);
-      } catch (error) {
+      } catch {
         return { error: text };
       }
     }
@@ -252,14 +256,14 @@ const state = {
       const records = filtered();
       els.rows.innerHTML = records.length ? records.map((r) => `
         <tr>
-          <td>${r.photo ? `<img class="thumb" data-photo="${r.id}" src="${r.photo}" alt="">` : ''}</td><td>${r.id}<br>${r.organizationName || ''}</td><td>${r.name}</td><td>${r.nationalId || ''}</td><td>${r.location || ''}</td><td>${r.branch || ''}</td><td>${r.phone || ''}</td><td>${r.email || ''}</td><td>${r.roleType || r.position}</td><td>${r.status || 'Pending'}</td><td>${r.validity?.valid ? 'Valid' : `Not valid${r.validity?.reason ? `<br>${r.validity.reason}` : ''}`}</td>
+          <td>${r.photo ? `<img class="thumb" data-photo="${escapeAttr(r.id)}" src="${escapeAttr(r.photo)}" alt="">` : ''}</td><td>${escapeHtml(r.id)}<br>${escapeHtml(r.organizationName || '')}</td><td>${escapeHtml(r.name)}</td><td>${escapeHtml(r.nationalId || '')}</td><td>${escapeHtml(r.location || '')}</td><td>${escapeHtml(r.branch || '')}</td><td>${escapeHtml(r.phone || '')}</td><td>${escapeHtml(r.email || '')}</td><td>${escapeHtml(r.roleType || r.position)}</td><td>${escapeHtml(r.status || 'Pending')}</td><td>${r.validity?.valid ? 'Valid' : `Not valid${r.validity?.reason ? `<br>${escapeHtml(r.validity.reason)}` : ''}`}</td>
           <td>
-            ${(r.status || 'Pending') === 'Approved' ? `<button data-action="view" data-id="${r.id}">View Card</button>` : ''}
-            ${(r.status || 'Pending') === 'Approved' ? `<button data-action="notify" data-id="${r.id}">Notify</button>` : ''}
-            <button data-action="approve" data-id="${r.id}">Approve</button>
-            <button data-action="reject" data-id="${r.id}">Reject</button>
-            <button data-action="inactive" data-id="${r.id}">Inactive</button>
-            <button data-action="edit" data-id="${r.id}">Edit</button>
+            ${(r.status || 'Pending') === 'Approved' ? `<button data-action="view" data-id="${escapeAttr(r.id)}">View Card</button>` : ''}
+            ${(r.status || 'Pending') === 'Approved' ? `<button data-action="notify" data-id="${escapeAttr(r.id)}">Notify</button>` : ''}
+            <button data-action="approve" data-id="${escapeAttr(r.id)}">Approve</button>
+            <button data-action="reject" data-id="${escapeAttr(r.id)}">Reject</button>
+            <button data-action="inactive" data-id="${escapeAttr(r.id)}">Inactive</button>
+            <button data-action="edit" data-id="${escapeAttr(r.id)}">Edit</button>
           </td>
         </tr>`).join('') : '<tr><td colspan="12">No records found.</td></tr>';
     }
@@ -447,25 +451,25 @@ const state = {
           <tr class="org-people-row"><td colspan="9">
             <strong>${orgCards.length} individual registration(s)</strong>
             <div class="mini-list">${orgCards.map((card) => `
-              <div>${card.name || 'Unnamed'} - ${card.roleType || card.position || ''} - ${card.status || 'Pending'} - ${card.validity?.valid ? 'Valid' : card.validity?.reason || 'Not valid'}</div>
+              <div>${escapeHtml(card.name || 'Unnamed')} - ${escapeHtml(card.roleType || card.position || '')} - ${escapeHtml(card.status || 'Pending')} - ${escapeHtml(card.validity?.valid ? 'Valid' : card.validity?.reason || 'Not valid')}</div>
             `).join('') || '<div>No individual registrations yet.</div>'}</div>
           </td></tr>` : '';
         return `
         <tr>
-          <td>${org.name}</td>
-          <td>${org.typeLabel || org.type}</td>
-          <td>${org.businessNumber}</td>
-          <td>${org.email}</td>
-          <td>${org.phone}</td>
-          <td>${org.status}</td>
-          <td>${org.subscriptionStatus}</td>
-          <td>${org.masterCard ? `${org.masterCard.number}<br>${org.masterCard.status}` : ''}</td>
+          <td>${escapeHtml(org.name)}</td>
+          <td>${escapeHtml(org.typeLabel || org.type)}</td>
+          <td>${escapeHtml(org.businessNumber)}</td>
+          <td>${escapeHtml(org.email)}</td>
+          <td>${escapeHtml(org.phone)}</td>
+          <td>${escapeHtml(org.status)}</td>
+          <td>${escapeHtml(org.subscriptionStatus)}</td>
+          <td>${org.masterCard ? `${escapeHtml(org.masterCard.number)}<br>${escapeHtml(org.masterCard.status)}` : ''}</td>
           <td>
-            <button data-org-action="viewPeople" data-id="${org.id}">View People (${orgCards.length})</button>
-            <button data-org-action="activate" data-id="${org.id}">Activate</button>
-            <button data-org-action="trial" data-id="${org.id}">Trial</button>
-            <button data-org-action="expire" data-id="${org.id}">Expire</button>
-            <button data-org-action="suspend" data-id="${org.id}">Suspend</button>
+            <button data-org-action="viewPeople" data-id="${escapeAttr(org.id)}">View People (${orgCards.length})</button>
+            <button data-org-action="activate" data-id="${escapeAttr(org.id)}">Activate</button>
+            <button data-org-action="trial" data-id="${escapeAttr(org.id)}">Trial</button>
+            <button data-org-action="expire" data-id="${escapeAttr(org.id)}">Expire</button>
+            <button data-org-action="suspend" data-id="${escapeAttr(org.id)}">Suspend</button>
           </td>
         </tr>${peopleRows}`;
       }).join('');
@@ -474,35 +478,35 @@ const state = {
     function renderAttendance() {
       els.attendanceRows.innerHTML = state.attendance.length ? state.attendance.map((row) => `
         <tr>
-          <td>${row.organizationName}</td>
-          <td>${row.studentName}</td>
-          <td>${row.studentNumber || ''}</td>
-          <td>${row.classGrade || ''}</td>
+          <td>${escapeHtml(row.organizationName)}</td>
+          <td>${escapeHtml(row.studentName)}</td>
+          <td>${escapeHtml(row.studentNumber || '')}</td>
+          <td>${escapeHtml(row.classGrade || '')}</td>
           <td>${formatDate(row.attendanceDate)}</td>
           <td>${formatTime(row.entryAt)}</td>
           <td>${formatTime(row.exitAt)}</td>
-          <td>${row.status}</td>
+          <td>${escapeHtml(row.status)}</td>
         </tr>`).join('') : '<tr><td colspan="8">No attendance records found.</td></tr>';
     }
 
     function renderReports() {
       els.feeReportRows.innerHTML = state.fees.length ? state.fees.map((fee) => `
         <tr>
-          <td>${fee.organizationName}</td>
-          <td>${fee.admissionNumber}</td>
-          <td>${fee.studentName}</td>
-          <td>${fee.classGrade || ''}</td>
+          <td>${escapeHtml(fee.organizationName)}</td>
+          <td>${escapeHtml(fee.admissionNumber)}</td>
+          <td>${escapeHtml(fee.studentName)}</td>
+          <td>${escapeHtml(fee.classGrade || '')}</td>
           <td>KES ${Number(fee.balance || 0).toLocaleString()}</td>
-          <td>${fee.feeStatus}</td>
-          <td>${fee.dueDate || ''}</td>
+          <td>${escapeHtml(fee.feeStatus)}</td>
+          <td>${escapeHtml(fee.dueDate || '')}</td>
         </tr>`).join('') : '<tr><td colspan="7">No fee records found.</td></tr>';
       els.notificationReportRows.innerHTML = state.notifications.length ? state.notifications.map((log) => `
         <tr>
-          <td>${log.organizationName}</td>
-          <td>${log.studentName}</td>
-          <td>${log.parentPhone || ''}</td>
-          <td>${log.notificationType}</td>
-          <td>${log.message}</td>
+          <td>${escapeHtml(log.organizationName)}</td>
+          <td>${escapeHtml(log.studentName)}</td>
+          <td>${escapeHtml(log.parentPhone || '')}</td>
+          <td>${escapeHtml(log.notificationType)}</td>
+          <td>${escapeHtml(log.message)}</td>
           <td>${new Date(log.createdAt).toLocaleString()}</td>
         </tr>`).join('') : '<tr><td colspan="6">No parent communication logs found.</td></tr>';
     }

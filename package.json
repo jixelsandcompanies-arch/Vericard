@@ -4,11 +4,23 @@
   "private": true,
   "type": "module",
   "scripts": {
-    "start": "node server.js"
+    "start": "node server.js",
+    "test": "node --test",
+    "check": "node --check server.js && node --check js/portal.js && node --check js/super-admin.js && node --check js/gate.js && node --check js/feature-loader.js && node --check js/pwa.js && node --check sw.js",
+    "lint": "eslint .",
+    "format": "prettier --write .",
+    "db:migrate": "supabase db push",
+    "db:diff": "supabase db diff"
   },
   "dependencies": {
     "@supabase/supabase-js": "^2.45.4",
     "dotenv": "^16.4.5",
     "express": "^4.19.2"
+  },
+  "devDependencies": {
+    "@eslint/js": "^9.29.0",
+    "eslint": "^9.29.0",
+    "globals": "^15.15.0",
+    "prettier": "^3.5.3"
   }
 }

@@ -151,7 +151,9 @@ els.cancelBtn.addEventListener('click', clearPreview);
 els.endDutyBtn.addEventListener('click', async () => {
   try {
     await api('/api/gate/logout', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ sessionToken: state.sessionToken }) });
-  } catch {}
+  } catch {
+    // Logout is best-effort; local session cleanup should still happen offline.
+  }
   sessionStorage.removeItem('mapphexGateSession');
   location.reload();
 });

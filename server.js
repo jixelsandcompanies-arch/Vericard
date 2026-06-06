@@ -9,7 +9,9 @@ import { createClient } from '@supabase/supabase-js';
 
 const app = express();
 const port = process.env.PORT || 3000;
-const sessionSecret = process.env.SESSION_SECRET || 'mapphex-local-secret';
+const isProduction = process.env.NODE_ENV === 'production' || Boolean(process.env.VERCEL);
+const sessionSecret = process.env.SESSION_SECRET || (isProduction ? '' : 'mapphex-local-secret');
+const exposeResetCodes = process.env.EXPOSE_RESET_CODES === 'true';
 const appRoot = dirname(fileURLToPath(import.meta.url));
 const staticRoots = [...new Set([
   appRoot,
@@ -21,7 +23,8 @@ const staticRoots = [...new Set([
 const supabaseUrl = process.env.SUPABASE_URL;
 const supabaseKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
 const supabaseAnonKey = process.env.SUPABASE_ANON_KEY || supabaseKey;
-if (!supabaseUrl || !supabaseKey) {
+const isSupabaseConfigured = Boolean(supabaseUrl && supabaseKey);
+if (!isSupabaseConfigured && process.env.NODE_ENV !== 'test') {
   console.warn('Missing SUPABASE_URL or SUPABASE_SERVICE_ROLE_KEY. Add them to .env before using the API.');
 }
 const db = createClient(supabaseUrl || 'http://localhost', supabaseKey || 'missing-key', {
@@ -32,6 +35,70 @@ const authClient = createClient(supabaseUrl || 'http://localhost', supabaseAnonK
 });
 
 app.use(express.json({ limit: '8mb' }));
+
+function validateRuntimeConfig(env = process.env) {
+  const errors = [];
+  const production = env.NODE_ENV === 'production' || Boolean(env.VERCEL);
+  if (!production) return errors;
+  if (!env.SESSION_SECRET || env.SESSION_SECRET.length < 32 || env.SESSION_SECRET === 'mapphex-local-secret') {
+    errors.push('SESSION_SECRET must be set to a strong value of at least 32 characters.');
+  }
+  if (!env.ADMIN_USER) errors.push('ADMIN_USER must be configured.');
+  if (!env.ADMIN_PASSWORD || env.ADMIN_PASSWORD.length < 12 || env.ADMIN_PASSWORD === 'admin12345') {
+    errors.push('ADMIN_PASSWORD must be set to a strong value of at least 12 characters.');
+  }
+  if (!env.SUPABASE_URL || !env.SUPABASE_SERVICE_ROLE_KEY) {
+    errors.push('SUPABASE_URL and SUPABASE_SERVICE_ROLE_KEY must be configured.');
+  }
+  if (env.EXPOSE_RESET_CODES === 'true') {
+    errors.push('EXPOSE_RESET_CODES must be false in production.');
+  }
+  return errors;
+}
+
+const runtimeConfigErrors = validateRuntimeConfig();
+if (runtimeConfigErrors.length) {
+  throw new Error(`Invalid production configuration:\n- ${runtimeConfigErrors.join('\n- ')}`);
+}
+
+function createRateLimit({ windowMs, max, key = (req) => req.ip, message = 'Too many requests. Please try again shortly.' }) {
+  const hits = new Map();
+  return (req, res, next) => {
+    const now = Date.now();
+    const bucketKey = key(req);
+    const bucket = hits.get(bucketKey) || { count: 0, resetAt: now + windowMs };
+    if (bucket.resetAt <= now) {
+      bucket.count = 0;
+      bucket.resetAt = now + windowMs;
+    }
+    bucket.count += 1;
+    hits.set(bucketKey, bucket);
+    res.setHeader('RateLimit-Limit', String(max));
+    res.setHeader('RateLimit-Remaining', String(Math.max(0, max - bucket.count)));
+    res.setHeader('RateLimit-Reset', String(Math.ceil(bucket.resetAt / 1000)));
+    if (bucket.count > max) return res.status(429).json({ error: message });
+    next();
+  };
+}
+
+const authRateLimit = createRateLimit({
+  windowMs: 15 * 60 * 1000,
+  max: 20,
+  key: (req) => `${req.ip}:${normalizeEmail(req.body?.email || req.body?.username || '')}`,
+  message: 'Too many login or password attempts. Please wait 15 minutes and try again.'
+});
+const resetRateLimit = createRateLimit({
+  windowMs: 60 * 60 * 1000,
+  max: 5,
+  key: (req) => `${req.ip}:${normalizeEmail(req.body?.email || '')}`,
+  message: 'Too many password reset attempts. Please wait before requesting another code.'
+});
+const gateRateLimit = createRateLimit({
+  windowMs: 60 * 1000,
+  max: 60,
+  key: (req) => `${req.ip}:${normalizeText(req.body?.sessionToken || req.body?.staffCode || '')}`,
+  message: 'Too many gate scan requests. Please slow down and try again.'
+});
 
 function staticFilePath(filePath) {
   const cleanPath = normalize(String(filePath || '').replace(/^[/\\]+/, ''));
@@ -200,8 +267,14 @@ function hashPassword(password, salt = crypto.randomBytes(16).toString('hex')) {
   return { salt, passwordHash };
 }
 
+function secureEqualText(left, right) {
+  const leftBuffer = Buffer.from(String(left || ''));
+  const rightBuffer = Buffer.from(String(right || ''));
+  return leftBuffer.length === rightBuffer.length && crypto.timingSafeEqual(leftBuffer, rightBuffer);
+}
+
 function verifyPassword(password, salt, passwordHash) {
-  return hashPassword(password, salt).passwordHash === passwordHash;
+  return secureEqualText(hashPassword(password, salt).passwordHash, passwordHash);
 }
 
 function signToken(payload) {
@@ -272,6 +345,17 @@ function normalizeEmail(value) {
 
 function normalizeText(value) {
   return String(value || '').trim();
+}
+
+function validatePassword(value) {
+  if (String(value || '').length < 8) return 'Password must be at least 8 characters.';
+  return '';
+}
+
+function resetCodeMessage(code) {
+  return exposeResetCodes
+    ? `Verification code created: ${code}`
+    : 'Verification code created. Check the configured reset delivery channel or admin database.';
 }
 
 function requiredFieldError(fields, field) {
@@ -1053,9 +1137,14 @@ app.get('/api/verify-card', async (req, res) => {
   res.json(await verifyCardToken(req.query.token));
 });
 
-app.post('/api/login', async (req, res) => {
-  const settings = await adminSettings();
-  if (req.body.username !== settings.username || !verifyPassword(req.body.password || '', settings.salt, settings.password_hash)) {
+app.post('/api/login', authRateLimit, async (req, res) => {
+  let settings;
+  try {
+    settings = await adminSettings();
+  } catch (error) {
+    return res.status(500).json({ error: error.message });
+  }
+  if (!secureEqualText(req.body.username, settings.username) || !verifyPassword(req.body.password || '', settings.salt, settings.password_hash)) {
     return res.status(401).json({ error: 'Invalid admin login.' });
   }
   res.json({ token: signToken({ scope: 'admin', user: settings.username }) });
@@ -1214,20 +1303,29 @@ app.post('/api/organizations/sample-client', requireAdmin, async (req, res) => {
 });
 
 app.post('/api/change-password', requireAdmin, async (req, res) => {
+  const passwordError = validatePassword(req.body.password);
+  if (passwordError) return res.status(400).json({ error: passwordError });
+  const username = normalizeText(req.body.username);
+  if (!username) return res.status(400).json({ error: 'Admin username is required.' });
   const { salt, passwordHash } = hashPassword(req.body.password || '');
-  await db.from('admin_settings').upsert({ id: 'default', username: req.body.username, email: req.body.email, salt, password_hash: passwordHash, updated_at: new Date().toISOString() });
+  await db.from('admin_settings').upsert({ id: 'default', username, email: normalizeEmail(req.body.email), salt, password_hash: passwordHash, updated_at: new Date().toISOString() });
   res.json({ ok: true });
 });
 
-app.post('/api/forgot-password', async (req, res) => {
-  const settings = await adminSettings();
-  if (req.body.email !== settings.email) return res.status(404).json({ error: 'Admin email not found.' });
+app.post('/api/forgot-password', resetRateLimit, async (req, res) => {
+  let settings;
+  try {
+    settings = await adminSettings();
+  } catch (error) {
+    return res.status(500).json({ error: error.message });
+  }
+  if (!settings.email || normalizeEmail(req.body.email) !== normalizeEmail(settings.email)) return res.status(404).json({ error: 'Admin email not found.' });
   const code = String(Math.floor(100000 + Math.random() * 900000));
   await db.from('password_resets').insert({ email: settings.email, code, expires_at: new Date(Date.now() + 15 * 60 * 1000).toISOString() });
-  res.json({ message: process.env.EXPOSE_RESET_CODES === 'true' ? `Verification code created: ${code}` : 'Verification code created.' });
+  res.json({ message: resetCodeMessage(code) });
 });
 
-app.post('/api/org-forgot-password', async (req, res) => {
+app.post('/api/org-forgot-password', resetRateLimit, async (req, res) => {
   const email = normalizeText(req.body.email).toLowerCase();
   const { data: org } = await db.from('organizations').select('*').ilike('email', email).maybeSingle();
   if (!org) return res.status(404).json({ error: 'Registered organization admin email not found.' });
@@ -1241,21 +1339,27 @@ app.post('/api/org-forgot-password', async (req, res) => {
   });
 });
 
-app.post('/api/org-reset-password', async (req, res) => {
+app.post('/api/org-reset-password', authRateLimit, async (req, res) => {
   const email = normalizeText(req.body.email).toLowerCase();
   const { data } = await db.from('password_resets').select('*').ilike('email', email).eq('code', req.body.code).gt('expires_at', new Date().toISOString()).order('created_at', { ascending: false }).limit(1).maybeSingle();
   if (!data) return res.status(400).json({ error: 'Invalid or expired code.' });
   const { data: org } = await db.from('organizations').select('*').ilike('email', email).maybeSingle();
   if (!org) return res.status(404).json({ error: 'Registered organization admin email not found.' });
+  const passwordError = validatePassword(req.body.password);
+  if (passwordError) return res.status(400).json({ error: passwordError });
   const update = await updateOrgAuthPassword(org, req.body.password || '');
   if (update.error) return res.status(400).json({ error: update.error });
   res.json({ ok: true });
 });
 
-app.post('/api/reset-password', async (req, res) => {
-  const { data } = await db.from('password_resets').select('*').eq('email', req.body.email).eq('code', req.body.code).gt('expires_at', new Date().toISOString()).order('created_at', { ascending: false }).limit(1).maybeSingle();
+app.post('/api/reset-password', authRateLimit, async (req, res) => {
+  const email = normalizeEmail(req.body.email);
+  const { data } = await db.from('password_resets').select('*').ilike('email', email).eq('code', req.body.code).gt('expires_at', new Date().toISOString()).order('created_at', { ascending: false }).limit(1).maybeSingle();
   if (!data) return res.status(400).json({ error: 'Invalid or expired code.' });
   const settings = await adminSettings();
+  if (email !== normalizeEmail(settings.email)) return res.status(400).json({ error: 'Invalid or expired code.' });
+  const passwordError = validatePassword(req.body.password);
+  if (passwordError) return res.status(400).json({ error: passwordError });
   const { salt, passwordHash } = hashPassword(req.body.password || '');
   await db.from('admin_settings').update({ salt, password_hash: passwordHash, updated_at: new Date().toISOString() }).eq('id', settings.id);
   res.json({ ok: true });
@@ -1267,7 +1371,7 @@ app.post('/api/organizations/register', async (req, res) => {
   res.json({ organization: toOrg(result.data) });
 });
 
-app.post('/api/org-login', async (req, res) => {
+app.post('/api/org-login', authRateLimit, async (req, res) => {
   const { data: org, error } = await db.from('organizations').select('*').ilike('email', req.body.email).maybeSingle();
   if (error || !org || !(await verifyOrgPassword(org, req.body.password || ''))) return res.status(401).json({ error: 'Invalid organization login.' });
   res.json({ token: signToken({ scope: 'org', orgId: org.id }), organization: toOrg(org), templates, locked: org.subscription_status !== 'Active' });
@@ -1508,7 +1612,7 @@ app.patch('/api/org/gate-devices/:id', requireOrg, async (req, res) => {
   res.json({ device: toGateDevice(data) });
 });
 
-app.post('/api/gate/login', async (req, res) => {
+app.post('/api/gate/login', authRateLimit, async (req, res) => {
   const organizationId = normalizeText(req.body.organizationId);
   const staffCode = normalizeIdentifier(req.body.staffCode);
   const pin = normalizeText(req.body.pin);
@@ -1548,7 +1652,7 @@ app.post('/api/gate/logout', async (req, res) => {
   res.json({ ok: true });
 });
 
-app.post('/api/gate/preview', async (req, res) => {
+app.post('/api/gate/preview', gateRateLimit, async (req, res) => {
   const { session, org } = await readGateSession(req.body.sessionToken);
   if (!session) return res.status(401).json({ error: 'Gate scanner is not on duty.' });
   const action = req.body.action === 'leave' ? 'leave' : 'enter';
@@ -1590,7 +1694,7 @@ app.post('/api/gate/preview', async (req, res) => {
   });
 });
 
-app.post('/api/gate/confirm', async (req, res) => {
+app.post('/api/gate/confirm', gateRateLimit, async (req, res) => {
   const { session, org } = await readGateSession(req.body.sessionToken);
   if (!session) return res.status(401).json({ error: 'Gate scanner is not on duty.' });
   const action = req.body.action === 'leave' ? 'leave' : 'enter';
@@ -1664,7 +1768,7 @@ app.post('/api/gate/confirm', async (req, res) => {
   res.json({ attendance: toAttendance(data), message: `${card.name} exit saved.` });
 });
 
-app.post('/api/org/gate-scan', requireOrg, async (req, res) => {
+app.post('/api/org/gate-scan', requireOrg, gateRateLimit, async (req, res) => {
   const org = await getOrg(req.orgId);
   if (!org || org.subscription_status !== 'Active') return res.status(403).json({ error: 'Subscription must be active before gate scanning.' });
   const action = req.body.action === 'leave' ? 'leave' : 'enter';
@@ -1861,6 +1965,23 @@ app.use((req, res) => {
   }
   return res.status(404).send('Not found');
 });
+
+export {
+  app,
+  cardRow,
+  createRateLimit,
+  extractVerificationToken,
+  hashPassword,
+  normalizeEmail,
+  normalizeIdentifier,
+  normalizePhone,
+  readToken,
+  secureEqualText,
+  signToken,
+  validatePassword,
+  validateRuntimeConfig,
+  verifyPassword
+};
 
 export default app;
 

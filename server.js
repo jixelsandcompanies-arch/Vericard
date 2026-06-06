@@ -43,7 +43,10 @@ function staticFilePath(filePath) {
 
 function sendStaticFile(res, filePath, fallback = '') {
   const requested = staticFilePath(filePath) || (fallback ? staticFilePath(fallback) : '');
-  if (!requested) return res.status(404).send('Not found');
+  if (!requested) {
+    if (!isProduction) console.warn(`Static file not found: ${filePath}`);
+    return res.status(404).send('Not found');
+  }
   return res.sendFile(requested);
 }
 

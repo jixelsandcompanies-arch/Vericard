@@ -1,4 +1,4 @@
-const state = { token: '', org: null, rules: null, orgRegistrationFields: {}, cards: [], templates: [], locked: false, palette: { primary: '#061a30', accent: '#149ee8', colors: ['#061a30', '#149ee8'] }, masterToken: new URLSearchParams(location.search).get('master') || '' };
+const state = { token: '', org: null, rules: null, orgRegistrationFields: {}, cards: [], currentPreviewCard: null, templates: [], locked: false, palette: { primary: '#061a30', accent: '#149ee8', colors: ['#061a30', '#149ee8'] }, masterToken: new URLSearchParams(location.search).get('master') || '' };
     const els = {
       sessionStatus: document.getElementById('sessionStatus'), logoutBtn: document.getElementById('logoutBtn'),
       portalTitle: document.getElementById('portalTitle'),
@@ -649,6 +649,12 @@ const state = { token: '', org: null, rules: null, orgRegistrationFields: {}, ca
       els.backResponsibilities.textContent = settings.cardholderResponsibilities || '';
     }
 
+    function hideBackSettingsWhenComplete() {
+      const settings = state.org?.backSettings || {};
+      const complete = Boolean(settings.returnName && settings.returnDesk && settings.authorityName && settings.authoritySignature);
+      els.backSettingsForm.classList.toggle('hidden', complete);
+    }
+
     function frontCardNumber(card) {
       const fields = card?.fields || {};
       return fields.displayNumber || fields.admissionNumber || fields.matricNumber || fields.employeeId || fields.staffId || fields.nationalId || card?.id || '';
@@ -659,6 +665,7 @@ const state = { token: '', org: null, rules: null, orgRegistrationFields: {}, ca
         alert('Approve this record before viewing the ID card.');
         return;
       }
+      state.currentPreviewCard = card;
       const logo = state.org?.logo || '';
       els.previewEmpty.classList.add('hidden');
       els.idCardStage.classList.remove('hidden');
@@ -759,6 +766,7 @@ const state = { token: '', org: null, rules: null, orgRegistrationFields: {}, ca
       setLogoValue('dashboard', state.org.logo || '');
       setBrandColorValue('dashboard', state.org.brandColor || '#061a30');
       renderTemplateGallery(state.templates, state.org.templateId || 'sample', 'dashboard');
+      hideBackSettingsWhenComplete();
       applySubscriptionLock(locked);
       if (locked) {
         return;
@@ -958,7 +966,10 @@ const state = { token: '', org: null, rules: null, orgRegistrationFields: {}, ca
       const data = await api('/api/org/back-settings', { method: 'PATCH', headers: headers(), body: JSON.stringify({ backSettings }) });
       state.org = data.organization;
       fillBackSettingsForm();
-      renderBackSettings();
+      hideBackSettingsWhenComplete();
+      const previewCard = state.currentPreviewCard || state.cards.find((card) => (card.status || 'Pending') === 'Approved');
+      if (previewCard) showIdCard(previewCard);
+      else renderBackSettings();
       alert('Back card settings saved.');
     }
 

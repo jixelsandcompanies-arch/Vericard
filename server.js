@@ -19,7 +19,7 @@ const db = createClient(supabaseUrl || 'http://localhost', supabaseKey || 'missi
 
 app.use(express.json({ limit: '8mb' }));
 app.get('/', async (req, res, next) => {
-  if (!req.query.token) return next();
+  if (!req.query.token) return res.redirect('/portal.html');
   const result = await verifyCardToken(req.query.token);
   res.send(buildVerificationHtml(result));
 });

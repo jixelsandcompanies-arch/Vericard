@@ -10,6 +10,8 @@ import { createClient } from '@supabase/supabase-js';
 const app = express();
 const port = process.env.PORT || 3000;
 const sessionSecret = process.env.SESSION_SECRET || 'mapphex-local-secret';
+const isProduction = process.env.NODE_ENV === 'production' || Boolean(process.env.VERCEL);
+const exposeResetCodes = process.env.EXPOSE_RESET_CODES === 'true';
 const appRoot = dirname(fileURLToPath(import.meta.url));
 const staticRoots = [...new Set([
   appRoot,
@@ -187,8 +189,14 @@ function hashPassword(password, salt = crypto.randomBytes(16).toString('hex')) {
   return { salt, passwordHash };
 }
 
+function secureEqualText(left, right) {
+  const leftBuffer = Buffer.from(String(left || ''));
+  const rightBuffer = Buffer.from(String(right || ''));
+  return leftBuffer.length === rightBuffer.length && crypto.timingSafeEqual(leftBuffer, rightBuffer);
+}
+
 function verifyPassword(password, salt, passwordHash) {
-  return hashPassword(password, salt).passwordHash === passwordHash;
+  return secureEqualText(hashPassword(password, salt).passwordHash, passwordHash);
 }
 
 function signToken(payload) {
@@ -201,9 +209,13 @@ function readToken(token) {
   const [body, sig] = String(token || '').split('.');
   if (!body || !sig) return null;
   const expected = crypto.createHmac('sha256', sessionSecret).update(body).digest('base64url');
-  if (sig !== expected) return null;
-  const payload = JSON.parse(Buffer.from(body, 'base64url').toString());
-  return payload.exp > Date.now() ? payload : null;
+  if (!secureEqualText(sig, expected)) return null;
+  try {
+    const payload = JSON.parse(Buffer.from(body, 'base64url').toString());
+    return payload.exp > Date.now() ? payload : null;
+  } catch {
+    return null;
+  }
 }
 
 function bearer(req) {
@@ -259,6 +271,27 @@ function normalizeEmail(value) {
 
 function normalizeText(value) {
   return String(value || '').trim();
+}
+
+function escapeHtml(value) {
+  return String(value ?? '').replace(/[&<>"']/g, (char) => ({
+    '&': '&amp;',
+    '<': '&lt;',
+    '>': '&gt;',
+    '"': '&quot;',
+    "'": '&#39;'
+  }[char]));
+}
+
+function validatePassword(value) {
+  if (String(value || '').length < 8) return 'Password must be at least 8 characters.';
+  return '';
+}
+
+function resetCodeMessage(code) {
+  return exposeResetCodes
+    ? `Verification code created: ${code}`
+    : 'Verification code created. Check the configured reset delivery channel or admin database.';
 }
 
 function requiredFieldError(fields, field) {
@@ -350,14 +383,14 @@ function buildVerificationHtml(result) {
   const color = valid ? '#166534' : '#991b1b';
   const details = Object.entries(result.details || {})
     .filter(([, value]) => value)
-    .map(([key, value]) => `<div><span>${key}</span><strong>${value}</strong></div>`)
+    .map(([key, value]) => `<div><span>${escapeHtml(key)}</span><strong>${escapeHtml(value)}</strong></div>`)
     .join('');
   return `<!doctype html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1"><title>${title}</title><style>
     body{margin:0;min-height:100vh;display:grid;place-items:center;background:#eef2f6;font-family:Arial,Helvetica,sans-serif;color:#202938}
     main{width:min(520px,calc(100% - 28px));background:#fff;border:1px solid #d9e0ea;border-radius:8px;padding:22px;display:grid;gap:14px}
     h1{margin:0;color:${color};font-size:28px}p{margin:0;font-weight:700;line-height:1.45}.details{display:grid;gap:8px}
     .details div{display:grid;grid-template-columns:150px 1fr;gap:10px;border-top:1px solid #e5eaf0;padding-top:8px}.details span{color:#657489;font-weight:800}.details strong{overflow-wrap:anywhere}
-  </style></head><body><main><h1>${title}</h1><p>${result.reason || ''}</p><section class="details">${details}</section></main></body></html>`;
+  </style></head><body><main><h1>${title}</h1><p>${escapeHtml(result.reason || '')}</p><section class="details">${details}</section></main></body></html>`;
 }
 
 function toAttendance(row) {
@@ -614,7 +647,8 @@ function toCard(row) {
   };
 }
 
-function toOrg(row) {
+function toOrg(row, options = {}) {
+  const masterCard = row.master_card || {};
   return {
     id: row.id,
     name: row.name,
@@ -632,7 +666,14 @@ function toOrg(row) {
     status: row.status,
     subscriptionStatus: row.subscription_status,
     backSettings: row.back_settings || {},
-    masterCard: row.master_card || {},
+    masterCard: options.includeMasterCard ? masterCard : {
+      number: masterCard.number || '',
+      status: masterCard.status || 'Inactive',
+      issuedAt: masterCard.issuedAt || masterCard.issued_at || '',
+      replacedAt: masterCard.replacedAt || masterCard.replaced_at || '',
+      downloadedAt: masterCard.downloadedAt || masterCard.downloaded_at || '',
+      downloadCount: Number(masterCard.downloadCount || masterCard.download_count || 0)
+    },
     createdAt: row.created_at,
     updatedAt: row.updated_at
   };
@@ -743,6 +784,9 @@ async function audit(action, cardId = '', actor = 'system') {
 async function adminSettings() {
   const { data } = await db.from('admin_settings').select('*').eq('id', 'default').maybeSingle();
   if (data) return data;
+  if (isProduction && (!process.env.ADMIN_USER || !process.env.ADMIN_PASSWORD || process.env.ADMIN_PASSWORD === 'admin12345')) {
+    throw new Error('ADMIN_USER and a strong ADMIN_PASSWORD must be configured before first admin login.');
+  }
   const { salt, passwordHash } = hashPassword(process.env.ADMIN_PASSWORD || 'admin12345');
   const row = { id: 'default', username: process.env.ADMIN_USER || 'admin', email: process.env.ADMIN_EMAIL || '', salt, password_hash: passwordHash };
   await db.from('admin_settings').upsert(row);
@@ -756,8 +800,13 @@ app.get('/api/verify-card', async (req, res) => {
 });
 
 app.post('/api/login', async (req, res) => {
-  const settings = await adminSettings();
-  if (req.body.username !== settings.username || !verifyPassword(req.body.password || '', settings.salt, settings.password_hash)) {
+  let settings;
+  try {
+    settings = await adminSettings();
+  } catch (error) {
+    return res.status(500).json({ error: error.message });
+  }
+  if (!secureEqualText(req.body.username, settings.username) || !verifyPassword(req.body.password || '', settings.salt, settings.password_hash)) {
     return res.status(401).json({ error: 'Invalid admin login.' });
   }
   res.json({ token: signToken({ scope: 'admin', user: settings.username }) });
@@ -892,17 +941,26 @@ app.post('/api/organizations/sample-client', requireAdmin, async (req, res) => {
 });
 
 app.post('/api/change-password', requireAdmin, async (req, res) => {
-  const { salt, passwordHash } = hashPassword(req.body.password || '');
-  await db.from('admin_settings').upsert({ id: 'default', username: req.body.username, email: req.body.email, salt, password_hash: passwordHash, updated_at: new Date().toISOString() });
+  const passwordError = validatePassword(req.body.password);
+  if (passwordError) return res.status(400).json({ error: passwordError });
+  const username = normalizeText(req.body.username);
+  if (!username) return res.status(400).json({ error: 'Admin username is required.' });
+  const { salt, passwordHash } = hashPassword(req.body.password);
+  await db.from('admin_settings').upsert({ id: 'default', username, email: normalizeEmail(req.body.email), salt, password_hash: passwordHash, updated_at: new Date().toISOString() });
   res.json({ ok: true });
 });
 
 app.post('/api/forgot-password', async (req, res) => {
-  const settings = await adminSettings();
-  if (req.body.email !== settings.email) return res.status(404).json({ error: 'Admin email not found.' });
+  let settings;
+  try {
+    settings = await adminSettings();
+  } catch (error) {
+    return res.status(500).json({ error: error.message });
+  }
+  if (!settings.email || normalizeEmail(req.body.email) !== normalizeEmail(settings.email)) return res.status(404).json({ error: 'Admin email not found.' });
   const code = String(Math.floor(100000 + Math.random() * 900000));
   await db.from('password_resets').insert({ email: settings.email, code, expires_at: new Date(Date.now() + 15 * 60 * 1000).toISOString() });
-  res.json({ message: `Verification code created: ${code}` });
+  res.json({ message: resetCodeMessage(code) });
 });
 
 app.post('/api/org-forgot-password', async (req, res) => {
@@ -911,7 +969,7 @@ app.post('/api/org-forgot-password', async (req, res) => {
   if (!org) return res.status(404).json({ error: 'Registered organization admin email not found.' });
   const code = String(Math.floor(100000 + Math.random() * 900000));
   await db.from('password_resets').insert({ email: org.email, code, expires_at: new Date(Date.now() + 15 * 60 * 1000).toISOString() });
-  res.json({ message: `Verification code created: ${code}` });
+  res.json({ message: resetCodeMessage(code) });
 });
 
 app.post('/api/org-reset-password', async (req, res) => {
@@ -920,16 +978,27 @@ app.post('/api/org-reset-password', async (req, res) => {
   if (!data) return res.status(400).json({ error: 'Invalid or expired code.' });
   const { data: org } = await db.from('organizations').select('*').ilike('email', email).maybeSingle();
   if (!org) return res.status(404).json({ error: 'Registered organization admin email not found.' });
-  const { salt, passwordHash } = hashPassword(req.body.password || '');
+  const passwordError = validatePassword(req.body.password);
+  if (passwordError) return res.status(400).json({ error: passwordError });
+  const { salt, passwordHash } = hashPassword(req.body.password);
   await db.from('organizations').update({ salt, password_hash: passwordHash, updated_at: new Date().toISOString() }).eq('id', org.id);
   res.json({ ok: true });
 });
 
 app.post('/api/reset-password', async (req, res) => {
-  const { data } = await db.from('password_resets').select('*').eq('email', req.body.email).eq('code', req.body.code).gt('expires_at', new Date().toISOString()).order('created_at', { ascending: false }).limit(1).maybeSingle();
+  const email = normalizeEmail(req.body.email);
+  const { data } = await db.from('password_resets').select('*').ilike('email', email).eq('code', req.body.code).gt('expires_at', new Date().toISOString()).order('created_at', { ascending: false }).limit(1).maybeSingle();
   if (!data) return res.status(400).json({ error: 'Invalid or expired code.' });
-  const settings = await adminSettings();
-  const { salt, passwordHash } = hashPassword(req.body.password || '');
+  let settings;
+  try {
+    settings = await adminSettings();
+  } catch (error) {
+    return res.status(500).json({ error: error.message });
+  }
+  if (email !== normalizeEmail(settings.email)) return res.status(400).json({ error: 'Invalid or expired code.' });
+  const passwordError = validatePassword(req.body.password);
+  if (passwordError) return res.status(400).json({ error: passwordError });
+  const { salt, passwordHash } = hashPassword(req.body.password);
   await db.from('admin_settings').update({ salt, password_hash: passwordHash, updated_at: new Date().toISOString() }).eq('id', settings.id);
   res.json({ ok: true });
 });

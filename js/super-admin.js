@@ -122,7 +122,7 @@ const state = {
     }
 
     function claimUrl(token) {
-      return `${window.location.origin}/?claim=${encodeURIComponent(token)}`;
+      return verificationUrl(token);
     }
 
     function formatTime(value) {

@@ -10,6 +10,7 @@
    - `ADMIN_USER`
    - `ADMIN_PASSWORD`
    - `ADMIN_EMAIL`
+   - `EXPOSE_RESET_CODES` only set to `true` for local/demo testing
 5. Install and start:
 
 ```bash
@@ -46,3 +47,5 @@ Vercel uses:
 - `vercel.json` to route portal, admin, gate scanner, and API requests through the Express app.
 
 Do not expose `SUPABASE_SERVICE_ROLE_KEY` in browser code. Keep it only in Vercel environment variables.
+
+Password reset codes are not returned by the API unless `EXPOSE_RESET_CODES=true`. Keep that disabled in production and use your configured delivery channel or admin database access to retrieve reset codes.

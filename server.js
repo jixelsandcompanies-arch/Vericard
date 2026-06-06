@@ -1,12 +1,15 @@
 import 'dotenv/config';
 import crypto from 'node:crypto';
 import { pathToFileURL } from 'node:url';
+import { dirname, join } from 'node:path';
+import { fileURLToPath } from 'node:url';
 import express from 'express';
 import { createClient } from '@supabase/supabase-js';
 
 const app = express();
 const port = process.env.PORT || 3000;
 const sessionSecret = process.env.SESSION_SECRET || 'mapphex-local-secret';
+const appRoot = dirname(fileURLToPath(import.meta.url));
 
 const supabaseUrl = process.env.SUPABASE_URL;
 const supabaseKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
@@ -19,11 +22,11 @@ const db = createClient(supabaseUrl || 'http://localhost', supabaseKey || 'missi
 
 app.use(express.json({ limit: '8mb' }));
 app.get('/', async (req, res, next) => {
-  if (!req.query.token) return res.redirect('/portal.html');
+  if (!req.query.token) return res.sendFile(join(appRoot, 'index.html'));
   const result = await verifyCardToken(req.query.token);
   res.send(buildVerificationHtml(result));
 });
-app.use(express.static(process.cwd()));
+app.use(express.static(appRoot));
 
 const templates = [
   { id: 'sample', name: 'Classic Blue', description: 'Clean corporate card with QR verification.' },

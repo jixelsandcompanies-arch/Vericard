@@ -718,11 +718,13 @@ function scanMeta(req, source = 'gate-app') {
   const latitude = Number(req.body.latitude);
   const longitude = Number(req.body.longitude);
   const locationAccuracy = Number(req.body.locationAccuracy);
+  const capturedAtMs = Date.parse(req.body.locationCapturedAt || '');
   return {
     deviceId: normalizeText(req.body.deviceId),
     latitude: Number.isFinite(latitude) ? latitude : null,
     longitude: Number.isFinite(longitude) ? longitude : null,
     locationAccuracy: Number.isFinite(locationAccuracy) ? locationAccuracy : null,
+    locationCapturedAt: Number.isFinite(capturedAtMs) ? new Date(capturedAtMs).toISOString() : '',
     ipAddress: req.headers['x-forwarded-for']?.split(',')[0]?.trim() || req.socket?.remoteAddress || '',
     userAgent: normalizeText(req.body.userAgent) || req.get('user-agent') || '',
     source
@@ -753,6 +755,17 @@ function distanceMeters(aLat, aLng, bLat, bLng) {
   const lat2 = toRad(bLat);
   const h = Math.sin(dLat / 2) ** 2 + Math.cos(lat1) * Math.cos(lat2) * Math.sin(dLng / 2) ** 2;
   return 2 * earthRadius * Math.asin(Math.sqrt(h));
+}
+
+const gpsSecurity = {
+  maxAccuracyMeters: 100,
+  maxLocationAgeMs: 2 * 60 * 1000,
+  maxJumpSpeedMetersPerSecond: 80,
+  lookbackMinutes: 20
+};
+
+function validCoordinate(latitude, longitude) {
+  return Number.isFinite(latitude) && Number.isFinite(longitude) && latitude >= -90 && latitude <= 90 && longitude >= -180 && longitude <= 180;
 }
 
 async function gateDeviceDecision(org, staff, meta, gateName) {
@@ -791,15 +804,55 @@ async function gateDeviceDecision(org, staff, meta, gateName) {
   return { allowed: true, device: existing };
 }
 
-function gpsDecision(org, gateName, meta) {
+async function gpsDecision(org, gateName, meta) {
   const config = gateConfigFor(org, gateName);
   if (config.latitude === null || config.longitude === null || !config.radiusMeters) return { allowed: true };
   if (meta.latitude === null || meta.longitude === null) return { allowed: false, reason: 'Scanner GPS location is required for this gate.' };
-  const distance = distanceMeters(config.latitude, config.longitude, meta.latitude, meta.longitude);
-  if (distance > config.radiusMeters) {
-    return { allowed: false, reason: `Scanner is outside the approved gate radius (${Math.round(distance)}m away).` };
+  if (!validCoordinate(meta.latitude, meta.longitude)) return { allowed: false, reason: 'Scanner GPS coordinates are invalid.' };
+  if (meta.locationAccuracy === null) return { allowed: false, reason: 'Scanner GPS accuracy is required.' };
+  if (meta.locationAccuracy > gpsSecurity.maxAccuracyMeters) {
+    return { allowed: false, reason: `Scanner GPS accuracy is too low (${Math.round(meta.locationAccuracy)}m). Move outside or enable high-accuracy location.` };
   }
+  if (!meta.locationCapturedAt) return { allowed: false, reason: 'Scanner GPS timestamp is missing.' };
+  const locationAge = Date.now() - Date.parse(meta.locationCapturedAt);
+  if (!Number.isFinite(locationAge) || locationAge < -30000 || locationAge > gpsSecurity.maxLocationAgeMs) {
+    return { allowed: false, reason: 'Scanner GPS location is stale. Refresh location and scan again.' };
+  }
+  const distance = distanceMeters(config.latitude, config.longitude, meta.latitude, meta.longitude);
+  const effectiveRadius = config.radiusMeters + Math.min(meta.locationAccuracy, 25);
+  if (distance > effectiveRadius) {
+    return { allowed: false, reason: `Scanner is outside the approved gate radius (${Math.round(distance)}m away, accuracy ${Math.round(meta.locationAccuracy)}m).` };
+  }
+  const jump = await gpsJumpDecision(org, meta);
+  if (!jump.allowed) return jump;
   return { allowed: true, distanceMeters: distance };
+}
+
+async function gpsJumpDecision(org, meta) {
+  if (!org?.id || !meta.deviceId || !validCoordinate(meta.latitude, meta.longitude)) return { allowed: true };
+  const since = new Date(Date.now() - gpsSecurity.lookbackMinutes * 60 * 1000).toISOString();
+  const { data } = await db
+    .from('scan_security_logs')
+    .select('latitude, longitude, created_at')
+    .eq('organization_id', org.id)
+    .eq('device_id', meta.deviceId)
+    .not('latitude', 'is', null)
+    .not('longitude', 'is', null)
+    .gte('created_at', since)
+    .order('created_at', { ascending: false })
+    .limit(1)
+    .maybeSingle();
+  if (!data || !validCoordinate(Number(data.latitude), Number(data.longitude))) return { allowed: true };
+  const seconds = Math.max(1, (Date.now() - Date.parse(data.created_at)) / 1000);
+  const distance = distanceMeters(Number(data.latitude), Number(data.longitude), meta.latitude, meta.longitude);
+  const speed = distance / seconds;
+  if (seconds > 5 && speed > gpsSecurity.maxJumpSpeedMetersPerSecond) {
+    return {
+      allowed: false,
+      reason: `Suspicious GPS jump detected (${Math.round(distance)}m in ${Math.round(seconds)}s). Refresh GPS or ask admin to review the scanner device.`
+    };
+  }
+  return { allowed: true };
 }
 
 async function sessionDeviceDecision(org, session, meta) {
@@ -1627,6 +1680,11 @@ app.post('/api/gate/login', authRateLimit, async (req, res) => {
     await logScanSecurity({ org, action: 'login', result: 'denied', reason: device.reason, staff, gateName, meta, source: 'gate-app' });
     return res.status(403).json({ error: device.reason, deviceId: meta.deviceId });
   }
+  const gps = await gpsDecision(org, gateName, meta);
+  if (!gps.allowed) {
+    await logScanSecurity({ org, action: 'login', result: 'denied', reason: gps.reason, staff, gateName, meta, source: 'gate-app' });
+    return res.status(403).json({ error: gps.reason, deviceId: meta.deviceId });
+  }
   const session = {
     id: `SHIFT-${Date.now()}`,
     organization_id: org.id,
@@ -1660,7 +1718,7 @@ app.post('/api/gate/preview', gateRateLimit, async (req, res) => {
   const context = { org, action, session, gateName: session.gate_name, meta, source: 'gate-app' };
   const device = await sessionDeviceDecision(org, session, meta);
   if (!device.allowed) return denyScan(res, 403, device.reason, context);
-  const gps = gpsDecision(org, session.gate_name, meta);
+  const gps = await gpsDecision(org, session.gate_name, meta);
   if (!gps.allowed) return denyScan(res, 403, gps.reason, context);
   const token = extractVerificationToken(req.body.token);
   const { data: card } = await db.from('cards').select('*').eq('verification_token', token).maybeSingle();
@@ -1702,7 +1760,7 @@ app.post('/api/gate/confirm', gateRateLimit, async (req, res) => {
   const context = { org, action, session, gateName: session.gate_name, meta, source: 'gate-app' };
   const device = await sessionDeviceDecision(org, session, meta);
   if (!device.allowed) return denyScan(res, 403, device.reason, context);
-  const gps = gpsDecision(org, session.gate_name, meta);
+  const gps = await gpsDecision(org, session.gate_name, meta);
   if (!gps.allowed) return denyScan(res, 403, gps.reason, context);
   const token = extractVerificationToken(req.body.token);
   const { data: card } = await db.from('cards').select('*').eq('verification_token', token).maybeSingle();
@@ -1776,6 +1834,8 @@ app.post('/api/org/gate-scan', requireOrg, gateRateLimit, async (req, res) => {
   const gateName = normalizeText(req.body.gateName) || 'Main Gate';
   const meta = scanMeta(req, 'admin-dashboard');
   const context = { org, action, gateName, meta, source: 'admin-dashboard' };
+  const gps = await gpsDecision(org, gateName, meta);
+  if (!gps.allowed) return denyScan(res, 403, gps.reason, context);
   const { data: card, error } = await db.from('cards').select('*').eq('verification_token', token).maybeSingle();
   if (error || !card) return denyScan(res, 404, 'Card token was not found.', context);
   context.card = card;

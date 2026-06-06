@@ -2,7 +2,8 @@ const state = {
   sessionToken: sessionStorage.getItem('mapphexGateSession') || '',
   deviceId: localStorage.getItem('vericardGateDeviceId') || '',
   preview: null,
-  lastPayload: null
+  lastPayload: null,
+  lastLocation: null
 };
 const els = {
   gateTitle: document.getElementById('gateTitle'),
@@ -42,19 +43,22 @@ function currentLocation() {
       (position) => resolve({
         latitude: position.coords.latitude,
         longitude: position.coords.longitude,
-        locationAccuracy: position.coords.accuracy
+        locationAccuracy: position.coords.accuracy,
+        locationCapturedAt: new Date(position.timestamp || Date.now()).toISOString()
       }),
       () => resolve({}),
-      { enableHighAccuracy: true, timeout: 8000, maximumAge: 30000 }
+      { enableHighAccuracy: true, timeout: 10000, maximumAge: 0 }
     );
   });
 }
 
 async function scannerMeta() {
+  const location = await currentLocation();
+  state.lastLocation = location.latitude !== undefined ? location : state.lastLocation;
   return {
     deviceId: state.deviceId,
     userAgent: navigator.userAgent,
-    ...(await currentLocation())
+    ...location
   };
 }
 
@@ -63,6 +67,12 @@ async function api(path, options = {}) {
   const data = await response.json().catch(() => ({}));
   if (!response.ok) throw new Error(data.error || 'Request failed.');
   return data;
+}
+
+function locationHint() {
+  if (!state.lastLocation?.latitude) return 'GPS not available yet';
+  const accuracy = Number(state.lastLocation.locationAccuracy || 0);
+  return accuracy ? `GPS accuracy ${Math.round(accuracy)}m` : 'GPS captured';
 }
 
 function showDuty(session, organization) {
@@ -119,6 +129,8 @@ els.previewForm.addEventListener('submit', async (event) => {
   event.preventDefault();
   try {
     const payload = { ...Object.fromEntries(new FormData(els.previewForm).entries()), sessionToken: state.sessionToken, ...(await scannerMeta()) };
+    els.scanNotice.textContent = locationHint();
+    els.scanNotice.classList.remove('hidden', 'danger');
     const data = await api('/api/gate/preview', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(payload) });
     els.scanNotice.classList.add('hidden');
     renderPreview(data, payload);

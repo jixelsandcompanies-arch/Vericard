@@ -1,4 +1,4 @@
-const state = { token: '', org: null, rules: null, orgRegistrationFields: {}, cards: [], templates: [], locked: false, palette: { primary: '#061a30', accent: '#149ee8', colors: ['#061a30', '#149ee8'] }, masterToken: new URLSearchParams(location.search).get('master') || '' };
+const state = { token: '', org: null, rules: null, orgRegistrationFields: {}, cards: [], templates: [], locked: false, palette: { primary: '#061a30', accent: '#149ee8', colors: ['#061a30', '#149ee8'] }, masterToken: new URLSearchParams(location.search).get('master') || '', dashboardDeviceId: localStorage.getItem('vericardDashboardDeviceId') || '' };
     const els = {
       sessionStatus: document.getElementById('sessionStatus'), logoutBtn: document.getElementById('logoutBtn'), drawerToggle: document.getElementById('drawerToggle'), dashboardDrawer: document.getElementById('dashboardDrawer'), drawerScrim: document.getElementById('drawerScrim'),
       portalTitle: document.getElementById('portalTitle'),
@@ -44,6 +44,36 @@ const state = { token: '', org: null, rules: null, orgRegistrationFields: {}, ca
       return String(value ?? '').replace(/[&<>"']/g, (char) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[char]));
     }
     function escapeAttr(value) { return escapeHtml(value).replace(/`/g, '&#96;'); }
+    function ensureDashboardDeviceId() {
+      if (!state.dashboardDeviceId) {
+        const randomId = globalThis.crypto?.randomUUID ? globalThis.crypto.randomUUID() : `${Date.now()}-${Math.random().toString(16).slice(2)}`;
+        state.dashboardDeviceId = `ADMIN-${randomId}`;
+        localStorage.setItem('vericardDashboardDeviceId', state.dashboardDeviceId);
+      }
+      return state.dashboardDeviceId;
+    }
+    function currentLocation() {
+      if (!navigator.geolocation) return Promise.resolve({});
+      return new Promise((resolve) => {
+        navigator.geolocation.getCurrentPosition(
+          (position) => resolve({
+            latitude: position.coords.latitude,
+            longitude: position.coords.longitude,
+            locationAccuracy: position.coords.accuracy,
+            locationCapturedAt: new Date(position.timestamp || Date.now()).toISOString()
+          }),
+          () => resolve({}),
+          { enableHighAccuracy: true, timeout: 10000, maximumAge: 0 }
+        );
+      });
+    }
+    async function dashboardScanMeta() {
+      return {
+        deviceId: ensureDashboardDeviceId(),
+        userAgent: navigator.userAgent,
+        ...(await currentLocation())
+      };
+    }
     function verificationUrl(token) { return `${window.location.origin}/?token=${encodeURIComponent(token)}`; }
     function hasRegisteredOrganization() { return localStorage.getItem('mapphexOrganizationRegistered') === 'true'; }
     function rememberRegisteredOrganization() { localStorage.setItem('mapphexOrganizationRegistered', 'true'); }
@@ -980,7 +1010,7 @@ const state = { token: '', org: null, rules: null, orgRegistrationFields: {}, ca
     }
 
     async function recordGateScan() {
-      const payload = Object.fromEntries(new FormData(els.gateScanForm).entries());
+      const payload = { ...Object.fromEntries(new FormData(els.gateScanForm).entries()), ...(await dashboardScanMeta()) };
       const data = await api('/api/org/gate-scan', { method: 'POST', headers: headers(), body: JSON.stringify(payload) });
       els.gateScanNotice.textContent = data.message || 'Gate scan recorded.';
       els.gateScanNotice.classList.remove('hidden', 'danger');

@@ -710,6 +710,7 @@ const state = { token: '', org: null, rules: null, orgRegistrationFields: {}, ca
         return;
       }
       const logo = state.org?.logo || '';
+      setDashboardView('front');
       els.previewEmpty.classList.add('hidden');
       els.idCardStage.classList.remove('hidden');
       setImage(els.idFrontLogo, logo);

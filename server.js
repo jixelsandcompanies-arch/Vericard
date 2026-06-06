@@ -1856,7 +1856,7 @@ app.use((req, res) => {
   if (req.path.startsWith('/api/')) {
     return res.status(404).json({ error: 'API endpoint not found.' });
   }
-  if (req.method === 'GET' && req.accepts('html')) {
+  if (req.method === 'GET') {
     return sendStaticFile(res, 'index.html');
   }
   return res.status(404).send('Not found');

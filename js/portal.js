@@ -5,7 +5,7 @@ const state = { token: '', org: null, rules: null, orgRegistrationFields: {}, ca
       portalIntro: document.getElementById('portalIntro'), entryArea: document.getElementById('entryArea'), startRegisterBtn: document.getElementById('startRegisterBtn'),
       alreadyRegisteredBtn: document.getElementById('alreadyRegisteredBtn'), loginPanel: document.getElementById('loginPanel'),
       orgType: document.getElementById('orgType'), orgDynamicFields: document.getElementById('orgDynamicFields'), templateGallery: document.getElementById('templateGallery'),
-      orgRegisterForm: document.getElementById('orgRegisterForm'), loginForm: document.getElementById('loginForm'), loginNotice: document.getElementById('loginNotice'),
+      orgRegisterForm: document.getElementById('orgRegisterForm'), registerBackBtn: document.getElementById('registerBackBtn'), loginForm: document.getElementById('loginForm'), loginNotice: document.getElementById('loginNotice'),
       loginBackBtn: document.getElementById('loginBackBtn'), orgForgotToggleBtn: document.getElementById('orgForgotToggleBtn'), orgResetForm: document.getElementById('orgResetForm'), orgSendResetBtn: document.getElementById('orgSendResetBtn'),
       registerLogoValue: document.getElementById('registerLogoValue'), registerBrandColor: document.getElementById('registerBrandColor'), registerLogoPreview: document.getElementById('registerLogoPreview'), registerLogoFile: document.getElementById('registerLogoFile'),
       registerSignatureValue: document.getElementById('registerSignatureValue'), registerSignaturePreview: document.getElementById('registerSignaturePreview'), registerSignatureFile: document.getElementById('registerSignatureFile'), registerSignatureLabel: document.getElementById('registerSignatureLabel'),
@@ -87,7 +87,7 @@ const state = { token: '', org: null, rules: null, orgRegistrationFields: {}, ca
           seenTypeSelect = true;
           continue;
         }
-        if (!seenTypeSelect || child.tagName === 'H2') continue;
+        if (!seenTypeSelect || child.tagName === 'H2' || child.classList.contains('panel-heading')) continue;
         child.classList.toggle('hidden', !show);
       }
     }
@@ -286,6 +286,7 @@ const state = { token: '', org: null, rules: null, orgRegistrationFields: {}, ca
       els.portalIntro.classList.remove('hidden');
       els.entryArea.classList.add('hidden');
       els.orgRegisterForm.classList.add('hidden');
+      document.getElementById('organizationFeatureMount')?.classList.add('hidden');
       els.loginPanel.classList.add('hidden');
       els.templateSetup.classList.add('hidden');
       els.dashboard.classList.add('hidden');
@@ -1086,6 +1087,7 @@ const state = { token: '', org: null, rules: null, orgRegistrationFields: {}, ca
       } catch (error) { alert(friendlyError(error)); }
     });
 
+    els.registerBackBtn.addEventListener('click', showIntro);
     els.orgForgotToggleBtn.addEventListener('click', () => els.orgResetForm.classList.toggle('hidden'));
     els.loginBackBtn.addEventListener('click', showIntro);
     els.orgSendResetBtn.addEventListener('click', () => sendOrgResetCode().catch((error) => {

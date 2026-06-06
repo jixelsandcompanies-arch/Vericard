@@ -851,9 +851,14 @@ const state = { token: '', org: null, rules: null, orgRegistrationFields: {}, ca
           <td>${staff.fullName}<br>${staff.phone || ''}</td>
           <td>${staff.staffCode}</td>
           <td>${staff.gateName}</td>
+          <td><code>${staff.deviceId || 'No device captured'}</code><br>${staff.deviceStatus || 'Pending'}</td>
+          <td>${staff.gateLatitude && staff.gateLongitude ? `${staff.gateLatitude}, ${staff.gateLongitude}<br>${staff.gateRadiusMeters || 150}m` : 'No GPS fence'}</td>
           <td>${staff.status}</td>
-          <td><button type="button" data-gate-staff="${staff.id}" data-status="${staff.status === 'Active' ? 'Suspended' : 'Active'}">${staff.status === 'Active' ? 'Suspend' : 'Activate'}</button></td>
-        </tr>`).join('') : '<tr><td colspan="5">No gate staff registered yet.</td></tr>';
+          <td class="row">
+            ${(staff.deviceId && staff.deviceStatus !== 'Approved') ? `<button type="button" data-gate-staff="${staff.id}" data-device-status="Approved">Approve Device</button>` : ''}
+            <button type="button" data-gate-staff="${staff.id}" data-status="${staff.status === 'Active' ? 'Suspended' : 'Active'}">${staff.status === 'Active' ? 'Suspend' : 'Activate'}</button>
+          </td>
+        </tr>`).join('') : '<tr><td colspan="7">No gate staff registered yet.</td></tr>';
     }
 
     async function registerGateStaff() {
@@ -1055,7 +1060,7 @@ const state = { token: '', org: null, rules: null, orgRegistrationFields: {}, ca
         await api(`/api/org/gate-staff/${encodeURIComponent(button.dataset.gateStaff)}`, {
           method: 'PATCH',
           headers: headers(),
-          body: JSON.stringify({ status: button.dataset.status })
+          body: JSON.stringify(button.dataset.deviceStatus ? { deviceStatus: button.dataset.deviceStatus } : { status: button.dataset.status })
         });
         await loadGateStaff();
       } catch (error) {

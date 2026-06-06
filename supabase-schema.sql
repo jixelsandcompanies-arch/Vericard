@@ -84,6 +84,13 @@ create table if not exists attendance_records (
   entry_by text,
   exit_by text,
   gate_name text not null default 'Main Gate',
+  device_id text not null default '',
+  scan_source text not null default '',
+  latitude numeric,
+  longitude numeric,
+  location_accuracy numeric,
+  security_status text not null default 'Allowed',
+  security_reason text not null default '',
   status text not null default 'Inside',
   created_at timestamptz not null default now(),
   updated_at timestamptz
@@ -129,6 +136,11 @@ create table if not exists gate_staff (
   phone text not null default '',
   staff_code text not null,
   gate_name text not null default 'Main Gate',
+  device_id text not null default '',
+  device_status text not null default 'Pending',
+  gate_latitude numeric,
+  gate_longitude numeric,
+  gate_radius_meters numeric not null default 150,
   pin_hash text not null,
   salt text not null,
   status text not null default 'Active',
@@ -142,11 +154,39 @@ create table if not exists gate_sessions (
   gate_staff_id text not null,
   staff_name text not null,
   gate_name text not null,
+  device_id text not null default '',
+  latitude numeric,
+  longitude numeric,
+  location_accuracy numeric,
+  ip_address text not null default '',
+  user_agent text not null default '',
   session_token text not null unique,
   status text not null default 'On Duty',
   started_at timestamptz not null default now(),
   ended_at timestamptz,
   expires_at timestamptz not null,
+  created_at timestamptz not null default now()
+);
+
+create table if not exists scan_security_logs (
+  id bigint generated always as identity primary key,
+  organization_id text not null default '',
+  organization_name text not null default '',
+  card_id text,
+  card_name text not null default '',
+  action text not null default '',
+  result text not null default '',
+  reason text not null default '',
+  gate_staff_id text not null default '',
+  staff_name text not null default '',
+  gate_name text not null default '',
+  device_id text not null default '',
+  latitude numeric,
+  longitude numeric,
+  location_accuracy numeric,
+  ip_address text not null default '',
+  user_agent text not null default '',
+  source text not null default '',
   created_at timestamptz not null default now()
 );
 
@@ -168,6 +208,8 @@ create index if not exists gate_staff_org_idx on gate_staff (organization_id);
 create unique index if not exists gate_staff_org_code_unique_idx on gate_staff (organization_id, staff_code);
 create index if not exists gate_sessions_org_idx on gate_sessions (organization_id);
 create index if not exists gate_sessions_staff_idx on gate_sessions (gate_staff_id);
+create index if not exists scan_security_logs_org_idx on scan_security_logs (organization_id);
+create index if not exists scan_security_logs_result_idx on scan_security_logs (result);
 alter table cards add column if not exists email text not null default '';
 alter table cards add column if not exists organization_id text;
 alter table cards add column if not exists organization_name text;
@@ -180,6 +222,24 @@ alter table parent_notifications add column if not exists parent_email text not 
 alter table parent_notifications add column if not exists channel text not null default 'sms';
 alter table parent_notifications add column if not exists delivery_status text not null default 'Queued';
 alter table parent_notifications alter column status set default 'Queued';
+alter table attendance_records add column if not exists device_id text not null default '';
+alter table attendance_records add column if not exists scan_source text not null default '';
+alter table attendance_records add column if not exists latitude numeric;
+alter table attendance_records add column if not exists longitude numeric;
+alter table attendance_records add column if not exists location_accuracy numeric;
+alter table attendance_records add column if not exists security_status text not null default 'Allowed';
+alter table attendance_records add column if not exists security_reason text not null default '';
+alter table gate_staff add column if not exists device_id text not null default '';
+alter table gate_staff add column if not exists device_status text not null default 'Pending';
+alter table gate_staff add column if not exists gate_latitude numeric;
+alter table gate_staff add column if not exists gate_longitude numeric;
+alter table gate_staff add column if not exists gate_radius_meters numeric not null default 150;
+alter table gate_sessions add column if not exists device_id text not null default '';
+alter table gate_sessions add column if not exists latitude numeric;
+alter table gate_sessions add column if not exists longitude numeric;
+alter table gate_sessions add column if not exists location_accuracy numeric;
+alter table gate_sessions add column if not exists ip_address text not null default '';
+alter table gate_sessions add column if not exists user_agent text not null default '';
 
 create unique index if not exists organizations_email_unique_idx on organizations (lower(email));
 create unique index if not exists organizations_business_number_unique_idx on organizations (lower(business_number));
@@ -214,6 +274,7 @@ alter table fee_records enable row level security;
 alter table parent_notifications enable row level security;
 alter table gate_staff enable row level security;
 alter table gate_sessions enable row level security;
+alter table scan_security_logs enable row level security;
 
 -- Use Supabase service-role key on the server for admin operations.
 -- Public verification should be exposed through a server endpoint, not direct anon table reads.

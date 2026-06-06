@@ -1,10 +1,18 @@
-const state = { sessionToken: sessionStorage.getItem('mapphexGateSession') || '', preview: null, lastPayload: null };
+const state = {
+  sessionToken: sessionStorage.getItem('mapphexGateSession') || '',
+  preview: null,
+  lastPayload: null,
+  deviceId: localStorage.getItem('vericardGateDeviceId') || '',
+  location: null
+};
 const els = {
   gateTitle: document.getElementById('gateTitle'),
   gateStatus: document.getElementById('gateStatus'),
   endDutyBtn: document.getElementById('endDutyBtn'),
   gateLoginPanel: document.getElementById('gateLoginPanel'),
   gateLoginForm: document.getElementById('gateLoginForm'),
+  deviceNotice: document.getElementById('deviceNotice'),
+  gpsNotice: document.getElementById('gpsNotice'),
   loginNotice: document.getElementById('loginNotice'),
   scannerPanel: document.getElementById('scannerPanel'),
   previewForm: document.getElementById('previewForm'),
@@ -19,6 +27,47 @@ const els = {
   confirmBtn: document.getElementById('confirmBtn'),
   cancelBtn: document.getElementById('cancelBtn')
 };
+
+function ensureDeviceId() {
+  if (!state.deviceId) {
+    state.deviceId = `DEV-${crypto.randomUUID ? crypto.randomUUID() : `${Date.now()}-${Math.random().toString(16).slice(2)}`}`.toUpperCase();
+    localStorage.setItem('vericardGateDeviceId', state.deviceId);
+  }
+  els.deviceNotice.textContent = `This scanner device ID: ${state.deviceId}. Admin must approve this ID before scanning.`;
+}
+
+function refreshLocation() {
+  return new Promise((resolve) => {
+    if (!navigator.geolocation) {
+      els.gpsNotice && (els.gpsNotice.textContent = 'GPS is not available on this device.');
+      resolve(null);
+      return;
+    }
+    navigator.geolocation.getCurrentPosition((position) => {
+      state.location = {
+        latitude: position.coords.latitude,
+        longitude: position.coords.longitude,
+        locationAccuracy: position.coords.accuracy
+      };
+      if (els.gpsNotice) els.gpsNotice.textContent = `GPS ready. Accuracy: ${Math.round(position.coords.accuracy || 0)}m.`;
+      resolve(state.location);
+    }, () => {
+      state.location = null;
+      if (els.gpsNotice) els.gpsNotice.textContent = 'Allow location permission so the scanner can verify the gate.';
+      resolve(null);
+    }, { enableHighAccuracy: true, timeout: 10000, maximumAge: 30000 });
+  });
+}
+
+async function securePayload(payload = {}) {
+  await refreshLocation();
+  return {
+    ...payload,
+    deviceId: state.deviceId,
+    userAgent: navigator.userAgent,
+    ...(state.location || {})
+  };
+}
 
 async function api(path, options = {}) {
   const response = await fetch(path, options);
@@ -67,7 +116,7 @@ function renderPreview(data, payload) {
 els.gateLoginForm.addEventListener('submit', async (event) => {
   event.preventDefault();
   try {
-    const payload = Object.fromEntries(new FormData(els.gateLoginForm).entries());
+    const payload = await securePayload(Object.fromEntries(new FormData(els.gateLoginForm).entries()));
     const data = await api('/api/gate/login', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(payload) });
     showDuty(data.session, data.organization);
   } catch (error) {
@@ -80,7 +129,7 @@ els.gateLoginForm.addEventListener('submit', async (event) => {
 els.previewForm.addEventListener('submit', async (event) => {
   event.preventDefault();
   try {
-    const payload = { ...Object.fromEntries(new FormData(els.previewForm).entries()), sessionToken: state.sessionToken };
+    const payload = await securePayload({ ...Object.fromEntries(new FormData(els.previewForm).entries()), sessionToken: state.sessionToken });
     const data = await api('/api/gate/preview', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(payload) });
     els.scanNotice.classList.add('hidden');
     renderPreview(data, payload);
@@ -117,3 +166,6 @@ els.endDutyBtn.addEventListener('click', async () => {
   sessionStorage.removeItem('mapphexGateSession');
   location.reload();
 });
+
+ensureDeviceId();
+refreshLocation();

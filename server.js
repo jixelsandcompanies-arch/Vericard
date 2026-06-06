@@ -413,6 +413,13 @@ function toAttendance(row) {
     entryBy: row.entry_by,
     exitBy: row.exit_by,
     gateName: row.gate_name,
+    deviceId: row.device_id || '',
+    scanSource: row.scan_source || '',
+    latitude: row.latitude,
+    longitude: row.longitude,
+    locationAccuracy: row.location_accuracy,
+    securityStatus: row.security_status || 'Allowed',
+    securityReason: row.security_reason || '',
     status: row.status,
     createdAt: row.created_at,
     updatedAt: row.updated_at
@@ -478,6 +485,11 @@ function toGateStaff(row) {
     phone: row.phone,
     staffCode: row.staff_code,
     gateName: row.gate_name,
+    deviceId: row.device_id || '',
+    deviceStatus: row.device_status || 'Pending',
+    gateLatitude: row.gate_latitude,
+    gateLongitude: row.gate_longitude,
+    gateRadiusMeters: Number(row.gate_radius_meters || 150),
     status: row.status,
     createdAt: row.created_at,
     updatedAt: row.updated_at
@@ -492,6 +504,10 @@ function toGateSession(row) {
     staffName: row.staff_name,
     gateName: row.gate_name,
     sessionToken: row.session_token,
+    deviceId: row.device_id || '',
+    latitude: row.latitude,
+    longitude: row.longitude,
+    locationAccuracy: row.location_accuracy,
     status: row.status,
     startedAt: row.started_at,
     endedAt: row.ended_at,
@@ -541,6 +557,80 @@ async function currentOpenMovement(orgId, cardId) {
   return data || null;
 }
 
+function numberOrNull(value) {
+  const number = Number(value);
+  return Number.isFinite(number) ? number : null;
+}
+
+function clientScanMeta(req) {
+  return {
+    deviceId: normalizeIdentifier(req.body.deviceId),
+    latitude: numberOrNull(req.body.latitude),
+    longitude: numberOrNull(req.body.longitude),
+    locationAccuracy: numberOrNull(req.body.locationAccuracy),
+    userAgent: normalizeText(req.body.userAgent || req.get('user-agent')),
+    ipAddress: normalizeText(req.ip || req.headers['x-forwarded-for'] || '')
+  };
+}
+
+function distanceMeters(aLat, aLng, bLat, bLng) {
+  const toRad = (value) => Number(value) * Math.PI / 180;
+  const earth = 6371000;
+  const dLat = toRad(bLat - aLat);
+  const dLng = toRad(bLng - aLng);
+  const lat1 = toRad(aLat);
+  const lat2 = toRad(bLat);
+  const value = Math.sin(dLat / 2) ** 2 + Math.cos(lat1) * Math.cos(lat2) * Math.sin(dLng / 2) ** 2;
+  return 2 * earth * Math.atan2(Math.sqrt(value), Math.sqrt(1 - value));
+}
+
+async function logScanSecurity({ org, session, staff, card, action, result, reason, meta = {}, source = 'gate-app' }) {
+  await db.from('scan_security_logs').insert({
+    organization_id: org?.id || staff?.organization_id || '',
+    organization_name: org?.name || staff?.organization_name || '',
+    card_id: card?.id || null,
+    card_name: card?.name || '',
+    action: action || '',
+    result,
+    reason: reason || '',
+    gate_staff_id: session?.gate_staff_id || staff?.id || '',
+    staff_name: session?.staff_name || staff?.full_name || '',
+    gate_name: session?.gate_name || staff?.gate_name || '',
+    device_id: meta.deviceId || session?.device_id || '',
+    latitude: meta.latitude,
+    longitude: meta.longitude,
+    location_accuracy: meta.locationAccuracy,
+    ip_address: meta.ipAddress || '',
+    user_agent: meta.userAgent || '',
+    source
+  });
+}
+
+async function rejectScan(res, status, message, log = {}) {
+  await logScanSecurity({ ...log, result: status >= 400 ? 'Denied' : 'Flagged', reason: message }).catch(() => {});
+  return res.status(status).json({ error: message });
+}
+
+async function validateGateDeviceAndLocation(staff, meta, { requireLocation = true } = {}) {
+  if (!meta.deviceId) return 'Scanner device ID is missing. Reload the scanner app and try again.';
+  if (!staff.device_id) {
+    await db.from('gate_staff').update({ device_id: meta.deviceId, device_status: 'Pending', updated_at: new Date().toISOString() }).eq('id', staff.id);
+    return `This scanner device has been captured as ${meta.deviceId}. Admin must approve it before scanning.`;
+  }
+  if (normalizeIdentifier(staff.device_id) !== meta.deviceId) return 'This phone is not the approved scanner device for this gate staff.';
+  if ((staff.device_status || 'Pending') !== 'Approved') return 'This scanner device is not approved by the organization admin.';
+  const gateLat = numberOrNull(staff.gate_latitude);
+  const gateLng = numberOrNull(staff.gate_longitude);
+  if (gateLat === null || gateLng === null) return '';
+  if (meta.latitude === null || meta.longitude === null) {
+    return requireLocation ? 'Gate GPS location is required before scanning.' : '';
+  }
+  const radius = Number(staff.gate_radius_meters || 150);
+  const distance = distanceMeters(gateLat, gateLng, meta.latitude, meta.longitude);
+  if (distance > radius) return `Scanner is outside the approved gate radius (${Math.round(distance)}m away, allowed ${radius}m).`;
+  return '';
+}
+
 async function feeForCard(org, card) {
   const admission = normalizeIdentifier(card?.fields?.admissionNumber || card?.fields?.matricNumber || '');
   if (!admission || !['school', 'university'].includes(org.type)) return null;
@@ -554,6 +644,11 @@ async function readGateSession(token) {
   const org = await getOrg(session.organization_id);
   if (!org || org.subscription_status !== 'Active') return {};
   return { session, org };
+}
+
+async function gateStaffForSession(session) {
+  const { data } = await db.from('gate_staff').select('*').eq('id', session?.gate_staff_id || '').maybeSingle();
+  return data || null;
 }
 
 function notificationMessage(type, studentName, balance) {
@@ -1188,6 +1283,11 @@ app.post('/api/org/gate-staff', requireOrg, async (req, res) => {
     phone: normalizePhone(req.body.phone),
     staff_code: staffCode,
     gate_name: normalizeText(req.body.gateName) || 'Main Gate',
+    device_id: normalizeIdentifier(req.body.deviceId),
+    device_status: req.body.deviceStatus || (req.body.deviceId ? 'Approved' : 'Pending'),
+    gate_latitude: numberOrNull(req.body.gateLatitude),
+    gate_longitude: numberOrNull(req.body.gateLongitude),
+    gate_radius_meters: Number(req.body.gateRadiusMeters || 150),
     pin_hash: passwordHash,
     salt,
     status: req.body.status || 'Active'
@@ -1200,10 +1300,16 @@ app.post('/api/org/gate-staff', requireOrg, async (req, res) => {
 
 app.patch('/api/org/gate-staff/:id', requireOrg, async (req, res) => {
   const patch = {
-    status: req.body.status || 'Active',
-    gate_name: normalizeText(req.body.gateName) || 'Main Gate',
+    status: req.body.status,
+    gate_name: req.body.gateName === undefined ? undefined : normalizeText(req.body.gateName) || 'Main Gate',
+    device_id: req.body.deviceId === undefined ? undefined : normalizeIdentifier(req.body.deviceId),
+    device_status: req.body.deviceStatus === undefined ? undefined : req.body.deviceStatus,
+    gate_latitude: req.body.gateLatitude === undefined ? undefined : numberOrNull(req.body.gateLatitude),
+    gate_longitude: req.body.gateLongitude === undefined ? undefined : numberOrNull(req.body.gateLongitude),
+    gate_radius_meters: req.body.gateRadiusMeters === undefined ? undefined : Number(req.body.gateRadiusMeters || 150),
     updated_at: new Date().toISOString()
   };
+  Object.keys(patch).forEach((key) => patch[key] === undefined && delete patch[key]);
   const { data, error } = await db.from('gate_staff').update(patch).eq('id', req.params.id).eq('organization_id', req.orgId).select('*').single();
   if (error) return res.status(400).json({ error: error.message });
   res.json({ staff: toGateStaff(data) });
@@ -1213,16 +1319,25 @@ app.post('/api/gate/login', async (req, res) => {
   const organizationId = normalizeText(req.body.organizationId);
   const staffCode = normalizeIdentifier(req.body.staffCode);
   const pin = normalizeText(req.body.pin);
+  const meta = clientScanMeta(req);
   const { data: staff } = await db.from('gate_staff').select('*').eq('organization_id', organizationId).eq('staff_code', staffCode).maybeSingle();
   if (!staff || staff.status !== 'Active' || !verifyPassword(pin, staff.salt, staff.pin_hash)) return res.status(401).json({ error: 'Invalid or inactive gate staff login.' });
   const org = await getOrg(staff.organization_id);
   if (!org || org.subscription_status !== 'Active') return res.status(403).json({ error: 'Organization subscription must be active before scanning.' });
+  const deviceBlocked = await validateGateDeviceAndLocation(staff, meta, { requireLocation: false });
+  if (deviceBlocked) return rejectScan(res, 403, deviceBlocked, { org, staff, meta, source: 'gate-login' });
   const session = {
     id: `SHIFT-${Date.now()}`,
     organization_id: org.id,
     gate_staff_id: staff.id,
     staff_name: staff.full_name,
     gate_name: normalizeText(req.body.gateName) || staff.gate_name || 'Main Gate',
+    device_id: meta.deviceId,
+    latitude: meta.latitude,
+    longitude: meta.longitude,
+    location_accuracy: meta.locationAccuracy,
+    ip_address: meta.ipAddress,
+    user_agent: meta.userAgent,
     session_token: crypto.randomBytes(24).toString('hex'),
     status: 'On Duty',
     expires_at: new Date(Date.now() + 12 * 60 * 60 * 1000).toISOString()
@@ -1244,17 +1359,22 @@ app.post('/api/gate/preview', async (req, res) => {
   const { session, org } = await readGateSession(req.body.sessionToken);
   if (!session) return res.status(401).json({ error: 'Gate scanner is not on duty.' });
   const action = req.body.action === 'leave' ? 'leave' : 'enter';
+  const meta = clientScanMeta(req);
+  const staff = await gateStaffForSession(session);
+  if (!staff) return rejectScan(res, 401, 'Gate staff account was not found for this scanner session.', { org, session, meta, action });
+  const deviceBlocked = await validateGateDeviceAndLocation(staff, meta, { requireLocation: true });
+  if (deviceBlocked) return rejectScan(res, 403, deviceBlocked, { org, session, staff, meta, action });
   const token = extractVerificationToken(req.body.token);
   const { data: card } = await db.from('cards').select('*').eq('verification_token', token).maybeSingle();
-  if (!card) return res.status(404).json({ error: 'Card token was not found.' });
-  if (card.organization_id !== org.id) return res.status(403).json({ error: 'This card does not belong to this organization.' });
+  if (!card) return rejectScan(res, 404, 'Card token was not found.', { org, session, staff, meta, action });
+  if (card.organization_id !== org.id) return rejectScan(res, 403, 'This card does not belong to this organization.', { org, session, staff, card, meta, action });
   const validity = cardValidity(card, org);
-  if (!validity.valid) return res.status(403).json({ error: validity.reason });
+  if (!validity.valid) return rejectScan(res, 403, validity.reason, { org, session, staff, card, meta, action });
   const closed = movementClosedFor(card, org, action);
-  if (closed) return res.status(403).json({ error: closed });
+  if (closed) return rejectScan(res, 403, closed, { org, session, staff, card, meta, action });
   const openRecord = await currentOpenMovement(org.id, card.id);
-  if (action === 'enter' && openRecord) return res.status(409).json({ error: `${card.name} is already marked inside.` });
-  if (action === 'leave' && !openRecord) return res.status(409).json({ error: `${card.name} is already marked outside. No open entry record exists.` });
+  if (action === 'enter' && openRecord) return rejectScan(res, 409, `${card.name} is already marked inside.`, { org, session, staff, card, meta, action });
+  if (action === 'leave' && !openRecord) return rejectScan(res, 409, `${card.name} is already marked outside. No open entry record exists.`, { org, session, staff, card, meta, action });
   const fields = card.fields || {};
   const fee = card.role_type === 'student' ? await feeForCard(org, card) : null;
   res.json({
@@ -1271,7 +1391,8 @@ app.post('/api/gate/preview', async (req, res) => {
     organization: { id: org.id, name: org.name, type: org.type, typeLabel: organizationTypes[org.type]?.label || org.type },
     action,
     fee,
-    state: openRecord ? 'Inside' : 'Outside'
+    state: openRecord ? 'Inside' : 'Outside',
+    security: { deviceId: meta.deviceId, gps: meta.latitude !== null && meta.longitude !== null ? 'Verified' : 'Missing' }
   });
 });
 
@@ -1279,19 +1400,24 @@ app.post('/api/gate/confirm', async (req, res) => {
   const { session, org } = await readGateSession(req.body.sessionToken);
   if (!session) return res.status(401).json({ error: 'Gate scanner is not on duty.' });
   const action = req.body.action === 'leave' ? 'leave' : 'enter';
+  const meta = clientScanMeta(req);
+  const staff = await gateStaffForSession(session);
+  if (!staff) return rejectScan(res, 401, 'Gate staff account was not found for this scanner session.', { org, session, meta, action });
+  const deviceBlocked = await validateGateDeviceAndLocation(staff, meta, { requireLocation: true });
+  if (deviceBlocked) return rejectScan(res, 403, deviceBlocked, { org, session, staff, meta, action });
   const token = extractVerificationToken(req.body.token);
   const { data: card } = await db.from('cards').select('*').eq('verification_token', token).maybeSingle();
-  if (!card) return res.status(404).json({ error: 'Card token was not found.' });
-  if (card.organization_id !== org.id) return res.status(403).json({ error: 'This card does not belong to this organization.' });
+  if (!card) return rejectScan(res, 404, 'Card token was not found.', { org, session, staff, meta, action });
+  if (card.organization_id !== org.id) return rejectScan(res, 403, 'This card does not belong to this organization.', { org, session, staff, card, meta, action });
   const validity = cardValidity(card, org);
-  if (!validity.valid) return res.status(403).json({ error: validity.reason });
+  if (!validity.valid) return rejectScan(res, 403, validity.reason, { org, session, staff, card, meta, action });
   const closed = movementClosedFor(card, org, action);
-  if (closed) return res.status(403).json({ error: closed });
+  if (closed) return rejectScan(res, 403, closed, { org, session, staff, card, meta, action });
   const fields = card.fields || {};
   const openRecord = await currentOpenMovement(org.id, card.id);
   const number = fields.matricNumber || fields.admissionNumber || fields.displayNumber || fields.staffId || fields.employeeId || fields.nationalId || '';
   if (action === 'enter') {
-    if (openRecord) return res.status(409).json({ error: `${card.name} is already marked inside.` });
+    if (openRecord) return rejectScan(res, 409, `${card.name} is already marked inside.`, { org, session, staff, card, meta, action });
     const row = {
       organization_id: org.id,
       organization_name: org.name,
@@ -1304,24 +1430,40 @@ app.post('/api/gate/confirm', async (req, res) => {
       entry_at: new Date().toISOString(),
       entry_by: session.gate_staff_id,
       gate_name: session.gate_name,
+      device_id: meta.deviceId,
+      scan_source: 'gate-app',
+      latitude: meta.latitude,
+      longitude: meta.longitude,
+      location_accuracy: meta.locationAccuracy,
+      security_status: 'Allowed',
+      security_reason: 'Approved device and gate GPS verified.',
       status: 'Inside'
     };
     const { data, error } = await db.from('attendance_records').insert(row).select('*').single();
     if (error) return res.status(400).json({ error: error.message });
     await audit('Gate entry confirmed', card.id, session.staff_name);
+    await logScanSecurity({ org, session, staff, card, action, result: 'Allowed', reason: 'Entry saved.', meta });
     if (card.role_type === 'student') await logParentNotification(org, card, 'student_returns', 0);
     return res.json({ attendance: toAttendance(data), message: `${card.name} entry saved.` });
   }
-  if (!openRecord) return res.status(409).json({ error: `${card.name} is already marked outside.` });
+  if (!openRecord) return rejectScan(res, 409, `${card.name} is already marked outside.`, { org, session, staff, card, meta, action });
   const { data, error } = await db.from('attendance_records').update({
     exit_at: new Date().toISOString(),
     exit_by: session.gate_staff_id,
     gate_name: session.gate_name,
+    device_id: meta.deviceId,
+    scan_source: 'gate-app',
+    latitude: meta.latitude,
+    longitude: meta.longitude,
+    location_accuracy: meta.locationAccuracy,
+    security_status: 'Allowed',
+    security_reason: 'Approved device and gate GPS verified.',
     status: 'Left',
     updated_at: new Date().toISOString()
   }).eq('id', openRecord.id).select('*').single();
   if (error) return res.status(400).json({ error: error.message });
   await audit('Gate exit confirmed', card.id, session.staff_name);
+  await logScanSecurity({ org, session, staff, card, action, result: 'Allowed', reason: 'Exit saved.', meta });
   if (card.role_type === 'student') await logParentNotification(org, card, 'student_left', 0);
   res.json({ attendance: toAttendance(data), message: `${card.name} exit saved.` });
 });
@@ -1357,6 +1499,9 @@ app.post('/api/org/gate-scan', requireOrg, async (req, res) => {
       entry_at: new Date().toISOString(),
       entry_by: req.orgId,
       gate_name: gateName,
+      scan_source: 'admin-dashboard',
+      security_status: 'Allowed',
+      security_reason: 'Recorded from organization admin dashboard.',
       status: 'Inside'
     };
     const { data, error: insertError } = await db.from('attendance_records').insert(row).select('*').single();
@@ -1369,6 +1514,9 @@ app.post('/api/org/gate-scan', requireOrg, async (req, res) => {
     exit_at: new Date().toISOString(),
     exit_by: req.orgId,
     gate_name: gateName,
+    scan_source: 'admin-dashboard',
+    security_status: 'Allowed',
+    security_reason: 'Recorded from organization admin dashboard.',
     status: 'Left',
     updated_at: new Date().toISOString()
   }).eq('id', openRecord.id).select('*').single();

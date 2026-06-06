@@ -41,6 +41,7 @@
         <label>Gate name<input name="gateName" value="Main Gate" required></label>
         <button type="submit">Start Duty</button>
       </form>
+      <div class="notice" id="deviceNotice"></div>
       <div class="notice hidden" id="loginNotice"></div>
     </section>
 
@@ -56,6 +57,7 @@
         <label>ID QR token or scanned URL<input name="token" autocomplete="off" required></label>
         <button type="submit">Preview Card</button>
       </form>
+      <div class="notice" id="gpsNotice">GPS check pending.</div>
       <div class="notice hidden" id="scanNotice"></div>
       <article class="panel hidden" id="confirmPanel">
         <h2>Confirm Before Saving</h2>

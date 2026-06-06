@@ -22,7 +22,8 @@ const staticRoots = [...new Set([
 
 const supabaseUrl = process.env.SUPABASE_URL;
 const supabaseKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
-if (!supabaseUrl || !supabaseKey) {
+const isSupabaseConfigured = Boolean(supabaseUrl && supabaseKey);
+if (!isSupabaseConfigured) {
   console.warn('Missing SUPABASE_URL or SUPABASE_SERVICE_ROLE_KEY. Add them to .env before using the API.');
 }
 const db = createClient(supabaseUrl || 'http://localhost', supabaseKey || 'missing-key', {
@@ -797,6 +798,14 @@ async function adminSettings() {
 }
 
 app.get('/api/templates', (req, res) => res.json({ templates, organizationTypes, orgRegistrationFields }));
+
+app.use('/api', (req, res, next) => {
+  if (req.path === '/templates') return next();
+  if (!isSupabaseConfigured) {
+    return res.status(503).json({ error: 'Supabase is not configured. Add SUPABASE_URL and SUPABASE_SERVICE_ROLE_KEY.' });
+  }
+  next();
+});
 
 app.get('/api/verify-card', async (req, res) => {
   res.json(await verifyCardToken(req.query.token));

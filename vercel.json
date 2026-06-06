@@ -1,14 +1,29 @@
 {
   "version": 2,
-  "functions": {
-    "api/index.js": {
-      "includeFiles": "{index.html,portal.html,gate.html,super-admin.html,manifest.webmanifest,sw.js,css/**,js/**,assets/**,features/**}"
-    }
-  },
-  "rewrites": [
+  "builds": [
     {
-      "source": "/(.*)",
-      "destination": "/api"
+      "src": "api/index.js",
+      "use": "@vercel/node",
+      "config": {
+        "includeFiles": [
+          "index.html",
+          "portal.html",
+          "gate.html",
+          "super-admin.html",
+          "manifest.webmanifest",
+          "sw.js",
+          "css/**",
+          "js/**",
+          "assets/**",
+          "features/**"
+        ]
+      }
+    }
+  ],
+  "routes": [
+    {
+      "src": "/(.*)",
+      "dest": "api/index.js"
     }
   ]
 }

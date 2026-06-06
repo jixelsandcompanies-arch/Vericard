@@ -315,6 +315,17 @@
       <div class="panel" id="reportsPanel" data-requires-subscription data-dashboard-view="reports">
         <h2>Reports</h2>
         <div class="notice danger hidden" data-lock-notice>Subscription is inactive. Payment unlocks live reports and communication logs.</div>
+        <div class="row">
+          <label>Report period
+            <select id="reportPeriod">
+              <option value="daily">Daily</option>
+              <option value="weekly">Weekly</option>
+              <option value="monthly">Monthly</option>
+              <option value="yearly">Yearly</option>
+            </select>
+          </label>
+          <button type="button" id="downloadReportBtn">Download Report</button>
+        </div>
         <div class="dashboard-grid" id="reportsSummary"></div>
         <h3>Parent Communication Logs</h3>
         <div class="table-wrap">

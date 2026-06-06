@@ -23,7 +23,7 @@ const state = { token: '', org: null, rules: null, orgRegistrationFields: {}, ca
       gateScanPanel: document.getElementById('gateScanPanel'), gateScanForm: document.getElementById('gateScanForm'), gateScanNotice: document.getElementById('gateScanNotice'), attendanceBody: document.getElementById('attendanceBody'),
       gateStaffForm: document.getElementById('gateStaffForm'), gateStaffBody: document.getElementById('gateStaffBody'), gateDevicesBody: document.getElementById('gateDevicesBody'),
       feePanel: document.getElementById('feePanel'), feeUploadFile: document.getElementById('feeUploadFile'), uploadFeesBtn: document.getElementById('uploadFeesBtn'), refreshFeesBtn: document.getElementById('refreshFeesBtn'), feeNotice: document.getElementById('feeNotice'), feesBody: document.getElementById('feesBody'),
-      reportsPanel: document.getElementById('reportsPanel'), reportsSummary: document.getElementById('reportsSummary'), notificationsBody: document.getElementById('notificationsBody'), securityLogsBody: document.getElementById('securityLogsBody'),
+      reportsPanel: document.getElementById('reportsPanel'), reportsSummary: document.getElementById('reportsSummary'), reportPeriod: document.getElementById('reportPeriod'), downloadReportBtn: document.getElementById('downloadReportBtn'), notificationsBody: document.getElementById('notificationsBody'), securityLogsBody: document.getElementById('securityLogsBody'),
       backSettingsForm: document.getElementById('backSettingsForm'), previewEmpty: document.getElementById('previewEmpty'), idCardStage: document.getElementById('idCardStage'),
       schoolBackFields: document.getElementById('schoolBackFields'), schoolHourFields: document.getElementById('schoolHourFields'),
       idFrontLogo: document.getElementById('idFrontLogo'), idBackLogo: document.getElementById('idBackLogo'), idPhoto: document.getElementById('idPhoto'),
@@ -375,6 +375,25 @@ const state = { token: '', org: null, rules: null, orgRegistrationFields: {}, ca
       link.download = filename;
       link.click();
       URL.revokeObjectURL(url);
+    }
+    function reportDateRange(period) {
+      const now = new Date();
+      const start = new Date(now);
+      start.setHours(0, 0, 0, 0);
+      if (period === 'weekly') start.setDate(start.getDate() - 6);
+      if (period === 'monthly') start.setDate(1);
+      if (period === 'yearly') {
+        start.setMonth(0, 1);
+        start.setHours(0, 0, 0, 0);
+      }
+      const end = new Date(now);
+      end.setHours(23, 59, 59, 999);
+      return { start, end };
+    }
+    function inDateRange(value, start, end) {
+      if (!value) return false;
+      const date = new Date(value);
+      return !Number.isNaN(date.getTime()) && date >= start && date <= end;
     }
     function parseCsv(text) {
       const rows = [];
@@ -1098,6 +1117,45 @@ const state = { token: '', org: null, rules: null, orgRegistrationFields: {}, ca
       downloadJson(`${name}-backup-${new Date().toISOString().slice(0, 10)}.json`, data);
     }
 
+    async function downloadPeriodReport() {
+      const period = els.reportPeriod.value || 'daily';
+      const { start, end } = reportDateRange(period);
+      const data = await api('/api/org/backup', { headers: headers() });
+      const cards = data.cards || [];
+      const attendance = data.attendanceRecords || [];
+      const fees = data.feeRecords || [];
+      const notifications = data.parentNotifications || [];
+      const securityLogs = data.scanSecurityLogs || [];
+      const filteredAttendance = attendance.filter((row) => inDateRange(row.created_at || row.attendance_date || row.entry_at || row.exit_at, start, end));
+      const filteredFees = fees.filter((row) => inDateRange(row.updated_at || row.created_at || row.due_date, start, end));
+      const filteredNotifications = notifications.filter((row) => inDateRange(row.created_at, start, end));
+      const filteredSecurityLogs = securityLogs.filter((row) => inDateRange(row.created_at, start, end));
+      const report = {
+        organization: data.organization,
+        period,
+        from: start.toISOString(),
+        to: end.toISOString(),
+        generatedAt: new Date().toISOString(),
+        summary: {
+          totalCards: cards.length,
+          approvedCards: cards.filter((card) => card.status === 'Approved').length,
+          pendingCards: cards.filter((card) => card.status === 'Pending').length,
+          attendanceScans: filteredAttendance.length,
+          feeRows: filteredFees.length,
+          feeBalanceTotal: filteredFees.reduce((sum, fee) => sum + Number(fee.balance || 0), 0),
+          notifications: filteredNotifications.length,
+          securityEvents: filteredSecurityLogs.length
+        },
+        cards,
+        attendance: filteredAttendance,
+        fees: filteredFees,
+        parentNotifications: filteredNotifications,
+        scanSecurityLogs: filteredSecurityLogs
+      };
+      const name = (state.org?.name || 'vericard').replace(/[^a-z0-9]+/gi, '-').replace(/^-|-$/g, '').toLowerCase() || 'vericard';
+      downloadJson(`${name}-${period}-report-${new Date().toISOString().slice(0, 10)}.json`, report);
+    }
+
     els.orgRegisterForm.addEventListener('submit', async (event) => {
       event.preventDefault();
       const payload = Object.fromEntries(new FormData(els.orgRegisterForm).entries());
@@ -1198,6 +1256,7 @@ const state = { token: '', org: null, rules: null, orgRegistrationFields: {}, ca
     els.refreshFeesBtn.addEventListener('click', () => {
       Promise.all([loadFees(), loadNotifications(), loadSecurityLogs(), loadOrgSummary()]).catch((error) => alert(friendlyError(error)));
     });
+    els.downloadReportBtn.addEventListener('click', () => downloadPeriodReport().catch((error) => alert(friendlyError(error))));
 
     els.feesBody.addEventListener('click', async (event) => {
       const button = event.target.closest('[data-fee-notify]');

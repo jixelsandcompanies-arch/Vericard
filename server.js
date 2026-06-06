@@ -298,6 +298,19 @@ function resetCodeMessage(code) {
     : 'Verification code created. Check the configured reset delivery channel or admin database.';
 }
 
+function friendlyDbError(error) {
+  const message = error?.message || String(error || '');
+  if (message.includes('organizations_email_unique_idx')) return 'An organization with this admin email already exists. Use a different email or log in instead.';
+  if (message.includes('organizations_business_number_unique_idx')) return 'An organization with this registration/business number already exists.';
+  if (message.includes('gate_staff_org_code_unique_idx')) return 'A gate staff member with this staff code already exists for this organization.';
+  if (message.includes('fee_records_org_admission_unique_idx')) return 'A fee record for this admission number already exists.';
+  if (message.includes('cards_school_student_admission_unique_idx')) return 'A student with this admission number already exists for this school.';
+  if (message.includes('cards_university_student_matric_unique_idx')) return 'A student with this matric number already exists for this university.';
+  if (message.includes('cards_org_role_national_id_unique_idx')) return 'A card with this national ID already exists for this organization and role.';
+  if (message.includes('duplicate key value violates unique constraint')) return 'This record already exists. Check for duplicate email, registration number, staff code, or ID number.';
+  return message;
+}
+
 function requiredFieldError(fields, field) {
   if (normalizeText(fields[field])) return '';
   return `${field.replace(/([A-Z])/g, ' $1').replace(/^./, (c) => c.toUpperCase())} is required.`;
@@ -952,7 +965,7 @@ app.post('/api/cards', requireAdmin, async (req, res) => {
   const id = `MAN-${Date.now()}`;
   const row = cardRow({ ...req.body, id, status: 'Pending' });
   const { data, error } = await db.from('cards').insert(row).select('*').single();
-  if (error) return res.status(400).json({ error: error.message });
+  if (error) return res.status(400).json({ error: friendlyDbError(error) });
   await audit('Created card manually', data.id, req.admin.user);
   res.json({ card: toCard(data) });
 });
@@ -969,7 +982,7 @@ app.put('/api/cards/:id', requireAdmin, async (req, res) => {
   const row = cardRow({ ...req.body, roleType, fields }, false);
   row.updated_at = new Date().toISOString();
   const { data, error } = await db.from('cards').update(row).eq('id', req.params.id).select('*').single();
-  if (error) return res.status(400).json({ error: error.message });
+  if (error) return res.status(400).json({ error: friendlyDbError(error) });
   await audit('Updated card', req.params.id, req.admin.user);
   res.json({ card: toCard(data) });
 });
@@ -981,7 +994,7 @@ app.patch('/api/cards/:id/status', requireAdmin, async (req, res) => {
     patch.approved_at = new Date().toISOString();
   }
   const { data, error } = await db.from('cards').update(patch).eq('id', req.params.id).select('*').single();
-  if (error) return res.status(400).json({ error: error.message });
+  if (error) return res.status(400).json({ error: friendlyDbError(error) });
   await audit(`Status changed to ${req.body.status}`, req.params.id, req.admin.user);
   res.json({ card: toCard(data) });
 });
@@ -1035,7 +1048,7 @@ app.patch('/api/organizations/:id/subscription', requireAdmin, async (req, res) 
     master_card: nextMaster,
     updated_at: new Date().toISOString()
   }).eq('id', req.params.id).select('*').single();
-  if (error) return res.status(400).json({ error: error.message });
+  if (error) return res.status(400).json({ error: friendlyDbError(error) });
   res.json({ organization: toOrg(data) });
 });
 
@@ -1151,7 +1164,7 @@ app.post('/api/org/apply', async (req, res) => {
   const id = `${org.id}-${Date.now()}`;
   const row = cardRow({ ...fields, id, organizationId: org.id, organizationName: org.name, organizationType: org.type, cardType: 'organization', roleType: req.body.roleType, status: 'Pending', fields });
   const { data, error } = await db.from('cards').insert(row).select('*').single();
-  if (error) return res.status(400).json({ error: error.message });
+  if (error) return res.status(400).json({ error: friendlyDbError(error) });
   await audit('Organization registration submitted', data.id, org.name);
   res.json({ card: toCard(data) });
 });
@@ -1180,7 +1193,7 @@ app.get('/api/org/dashboard-summary', requireOrg, async (req, res) => {
     db.from('attendance_records').select('*').eq('organization_id', req.orgId).order('created_at', { ascending: false }).limit(10),
     db.from('fee_records').select('*').eq('organization_id', req.orgId)
   ]);
-  if (cards.error) return res.status(500).json({ error: cards.error.message });
+  if (cards.error) return res.status(500).json({ error: friendlyDbError(cards.error) });
   const cardRows = cards.data || [];
   const feeRows = fees.data || [];
   res.json({
@@ -1230,7 +1243,7 @@ app.post('/api/org/fees/upload', requireOrg, async (req, res) => {
   }).filter((row) => row.admission_number && row.student_name);
   if (!payload.length) return res.status(400).json({ error: 'No valid rows found. Include Admission Number, Student Name, Class, Balance, Due Date.' });
   const { data, error } = await db.from('fee_records').upsert(payload, { onConflict: 'organization_id,admission_number' }).select('*');
-  if (error) return res.status(400).json({ error: error.message });
+  if (error) return res.status(400).json({ error: friendlyDbError(error) });
   const notifications = [];
   for (const fee of data || []) {
     const card = cardByAdmission.get(normalizeIdentifier(fee.admission_number));
@@ -1293,7 +1306,7 @@ app.post('/api/org/gate-staff', requireOrg, async (req, res) => {
     status: req.body.status || 'Active'
   };
   const { data, error } = await db.from('gate_staff').insert(row).select('*').single();
-  if (error) return res.status(400).json({ error: error.message });
+  if (error) return res.status(400).json({ error: friendlyDbError(error) });
   await audit('Gate staff registered', data.id, org.name);
   res.json({ staff: toGateStaff(data) });
 });
@@ -1311,7 +1324,7 @@ app.patch('/api/org/gate-staff/:id', requireOrg, async (req, res) => {
   };
   Object.keys(patch).forEach((key) => patch[key] === undefined && delete patch[key]);
   const { data, error } = await db.from('gate_staff').update(patch).eq('id', req.params.id).eq('organization_id', req.orgId).select('*').single();
-  if (error) return res.status(400).json({ error: error.message });
+  if (error) return res.status(400).json({ error: friendlyDbError(error) });
   res.json({ staff: toGateStaff(data) });
 });
 
@@ -1343,7 +1356,7 @@ app.post('/api/gate/login', async (req, res) => {
     expires_at: new Date(Date.now() + 12 * 60 * 60 * 1000).toISOString()
   };
   const { data, error } = await db.from('gate_sessions').insert(session).select('*').single();
-  if (error) return res.status(400).json({ error: error.message });
+  if (error) return res.status(400).json({ error: friendlyDbError(error) });
   await audit('Gate staff started duty', staff.id, staff.full_name);
   res.json({ session: toGateSession(data), organization: toOrg(org), staff: toGateStaff(staff) });
 });
@@ -1440,7 +1453,7 @@ app.post('/api/gate/confirm', async (req, res) => {
       status: 'Inside'
     };
     const { data, error } = await db.from('attendance_records').insert(row).select('*').single();
-    if (error) return res.status(400).json({ error: error.message });
+    if (error) return res.status(400).json({ error: friendlyDbError(error) });
     await audit('Gate entry confirmed', card.id, session.staff_name);
     await logScanSecurity({ org, session, staff, card, action, result: 'Allowed', reason: 'Entry saved.', meta });
     if (card.role_type === 'student') await logParentNotification(org, card, 'student_returns', 0);
@@ -1461,7 +1474,7 @@ app.post('/api/gate/confirm', async (req, res) => {
     status: 'Left',
     updated_at: new Date().toISOString()
   }).eq('id', openRecord.id).select('*').single();
-  if (error) return res.status(400).json({ error: error.message });
+  if (error) return res.status(400).json({ error: friendlyDbError(error) });
   await audit('Gate exit confirmed', card.id, session.staff_name);
   await logScanSecurity({ org, session, staff, card, action, result: 'Allowed', reason: 'Exit saved.', meta });
   if (card.role_type === 'student') await logParentNotification(org, card, 'student_left', 0);
@@ -1505,7 +1518,7 @@ app.post('/api/org/gate-scan', requireOrg, async (req, res) => {
       status: 'Inside'
     };
     const { data, error: insertError } = await db.from('attendance_records').insert(row).select('*').single();
-    if (insertError) return res.status(400).json({ error: insertError.message });
+    if (insertError) return res.status(400).json({ error: friendlyDbError(insertError) });
     await audit('Gate entry scanned by admin', card.id, org.name);
     return res.json({ attendance: toAttendance(data), message: `${card.name} entered at ${new Date(data.entry_at).toLocaleTimeString()}.` });
   }
@@ -1520,7 +1533,7 @@ app.post('/api/org/gate-scan', requireOrg, async (req, res) => {
     status: 'Left',
     updated_at: new Date().toISOString()
   }).eq('id', openRecord.id).select('*').single();
-  if (updateError) return res.status(400).json({ error: updateError.message });
+  if (updateError) return res.status(400).json({ error: friendlyDbError(updateError) });
   await audit('Gate exit scanned by admin', card.id, org.name);
   res.json({ attendance: toAttendance(data), message: `${card.name} left at ${new Date(data.exit_at).toLocaleTimeString()}.` });
 });
@@ -1531,7 +1544,7 @@ app.patch('/api/org/cards/:id/status', requireOrg, async (req, res) => {
   const patch = { status: req.body.status, updated_at: new Date().toISOString() };
   if (req.body.status === 'Approved') patch.approved_at = new Date().toISOString();
   const { data, error } = await db.from('cards').update(patch).eq('id', req.params.id).eq('organization_id', req.orgId).select('*').single();
-  if (error) return res.status(400).json({ error: error.message });
+  if (error) return res.status(400).json({ error: friendlyDbError(error) });
   res.json({ card: toCard(data) });
 });
 
@@ -1575,12 +1588,20 @@ function cardRow(input, includeGenerated = true) {
 async function createOrganization(body, status, subscriptionStatus) {
   const type = body.type || 'custom';
   const registrationRule = orgRegistrationFields[type] || orgRegistrationFields.custom;
-  if (!body.name || !body.email || !body.password || !body.businessNumber) return { error: `${registrationRule.nameLabel}, admin email, password, and ${registrationRule.registrationLabel} are required.` };
+  const email = normalizeEmail(body.email);
+  const businessNumber = normalizeText(body.businessNumber);
+  if (!body.name || !email || !body.password || !businessNumber) return { error: `${registrationRule.nameLabel}, admin email, password, and ${registrationRule.registrationLabel} are required.` };
   if (!normalizeText(body.authoritySignature)) return { error: `${registrationRule.signatureLabel} full name is required.` };
   if (body.confirmPassword !== undefined && body.password !== body.confirmPassword) return { error: 'Password and confirm password must match.' };
   if (String(body.password).length < 8) return { error: 'Password must be at least 8 characters.' };
   if (registrationRule.requiresMissionVision && (!normalizeText(body.mission) || !normalizeText(body.vision))) return { error: 'Mission and vision are required for schools and universities.' };
   if (type === 'school' && !['day', 'boarding', 'mixed'].includes(normalizeText(body.schoolType))) return { error: 'Choose school type: day, boarding, or mixed.' };
+  const { data: existingByEmail, error: emailCheckError } = await db.from('organizations').select('id').ilike('email', email).maybeSingle();
+  if (emailCheckError) return { error: friendlyDbError(emailCheckError) };
+  if (existingByEmail) return { error: 'An organization with this admin email already exists. Use a different email or log in instead.' };
+  const { data: existingByBusiness, error: businessCheckError } = await db.from('organizations').select('id').ilike('business_number', businessNumber).maybeSingle();
+  if (businessCheckError) return { error: friendlyDbError(businessCheckError) };
+  if (existingByBusiness) return { error: 'An organization with this registration/business number already exists.' };
   const id = `${String(body.name).replace(/[^a-z0-9]+/gi, '-').replace(/^-|-$/g, '').slice(0, 4).toUpperCase() || 'ORG'}-${Date.now()}`;
   const { salt, passwordHash } = hashPassword(body.password);
   const masterCard = { number: `${id}/MASTER`, token: crypto.randomBytes(24).toString('hex'), status: 'Inactive', issuedAt: new Date().toISOString(), replacedAt: '' };
@@ -1601,8 +1622,8 @@ async function createOrganization(body, status, subscriptionStatus) {
     id,
     name: body.name.trim(),
     type,
-    business_number: body.businessNumber.trim(),
-    email: body.email.trim(),
+    business_number: businessNumber,
+    email,
     phone: body.phone || '',
     logo: body.logo || '',
     brand_color: body.brandColor || '#357fbd',
@@ -1616,7 +1637,7 @@ async function createOrganization(body, status, subscriptionStatus) {
     master_card: masterCard
   };
   const { data, error } = await db.from('organizations').insert(row).select('*').single();
-  return error ? { error: error.message } : { data };
+  return error ? { error: friendlyDbError(error) } : { data };
 }
 
 async function getOrg(id) {
@@ -1631,7 +1652,7 @@ async function getCard(id) {
 
 async function updateOrg(req, res, patch) {
   const { data, error } = await db.from('organizations').update({ ...patch, updated_at: new Date().toISOString() }).eq('id', req.orgId).select('*').single();
-  if (error) return res.status(400).json({ error: error.message });
+  if (error) return res.status(400).json({ error: friendlyDbError(error) });
   res.json({ organization: toOrg(data), templates });
 }
 

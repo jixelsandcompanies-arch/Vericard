@@ -370,7 +370,10 @@ const state = { token: '', org: null, rules: null, orgRegistrationFields: {}, ca
       const activeId = smartTemplates.some((template) => template.id === selectedId) ? selectedId : smartTemplates[0]?.id;
       const gallery = scope === 'setup' ? els.setupTemplateGallery : els.templateGallery;
       const select = scope === 'setup' ? els.setupTemplateSelect : els.templateSelect;
-      gallery.innerHTML = smartTemplates.map((template) => `
+      const activeTemplate = smartTemplates.find((template) => template.id === activeId);
+      const visibleTemplates = scope === 'setup' ? smartTemplates : activeTemplate ? [activeTemplate] : [];
+      gallery.classList.toggle('selected-only', scope !== 'setup');
+      gallery.innerHTML = visibleTemplates.map((template) => `
         <button type="button" class="template ${template.id === activeId ? 'active' : ''}" data-template-id="${template.id}" style="--template-color:${template.color};--template-accent:${template.accent};">
           <span class="template-preview template-${template.layout}">
             <span class="mini-card mini-front">
@@ -389,7 +392,8 @@ const state = { token: '', org: null, rules: null, orgRegistrationFields: {}, ca
           </span>
           <strong>${template.name}</strong>
           <small>${template.description}</small>
-          ${template.recommended ? '<span class="template-badge">Recommended</span>' : ''}
+          ${scope === 'setup' && template.recommended ? '<span class="template-badge">Recommended</span>' : ''}
+          ${scope !== 'setup' ? '<span class="template-badge">Selected template</span>' : ''}
         </button>`).join('');
       select.innerHTML = smartTemplates.map((template) => `<option value="${template.id}" ${template.id === activeId ? 'selected' : ''}>${template.name}</option>`).join('');
       if (activeId) select.value = activeId;

@@ -36,6 +36,7 @@
     .danger { border-color: #fecaca; background: #fef2f2; color: #991b1b; }
     .hidden { display: none !important; }
     .templates { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 10px; }
+    .templates.selected-only { grid-template-columns: minmax(0, 1fr); }
     .template { border: 1px solid var(--line); border-radius: 8px; padding: 10px; background: linear-gradient(180deg, #fff, #f8fafc); color: var(--ink); font: inherit; font-size: 12px; cursor: pointer; position: relative; overflow: hidden; display: grid; gap: 8px; text-align: left; min-height: 218px; }
     .template:hover, .template.active { border-color: var(--template-color); box-shadow: 0 0 0 3px color-mix(in srgb, var(--template-color) 16%, transparent); }
     .template strong { color: var(--ink); font-size: 13px; }

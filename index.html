@@ -118,9 +118,10 @@
 
     <section class="template-setup hidden" id="templateSetup">
       <form class="panel template-setup-panel" id="initialTemplateForm">
-        <h2>Choose ID Template</h2>
-        <div id="templateSetupNotice" class="notice">Choose a logo, color, and template before opening the dashboard.</div>
+        <h2>Complete Card Setup</h2>
+        <div id="templateSetupNotice" class="notice">Set the card front, card back, and template before generating the master QR registration card.</div>
         <input name="logo" id="setupLogoValue" type="hidden">
+        <h3>1. Card front</h3>
         <label>Brand color<input name="brandColor" id="setupBrandColor" type="color" value="#061a30"></label>
         <label>Selected template<select name="templateId" id="setupTemplateSelect" required></select></label>
         <div class="upload-box" data-logo-drop="setup" tabindex="0">
@@ -138,24 +139,26 @@
           <input id="setupLogoFile" type="file" accept="image/png,image/jpeg,image/webp,image/gif,image/svg+xml" hidden>
         </div>
         <div id="setupTemplateGallery" class="templates"></div>
-        <button type="submit">Save Template and Continue</button>
+        <label>Authorized name on card front<input name="authorityName" placeholder="Principal, Director, Manager, or authorized person" required></label>
+        <label>Electronic signature full name<input name="authoritySignature" placeholder="Type the authorized person's full name" required></label>
+        <h3>2. Card back</h3>
+        <div id="setupSchoolBackFields"></div>
+        <label>Return title<input name="returnTitle" value="If found please return to:" required></label>
+        <label>Return name/company/school<input name="returnName" required></label>
+        <label>P.O. Box<input name="poBox"></label>
+        <label>Address line 1<input name="addressLine1"></label>
+        <label>Address line 2<input name="addressLine2"></label>
+        <label>Return department/person<input name="returnDesk" value="Admin Office" required></label>
+        <label>Responsibilities title<input name="responsibilityTitle" value="Cardholder Responsibilities:" required></label>
+        <label>Cardholder responsibilities<textarea name="cardholderResponsibilities" required>Use only by the approved cardholder. Display this card while on duty or premises.</textarea></label>
+        <label>Lost card/report instruction<textarea name="lostInstruction" required>Report lost cards immediately.</textarea></label>
+        <button type="submit">Save Setup and Open Master Card</button>
       </form>
     </section>
 
     <section class="grid hidden" id="dashboard">
       <div class="panel">
-        <h2>Dashboard</h2>
-        <div class="dashboard-grid" id="orgDashboardSummary"></div>
-        <div class="table-wrap">
-          <table>
-            <thead><tr><th>Recent scan</th><th>Date</th><th>Entered</th><th>Left</th><th>Status</th></tr></thead>
-            <tbody id="recentScansBody"><tr><td colspan="5">No recent scans loaded.</td></tr></tbody>
-          </table>
-        </div>
-      </div>
-
-      <div class="panel">
-        <h2>Templates and Features</h2>
+        <h2>1. Card Front Template</h2>
         <div id="subscriptionNotice" class="notice hidden"></div>
         <form id="brandingForm">
           <input name="logo" id="dashboardLogoValue" type="hidden">
@@ -179,16 +182,29 @@
           <button type="submit">Save Branding</button>
         </form>
         <div id="templateGallery" class="templates"></div>
-        <ul class="feature-list">
-          <li>Choose one ID card front template for your organization.</li>
-          <li>Use your organization name, business number, and logo.</li>
-          <li>Edit the back-card return address, phone, and lost-card instructions.</li>
-          <li>Approve registrations from your master card QR after subscription.</li>
-        </ul>
       </div>
 
+      <form class="panel" id="backSettingsForm">
+        <h2>2. Card Back and Signature</h2>
+        <div id="schoolBackFields"></div>
+        <div id="schoolHourFields"></div>
+        <label>Return title<input name="returnTitle" required></label>
+        <label>Return name/company/school<input name="returnName" required></label>
+        <label>P.O. Box<input name="poBox"></label>
+        <label>Address line 1<input name="addressLine1"></label>
+        <label>Address line 2<input name="addressLine2"></label>
+        <label>Return department/person<input name="returnDesk" required></label>
+        <label>Responsibilities title<input name="responsibilityTitle" required></label>
+        <label>Cardholder responsibilities<textarea name="cardholderResponsibilities" required></textarea></label>
+        <label>Lost card/report instruction<textarea name="lostInstruction" required></textarea></label>
+        <label>Authorized name for card front<input name="authorityName"></label>
+        <label>Electronic signature full name<input name="authoritySignature" id="dashboardSignatureValue" placeholder="Type authorized full name" required></label>
+        <button type="submit">Save Card Back</button>
+      </form>
+
       <div class="panel" id="masterPanel" data-requires-subscription>
-        <h2>Master Card</h2>
+        <h2>3. Master QR Registration Card</h2>
+        <div class="notice">Print or share this master QR. Students and staff scan it to open the exact registration form required by this organization. Their ID card QR is generated after school/admin approval.</div>
         <article class="master-card hidden" id="masterCard">
           <img class="master-logo" id="masterLogo" alt="">
           <div class="master-band">
@@ -252,13 +268,24 @@
           <label>Phone<input name="phone"></label>
           <label>Staff code<input name="staffCode" required></label>
           <label>Gate name<input name="gateName" value="Main Gate" required></label>
+          <label>Approved scanner device ID<input name="deviceId" placeholder="Paste device ID from gate app"></label>
+          <label>Device status
+            <select name="deviceStatus">
+              <option value="Pending">Pending approval</option>
+              <option value="Approved">Approved</option>
+              <option value="Blocked">Blocked</option>
+            </select>
+          </label>
+          <label>Gate latitude<input name="gateLatitude" type="number" step="any" placeholder="-1.2921"></label>
+          <label>Gate longitude<input name="gateLongitude" type="number" step="any" placeholder="36.8219"></label>
+          <label>Allowed radius meters<input name="gateRadiusMeters" type="number" min="20" value="150"></label>
           <label>Gate PIN<input name="pin" type="password" required></label>
           <button type="submit">Register Gate Staff</button>
         </form>
         <div class="table-wrap">
           <table>
-            <thead><tr><th>Name</th><th>Staff Code</th><th>Gate</th><th>Status</th><th>Action</th></tr></thead>
-            <tbody id="gateStaffBody"><tr><td colspan="5">No gate staff loaded.</td></tr></tbody>
+            <thead><tr><th>Name</th><th>Staff Code</th><th>Gate</th><th>Device</th><th>GPS Rule</th><th>Status</th><th>Action</th></tr></thead>
+            <tbody id="gateStaffBody"><tr><td colspan="7">No gate staff loaded.</td></tr></tbody>
           </table>
         </div>
       </div>
@@ -292,38 +319,16 @@
         </div>
       </div>
 
-      <form class="panel" id="backSettingsForm">
-        <h2>Back Card Settings</h2>
-        <div id="schoolBackFields"></div>
-        <div id="schoolHourFields"></div>
-        <label>Return title<input name="returnTitle" required></label>
-        <label>Return name/company/school<input name="returnName" required></label>
-        <label>P.O. Box<input name="poBox"></label>
-        <label>Address line 1<input name="addressLine1"></label>
-        <label>Address line 2<input name="addressLine2"></label>
-        <label>Phone number<input name="phone"></label>
-        <label>Return department/person<input name="returnDesk" required></label>
-        <label>Responsibilities title<input name="responsibilityTitle" required></label>
-        <label>Cardholder responsibilities<textarea name="cardholderResponsibilities" required></textarea></label>
-        <label>Lost card/report instruction<textarea name="lostInstruction" required></textarea></label>
-        <label>Authorized name for card front<input name="authorityName"></label>
-        <input name="authoritySignature" id="dashboardSignatureValue" type="hidden">
-        <div class="upload-box" data-signature-drop="dashboard" tabindex="0">
-          <div class="upload-row">
-            <img class="logo-preview hidden" id="dashboardSignaturePreview" alt="">
-            <div class="logo-copy">
-              <strong>Authorized digital signature</strong>
-              <span>Shown on the front of ID cards.</span>
-              <div class="logo-actions">
-                <button type="button" class="secondary" data-signature-pick="dashboard">Choose Signature</button>
-                <button type="button" class="secondary hidden" data-signature-remove="dashboard">Remove</button>
-              </div>
-            </div>
-          </div>
-          <input id="dashboardSignatureFile" type="file" accept="image/png,image/jpeg,image/webp,image/gif,image/svg+xml" hidden>
+      <div class="panel">
+        <h2>Dashboard</h2>
+        <div class="dashboard-grid" id="orgDashboardSummary"></div>
+        <div class="table-wrap">
+          <table>
+            <thead><tr><th>Recent scan</th><th>Date</th><th>Entered</th><th>Left</th><th>Status</th></tr></thead>
+            <tbody id="recentScansBody"><tr><td colspan="5">No recent scans loaded.</td></tr></tbody>
+          </table>
         </div>
-        <button type="submit">Save Back Settings</button>
-      </form>
+      </div>
 
       <div class="panel" id="idPreviewPanel" data-requires-subscription>
         <h2>Approved ID Card Preview</h2>
@@ -355,7 +360,6 @@
               <div class="indent" id="backPoBox"></div>
               <div class="indent" id="backAddress1"></div>
               <div class="indent" id="backAddress2"></div>
-              <div class="indent" id="backPhone"></div>
               <div class="indent" id="backDesk"></div>
               <div class="responsibility-title" id="backResponsibilityTitle"></div>
               <ol class="rules">

@@ -25,14 +25,14 @@ const state = { token: '', org: null, rules: null, orgRegistrationFields: {}, ca
       feePanel: document.getElementById('feePanel'), feeUploadFile: document.getElementById('feeUploadFile'), uploadFeesBtn: document.getElementById('uploadFeesBtn'), refreshFeesBtn: document.getElementById('refreshFeesBtn'), feeNotice: document.getElementById('feeNotice'), feesBody: document.getElementById('feesBody'),
       reportsPanel: document.getElementById('reportsPanel'), reportsSummary: document.getElementById('reportsSummary'), notificationsBody: document.getElementById('notificationsBody'),
       backSettingsForm: document.getElementById('backSettingsForm'), previewEmpty: document.getElementById('previewEmpty'), idCardStage: document.getElementById('idCardStage'),
-      schoolBackFields: document.getElementById('schoolBackFields'), schoolHourFields: document.getElementById('schoolHourFields'), dashboardSignatureValue: document.getElementById('dashboardSignatureValue'), dashboardSignaturePreview: document.getElementById('dashboardSignaturePreview'), dashboardSignatureFile: document.getElementById('dashboardSignatureFile'),
+      setupSchoolBackFields: document.getElementById('setupSchoolBackFields'), schoolBackFields: document.getElementById('schoolBackFields'), schoolHourFields: document.getElementById('schoolHourFields'), dashboardSignatureValue: document.getElementById('dashboardSignatureValue'),
       idFrontLogo: document.getElementById('idFrontLogo'), idBackLogo: document.getElementById('idBackLogo'), idPhoto: document.getElementById('idPhoto'),
       idPhotoPlaceholder: document.getElementById('idPhotoPlaceholder'), idCardName: document.getElementById('idCardName'), idCardNumber: document.getElementById('idCardNumber'),
       idCardRole: document.getElementById('idCardRole'), idCardQr: document.getElementById('idCardQr'), backReturnTitle: document.getElementById('backReturnTitle'),
       frontAuthorityName: document.getElementById('frontAuthorityName'), frontAuthoritySignature: document.getElementById('frontAuthoritySignature'), frontAuthoritySignatureText: document.getElementById('frontAuthoritySignatureText'),
       backMission: document.getElementById('backMission'), backVision: document.getElementById('backVision'), backIdentityNumber: document.getElementById('backIdentityNumber'),
       backReturnName: document.getElementById('backReturnName'), backPoBox: document.getElementById('backPoBox'), backAddress1: document.getElementById('backAddress1'), backAddress2: document.getElementById('backAddress2'),
-      backPhone: document.getElementById('backPhone'), backDesk: document.getElementById('backDesk'), backResponsibilityTitle: document.getElementById('backResponsibilityTitle'),
+      backDesk: document.getElementById('backDesk'), backResponsibilityTitle: document.getElementById('backResponsibilityTitle'),
       backLostInstruction: document.getElementById('backLostInstruction'), backResponsibilities: document.getElementById('backResponsibilities')
     };
 
@@ -82,12 +82,14 @@ const state = { token: '', org: null, rules: null, orgRegistrationFields: {}, ca
       `;
     }
     function renderSchoolBackFields() {
-      if (!els.schoolBackFields) return;
       const type = state.org?.type || els.orgType.value || 'custom';
-      els.schoolBackFields.innerHTML = isSchoolType(type)
+      if (els.schoolBackFields) els.schoolBackFields.innerHTML = isSchoolType(type)
         ? '<label>Mission<textarea name="mission"></textarea></label><label>Vision<textarea name="vision"></textarea></label>'
         : '';
-      els.schoolHourFields.innerHTML = type === 'school'
+      if (els.setupSchoolBackFields) els.setupSchoolBackFields.innerHTML = isSchoolType(type)
+        ? '<label>Mission<textarea name="mission" required></textarea></label><label>Vision<textarea name="vision" required></textarea></label>'
+        : '';
+      if (els.schoolHourFields) els.schoolHourFields.innerHTML = type === 'school'
         ? '<label>School type<select name="schoolType"><option value="day">Day school</option><option value="boarding">Boarding school</option><option value="mixed">Mixed day/boarding school</option></select></label><label>Weekend release allowed<select name="weekendReleaseAllowed"><option value="no">No</option><option value="yes">Yes</option></select></label><label>Holiday dates<textarea name="holidayDates" placeholder="2026-08-01, 2026-12-20 or one date per line"></textarea></label><label>Holiday notes<textarea name="holidayNotes" placeholder="Holiday/release reason notes"></textarea></label><label>School start time<input name="schoolStartTime" type="time" value="08:00"></label><label>School end time<input name="schoolEndTime" type="time" value="16:00"></label>'
         : '';
     }
@@ -479,18 +481,6 @@ const state = { token: '', org: null, rules: null, orgRegistrationFields: {}, ca
       if (removeButton) removeButton.classList.toggle('hidden', !value);
     }
 
-    function setSignatureValue(scope, value) {
-      const targets = {
-        dashboard: [els.dashboardSignatureValue, els.dashboardSignaturePreview]
-      };
-      const [input, preview] = targets[scope] || targets.dashboard;
-      const removeButton = document.querySelector(`[data-signature-remove="${scope}"]`);
-      if (!input || !preview) return;
-      input.value = value || '';
-      setImage(preview, value || '');
-      if (removeButton) removeButton.classList.toggle('hidden', !value);
-    }
-
     function setBrandColorValue(scope, value) {
       const color = normalizeHexColor(value);
       const inputs = { register: els.registerBrandColor, setup: els.setupBrandColor, dashboard: els.dashboardBrandColor };
@@ -591,29 +581,6 @@ const state = { token: '', org: null, rules: null, orgRegistrationFields: {}, ca
       });
     }
 
-    function setupSignatureUploader(scope) {
-      const box = document.querySelector(`[data-signature-drop="${scope}"]`);
-      const fileInput = els.dashboardSignatureFile;
-      const pickButton = document.querySelector(`[data-signature-pick="${scope}"]`);
-      const removeButton = document.querySelector(`[data-signature-remove="${scope}"]`);
-      if (!box || !fileInput || !pickButton || !removeButton) return;
-      pickButton.addEventListener('click', () => fileInput.click());
-      removeButton.addEventListener('click', () => {
-        fileInput.value = '';
-        setSignatureValue(scope, '');
-      });
-      fileInput.addEventListener('change', async () => {
-        try { setSignatureValue(scope, await readLogoFile(fileInput.files[0])); }
-        catch (error) { alert(friendlyError(error)); }
-      });
-      box.addEventListener('keydown', (event) => {
-        if (event.key === 'Enter' || event.key === ' ') {
-          event.preventDefault();
-          fileInput.click();
-        }
-      });
-    }
-
     async function loadScanRegistration() {
       els.scanPanel.classList.remove('hidden');
       try {
@@ -654,7 +621,7 @@ const state = { token: '', org: null, rules: null, orgRegistrationFields: {}, ca
       for (const element of els.backSettingsForm.elements) {
         if (element.name && settings[element.name] !== undefined) element.value = settings[element.name] || '';
       }
-      setSignatureValue('dashboard', settings.authoritySignature || '');
+      if (els.dashboardSignatureValue) els.dashboardSignatureValue.value = settings.authoritySignature || '';
     }
 
     function renderBackSettings(card = null) {
@@ -672,7 +639,6 @@ const state = { token: '', org: null, rules: null, orgRegistrationFields: {}, ca
       els.backPoBox.textContent = settings.poBox ? `P.O. Box: ${settings.poBox}` : '';
       els.backAddress1.textContent = settings.addressLine1 || '';
       els.backAddress2.textContent = settings.addressLine2 || '';
-      els.backPhone.textContent = settings.phone ? `Phone: ${settings.phone}` : '';
       els.backDesk.textContent = settings.returnDesk ? `Return to: ${settings.returnDesk}` : '';
       els.backResponsibilityTitle.textContent = settings.responsibilityTitle || 'Cardholder Responsibilities:';
       els.backLostInstruction.textContent = settings.lostInstruction || '';
@@ -738,15 +704,16 @@ const state = { token: '', org: null, rules: null, orgRegistrationFields: {}, ca
       els.portalTitle.textContent = `${data.organization.name} ID Cards Portal`;
       els.sessionStatus.textContent = `${data.organization.name} - ${data.organization.subscriptionStatus}`;
       els.logoutBtn.classList.remove('hidden');
-      if (needsInitialTemplateChoice(data.organization)) {
+      if (needsInitialSetup(data.organization)) {
         showInitialTemplateSetup();
         return;
       }
       openDashboard(state.locked);
     }
 
-    function needsInitialTemplateChoice(org) {
-      return !org.templateId || org.templateId === 'sample';
+    function needsInitialSetup(org) {
+      const settings = org?.backSettings || {};
+      return !org?.templateId || org.templateId === 'sample' || !settings.authorityName || !settings.authoritySignature;
     }
 
     function showInitialTemplateSetup() {
@@ -757,6 +724,27 @@ const state = { token: '', org: null, rules: null, orgRegistrationFields: {}, ca
       setLogoValue('setup', state.org.logo || '');
       setBrandColorValue('setup', state.org.brandColor || '#061a30');
       renderTemplateGallery(state.templates, state.org.templateId || 'sample', 'setup');
+      fillInitialSetupForm();
+    }
+
+    function fillInitialSetupForm() {
+      const settings = { ...(state.org?.backSettings || {}) };
+      renderSchoolBackFields();
+      const defaults = {
+        returnTitle: settings.returnTitle || 'If found please return to:',
+        returnName: settings.returnName || state.org?.name || '',
+        returnDesk: settings.returnDesk || 'Admin Office',
+        responsibilityTitle: settings.responsibilityTitle || 'Cardholder Responsibilities:',
+        cardholderResponsibilities: settings.cardholderResponsibilities || 'Use only by the approved cardholder. Display this card while on duty or premises.',
+        lostInstruction: settings.lostInstruction || 'Report lost cards immediately.',
+        authorityName: settings.authorityName || state.org?.ownerName || '',
+        authoritySignature: settings.authoritySignature || state.org?.authoritySignature || state.org?.ownerName || ''
+      };
+      for (const element of els.initialTemplateForm.elements) {
+        if (!element.name) continue;
+        const value = settings[element.name] ?? defaults[element.name];
+        if (value !== undefined) element.value = value || '';
+      }
     }
 
     function openDashboard(locked) {
@@ -782,6 +770,9 @@ const state = { token: '', org: null, rules: null, orgRegistrationFields: {}, ca
 
     async function saveInitialTemplate() {
       if (!els.setupTemplateSelect.value) throw new Error('Choose a template before continuing.');
+      const form = new FormData(els.initialTemplateForm);
+      const backSettings = Object.fromEntries(form.entries());
+      if (!backSettings.authorityName || !backSettings.authoritySignature) throw new Error('Authorized name and electronic signature full name are required.');
       const data = await api('/api/org/branding', {
         method: 'PATCH',
         headers: headers(),
@@ -789,10 +780,18 @@ const state = { token: '', org: null, rules: null, orgRegistrationFields: {}, ca
       });
       state.org = data.organization;
       state.templates = data.templates || state.templates;
+      const backData = await api('/api/org/back-settings', {
+        method: 'PATCH',
+        headers: headers(),
+        body: JSON.stringify({ backSettings })
+      });
+      state.org = backData.organization;
+      state.templates = backData.templates || state.templates;
       state.locked = state.org.subscriptionStatus !== 'Active';
       setLogoValue('dashboard', state.org.logo || '');
       setBrandColorValue('dashboard', state.org.brandColor || '#061a30');
       openDashboard(state.locked);
+      if (!state.locked) await loadMasterCard();
     }
 
     async function loadMasterCard() {
@@ -1170,7 +1169,6 @@ const state = { token: '', org: null, rules: null, orgRegistrationFields: {}, ca
     setupLogoUploader('register');
     setupLogoUploader('setup');
     setupLogoUploader('dashboard');
-    setupSignatureUploader('dashboard');
     initializeEntryView();
     loadSetup().catch((error) => alert(friendlyError(error)));
 

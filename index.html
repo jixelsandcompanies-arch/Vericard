@@ -4,6 +4,11 @@
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <title>VeriCard Portal</title>
+  <script>
+    if (!location.pathname.endsWith('/portal.html')) {
+      location.replace('/portal.html' + location.search + location.hash);
+    }
+  </script>
   <link rel="manifest" href="/manifest.webmanifest">
   <meta name="theme-color" content="#061a30">
   <link rel="stylesheet" href="/css/portal.css">
@@ -374,4 +379,3 @@
   <script src="/js/portal.js"></script>
 </body>
 </html>
-

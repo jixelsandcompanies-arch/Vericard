@@ -117,7 +117,7 @@ function sendStaticFile(res, filePath, fallback = '') {
 }
 
 app.get('/', async (req, res) => {
-  if (!req.query.token) return sendStaticFile(res, 'index.html');
+  if (!req.query.token) return sendStaticFile(res, 'portal.html');
   const result = await verifyCardToken(req.query.token);
   res.send(buildVerificationHtml(result));
 });
@@ -1961,7 +1961,7 @@ app.use((req, res) => {
     return res.status(404).json({ error: 'API endpoint not found.' });
   }
   if (req.method === 'GET') {
-    return sendStaticFile(res, 'index.html');
+    return sendStaticFile(res, 'portal.html');
   }
   return res.status(404).send('Not found');
 });

@@ -81,7 +81,7 @@ const orgRegistrationFields = {
     label: 'School',
     nameLabel: 'School name',
     authorityLabel: 'Principal / Head Teacher name',
-    signatureLabel: 'Principal / Head Teacher digital signature',
+    signatureLabel: 'Principal / Head Teacher electronic signature',
     registrationLabel: 'School registration number',
     requiresMissionVision: true
   },
@@ -89,7 +89,7 @@ const orgRegistrationFields = {
     label: 'University',
     nameLabel: 'University name',
     authorityLabel: 'VC / Rector / President name',
-    signatureLabel: 'VC / Rector / President digital signature',
+    signatureLabel: 'VC / Rector / President electronic signature',
     registrationLabel: 'University registration number',
     requiresMissionVision: true
   },
@@ -97,42 +97,42 @@ const orgRegistrationFields = {
     label: 'Company',
     nameLabel: 'Company name',
     authorityLabel: 'Director / Manager / HR name',
-    signatureLabel: 'Director / Manager / HR digital signature',
+    signatureLabel: 'Director / Manager / HR electronic signature',
     registrationLabel: 'Business/registration number'
   },
   hospital: {
     label: 'Hospital',
     nameLabel: 'Hospital name',
     authorityLabel: 'Medical Director / Admin Head name',
-    signatureLabel: 'Medical Director / Admin Head digital signature',
+    signatureLabel: 'Medical Director / Admin Head electronic signature',
     registrationLabel: 'License/registration number'
   },
   ngo: {
     label: 'NGO/Church',
     nameLabel: 'Organization name',
     authorityLabel: 'Leader / Pastor / Coordinator name',
-    signatureLabel: 'Leader / Pastor / Coordinator digital signature',
+    signatureLabel: 'Leader / Pastor / Coordinator electronic signature',
     registrationLabel: 'Registration number'
   },
   security: {
     label: 'Security Agency',
     nameLabel: 'Agency name',
     authorityLabel: 'Commander / Operations Manager name',
-    signatureLabel: 'Commander / Operations Manager digital signature',
+    signatureLabel: 'Commander / Operations Manager electronic signature',
     registrationLabel: 'License/registration number'
   },
   government: {
     label: 'Government Office',
     nameLabel: 'Office / Department name',
     authorityLabel: 'Authorized Officer name',
-    signatureLabel: 'Authorized Officer digital signature',
+    signatureLabel: 'Authorized Officer electronic signature',
     registrationLabel: 'Office code / registration number'
   },
   custom: {
     label: 'Custom Organization',
     nameLabel: 'Organization name',
     authorityLabel: 'Authorized person name',
-    signatureLabel: 'Authorized person digital signature',
+    signatureLabel: 'Authorized person electronic signature',
     registrationLabel: 'Registration number'
   }
 };
@@ -1428,6 +1428,7 @@ async function createOrganization(body, status, subscriptionStatus) {
   const type = body.type || 'custom';
   const registrationRule = orgRegistrationFields[type] || orgRegistrationFields.custom;
   if (!body.name || !body.email || !body.password || !body.businessNumber) return { error: `${registrationRule.nameLabel}, admin email, password, and ${registrationRule.registrationLabel} are required.` };
+  if (!normalizeText(body.authoritySignature)) return { error: `${registrationRule.signatureLabel} full name is required.` };
   if (body.confirmPassword !== undefined && body.password !== body.confirmPassword) return { error: 'Password and confirm password must match.' };
   if (String(body.password).length < 8) return { error: 'Password must be at least 8 characters.' };
   if (registrationRule.requiresMissionVision && (!normalizeText(body.mission) || !normalizeText(body.vision))) return { error: 'Mission and vision are required for schools and universities.' };

@@ -8,7 +8,7 @@ const state = { token: '', org: null, rules: null, orgRegistrationFields: {}, ca
       orgRegisterForm: document.getElementById('orgRegisterForm'), loginForm: document.getElementById('loginForm'), loginNotice: document.getElementById('loginNotice'),
       loginBackBtn: document.getElementById('loginBackBtn'), orgForgotToggleBtn: document.getElementById('orgForgotToggleBtn'), orgResetForm: document.getElementById('orgResetForm'), orgSendResetBtn: document.getElementById('orgSendResetBtn'),
       registerLogoValue: document.getElementById('registerLogoValue'), registerBrandColor: document.getElementById('registerBrandColor'), registerLogoPreview: document.getElementById('registerLogoPreview'), registerLogoFile: document.getElementById('registerLogoFile'),
-      registerSignatureValue: document.getElementById('registerSignatureValue'), registerSignaturePreview: document.getElementById('registerSignaturePreview'), registerSignatureFile: document.getElementById('registerSignatureFile'), registerSignatureLabel: document.getElementById('registerSignatureLabel'),
+      registerSignatureValue: document.getElementById('registerSignatureValue'), registerSignatureLabel: document.getElementById('registerSignatureLabel'),
       templateSetup: document.getElementById('templateSetup'), initialTemplateForm: document.getElementById('initialTemplateForm'), templateSetupNotice: document.getElementById('templateSetupNotice'),
       setupLogoValue: document.getElementById('setupLogoValue'), setupBrandColor: document.getElementById('setupBrandColor'), setupLogoPreview: document.getElementById('setupLogoPreview'), setupLogoFile: document.getElementById('setupLogoFile'),
       setupTemplateSelect: document.getElementById('setupTemplateSelect'), setupTemplateGallery: document.getElementById('setupTemplateGallery'),
@@ -29,7 +29,7 @@ const state = { token: '', org: null, rules: null, orgRegistrationFields: {}, ca
       idFrontLogo: document.getElementById('idFrontLogo'), idBackLogo: document.getElementById('idBackLogo'), idPhoto: document.getElementById('idPhoto'),
       idPhotoPlaceholder: document.getElementById('idPhotoPlaceholder'), idCardName: document.getElementById('idCardName'), idCardNumber: document.getElementById('idCardNumber'),
       idCardRole: document.getElementById('idCardRole'), idCardQr: document.getElementById('idCardQr'), backReturnTitle: document.getElementById('backReturnTitle'),
-      frontAuthorityName: document.getElementById('frontAuthorityName'), frontAuthoritySignature: document.getElementById('frontAuthoritySignature'),
+      frontAuthorityName: document.getElementById('frontAuthorityName'), frontAuthoritySignature: document.getElementById('frontAuthoritySignature'), frontAuthoritySignatureText: document.getElementById('frontAuthoritySignatureText'),
       backMission: document.getElementById('backMission'), backVision: document.getElementById('backVision'), backIdentityNumber: document.getElementById('backIdentityNumber'),
       backReturnName: document.getElementById('backReturnName'), backPoBox: document.getElementById('backPoBox'), backAddress1: document.getElementById('backAddress1'), backAddress2: document.getElementById('backAddress2'),
       backPhone: document.getElementById('backPhone'), backDesk: document.getElementById('backDesk'), backResponsibilityTitle: document.getElementById('backResponsibilityTitle'),
@@ -66,7 +66,7 @@ const state = { token: '', org: null, rules: null, orgRegistrationFields: {}, ca
       }
       window.loadOrganizationFeature?.(type);
       const rule = registrationRule(type);
-      if (els.registerSignatureLabel) els.registerSignatureLabel.textContent = rule.signatureLabel || 'Digital signature';
+      if (els.registerSignatureLabel) els.registerSignatureLabel.textContent = `${rule.signatureLabel || 'Electronic signature'} full name`;
       els.orgDynamicFields.innerHTML = `
         <label>${rule.nameLabel || 'Organization name'}<input name="name" required></label>
         <label>Location<input name="location" required></label>
@@ -439,6 +439,22 @@ const state = { token: '', org: null, rules: null, orgRegistrationFields: {}, ca
       }
     }
 
+    function isImageSignature(value) {
+      return /^data:image\//i.test(value || '') || /^https?:\/\//i.test(value || '');
+    }
+
+    function setAuthoritySignature(value) {
+      const signature = String(value || '').trim();
+      if (isImageSignature(signature)) {
+        setImage(els.frontAuthoritySignature, signature);
+        els.frontAuthoritySignatureText.textContent = '';
+      } else {
+        els.frontAuthoritySignature.removeAttribute('src');
+        els.frontAuthoritySignature.classList.add('hidden');
+        els.frontAuthoritySignatureText.textContent = signature;
+      }
+    }
+
     function setLogoValue(scope, value) {
       const targets = {
         register: [els.registerLogoValue, els.registerLogoPreview],
@@ -454,7 +470,6 @@ const state = { token: '', org: null, rules: null, orgRegistrationFields: {}, ca
 
     function setSignatureValue(scope, value) {
       const targets = {
-        register: [els.registerSignatureValue, els.registerSignaturePreview],
         dashboard: [els.dashboardSignatureValue, els.dashboardSignaturePreview]
       };
       const [input, preview] = targets[scope] || targets.dashboard;
@@ -567,7 +582,7 @@ const state = { token: '', org: null, rules: null, orgRegistrationFields: {}, ca
 
     function setupSignatureUploader(scope) {
       const box = document.querySelector(`[data-signature-drop="${scope}"]`);
-      const fileInput = scope === 'register' ? els.registerSignatureFile : els.dashboardSignatureFile;
+      const fileInput = els.dashboardSignatureFile;
       const pickButton = document.querySelector(`[data-signature-pick="${scope}"]`);
       const removeButton = document.querySelector(`[data-signature-remove="${scope}"]`);
       if (!box || !fileInput || !pickButton || !removeButton) return;
@@ -672,7 +687,7 @@ const state = { token: '', org: null, rules: null, orgRegistrationFields: {}, ca
       els.idCardNumber.textContent = frontCardNumber(card);
       els.idCardRole.textContent = card.position || card.roleType || '';
       els.frontAuthorityName.textContent = state.org?.backSettings?.authorityName || state.org?.ownerName || '';
-      setImage(els.frontAuthoritySignature, state.org?.backSettings?.authoritySignature || '');
+      setAuthoritySignature(state.org?.backSettings?.authoritySignature || '');
       if (card.photo) {
         els.idPhoto.src = card.photo;
         els.idPhoto.classList.remove('hidden');
@@ -1139,7 +1154,6 @@ const state = { token: '', org: null, rules: null, orgRegistrationFields: {}, ca
     setupLogoUploader('register');
     setupLogoUploader('setup');
     setupLogoUploader('dashboard');
-    setupSignatureUploader('register');
     setupSignatureUploader('dashboard');
     initializeEntryView();
     loadSetup().catch((error) => alert(friendlyError(error)));

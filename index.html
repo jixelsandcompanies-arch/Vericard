@@ -74,7 +74,6 @@
         <label>Password<input name="password" type="password" minlength="8" required></label>
         <label>Confirm password<input name="confirmPassword" type="password" minlength="8" required></label>
         <input name="logo" id="registerLogoValue" type="hidden">
-        <input name="authoritySignature" id="registerSignatureValue" type="hidden">
         <label>Brand color<input name="brandColor" id="registerBrandColor" type="color" value="#061a30"></label>
         <div class="upload-box" data-logo-drop="register" tabindex="0">
           <div class="upload-row">
@@ -90,20 +89,7 @@
           </div>
           <input id="registerLogoFile" type="file" accept="image/png,image/jpeg,image/webp,image/gif,image/svg+xml" hidden>
         </div>
-        <div class="upload-box" data-signature-drop="register" tabindex="0">
-          <div class="upload-row">
-            <img class="logo-preview hidden" id="registerSignaturePreview" alt="">
-            <div class="logo-copy">
-              <strong id="registerSignatureLabel">Digital signature</strong>
-              <span>Used on the front of approved ID cards and master card.</span>
-              <div class="logo-actions">
-                <button type="button" class="secondary" data-signature-pick="register">Choose Signature</button>
-                <button type="button" class="secondary hidden" data-signature-remove="register">Remove</button>
-              </div>
-            </div>
-          </div>
-          <input id="registerSignatureFile" type="file" accept="image/png,image/jpeg,image/webp,image/gif,image/svg+xml" hidden>
-        </div>
+        <label><span id="registerSignatureLabel">Electronic signature full name</span><input name="authoritySignature" id="registerSignatureValue" placeholder="Type the authorized person's full name" required></label>
         <button type="submit">Create Organization</button>
       </form>
       <div id="organizationFeatureMount" class="panel feature-mount hidden"></div>
@@ -355,6 +341,7 @@
             <div class="front-authority">
               <span id="frontAuthorityName"></span>
               <img id="frontAuthoritySignature" class="hidden" alt="">
+              <span id="frontAuthoritySignatureText"></span>
             </div>
           </article>
           <article class="id-card">

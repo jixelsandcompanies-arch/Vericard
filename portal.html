@@ -351,7 +351,7 @@
         <label>Responsibilities title<input name="responsibilityTitle" required></label>
         <label>Cardholder responsibilities<textarea name="cardholderResponsibilities" required></textarea></label>
         <label>Lost card/report instruction<textarea name="lostInstruction" required></textarea></label>
-        <label>Authorized name for card front<input name="authorityName"></label>
+        <label>Electronic signature full name<input name="authorityName" placeholder="Principal / Head Teacher full name"></label>
         <label>Card expiry date<input name="cardExpiryDate" type="date"></label>
         <label>Gate latitude<input name="gateLatitude" inputmode="decimal" placeholder="-1.286389"></label>
         <label>Gate longitude<input name="gateLongitude" inputmode="decimal" placeholder="36.817223"></label>
@@ -361,8 +361,8 @@
           <div class="upload-row">
             <img class="logo-preview hidden" id="dashboardSignaturePreview" alt="">
             <div class="logo-copy">
-              <strong>Authorized digital signature</strong>
-              <span>Shown on the front of ID cards.</span>
+              <strong>Upload signature image</strong>
+              <span>Optional. If uploaded, it appears with the typed electronic signature on ID cards.</span>
               <div class="logo-actions">
                 <button type="button" class="secondary" data-signature-pick="dashboard">Choose Signature</button>
                 <button type="button" class="secondary hidden" data-signature-remove="dashboard">Remove</button>

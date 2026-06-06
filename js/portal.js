@@ -101,12 +101,12 @@ const state = { token: '', org: null, rules: null, orgRegistrationFields: {}, ca
       }
       window.loadOrganizationFeature?.(type);
       const rule = registrationRule(type);
-      if (els.registerSignatureLabel) els.registerSignatureLabel.textContent = rule.signatureLabel || 'Digital signature';
+      if (els.registerSignatureLabel) els.registerSignatureLabel.textContent = `${rule.signatureLabel || 'Digital signature'} image`;
       els.orgDynamicFields.innerHTML = `
         <label>${rule.nameLabel || 'Organization name'}<input name="name" required></label>
         <label>Location<input name="location" required></label>
         <label>${rule.registrationLabel || 'Registration number'}<input name="businessNumber" required></label>
-        <label>${rule.authorityLabel || 'Authorized person name'}<input name="ownerName" required></label>
+        <label>${rule.authorityLabel || 'Authorized person name'} / electronic signature<input name="ownerName" placeholder="Type full name for electronic signature" required></label>
         ${type === 'school' ? '<label>School type<select name="schoolType" required><option value="">Choose school type</option><option value="day">Day school</option><option value="boarding">Boarding school</option><option value="mixed">Mixed day/boarding school</option></select></label>' : ''}
         ${isSchoolType(type) ? '<label>Mission<textarea name="mission" required></textarea></label><label>Vision<textarea name="vision" required></textarea></label>' : ''}
         <label>P.O. Box<input name="poBox"></label>
@@ -752,7 +752,8 @@ const state = { token: '', org: null, rules: null, orgRegistrationFields: {}, ca
       els.idCardNumber.textContent = frontCardNumber(card);
       els.idCardRole.textContent = card.position || card.roleType || '';
       els.idCardExpiry.textContent = card.fields?.expiryDate || state.org?.backSettings?.cardExpiryDate || '';
-      els.frontAuthorityName.textContent = state.org?.backSettings?.authorityName || state.org?.ownerName || '';
+      const authorityName = state.org?.backSettings?.authorityName || state.org?.ownerName || '';
+      els.frontAuthorityName.textContent = authorityName ? `E-Signature: ${authorityName}` : '';
       setImage(els.frontAuthoritySignature, state.org?.backSettings?.authoritySignature || '');
       if (card.photo) {
         els.idPhoto.src = card.photo;
@@ -861,7 +862,7 @@ const state = { token: '', org: null, rules: null, orgRegistrationFields: {}, ca
       els.masterOrgType.textContent = card.organization.typeLabel;
       els.masterNumber.textContent = `Master No: ${card.number}`;
       els.masterBusiness.textContent = `Reg No: ${card.organization.businessNumber}`;
-      els.masterAuthority.textContent = card.organization.authorityName ? `Authorized by: ${card.organization.authorityName}` : '';
+      els.masterAuthority.textContent = card.organization.authorityName ? `E-Signature: ${card.organization.authorityName}` : '';
       els.masterQr.src = qrUrl(card.qrUrl);
       els.masterBackMission.textContent = ['school', 'university'].includes(card.organization.type) && settings.mission ? `MISSION: ${settings.mission}` : '';
       els.masterBackVision.textContent = ['school', 'university'].includes(card.organization.type) && settings.vision ? `VISION: ${settings.vision}` : '';

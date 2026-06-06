@@ -1,0 +1,2 @@
+html[data-organization-feature="company"] .feature-company { border-left: 4px solid var(--gold); }
+html[data-organization-feature="company"] #gateScanPanel h2::after { content: " - Work hours"; color: var(--muted); font-size: 12px; }

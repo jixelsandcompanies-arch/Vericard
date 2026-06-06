@@ -1,0 +1,2 @@
+html[data-organization-feature="university"] .feature-university { border-left: 4px solid var(--gold); }
+html[data-organization-feature="university"] #gateScanPanel h2::after { content: " - Campus movement"; color: var(--muted); font-size: 12px; }

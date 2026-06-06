@@ -1,0 +1,2 @@
+html[data-organization-feature="hospital"] .feature-hospital { border-left: 4px solid var(--gold); }
+html[data-organization-feature="hospital"] #gateScanPanel h2::after { content: " - Shift scans"; color: var(--muted); font-size: 12px; }

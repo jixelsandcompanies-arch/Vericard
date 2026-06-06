@@ -1,0 +1,70 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>VeriCard Portal</title>
+  <link rel="manifest" href="manifest.webmanifest">
+  <meta name="theme-color" content="#061a30">
+  <link rel="stylesheet" href="css/portal.css">
+</head>
+<body>
+  <header>
+    <div class="wrap header-inner">
+      <div class="brand-lockup">
+        <img src="assets/vericard-logo.jpeg" alt="VeriCard">
+        <h1 id="gateTitle">VeriCard Portal</h1>
+      </div>
+      <div class="row"><span class="status" id="gateStatus">Out of duty</span><button class="secondary hidden" id="installAppBtn">Install Scanner App</button><button class="secondary hidden" id="endDutyBtn">End Duty</button></div>
+    </div>
+  </header>
+  <main class="wrap">
+    <section class="panel" id="gateLoginPanel">
+      <h2>Gate Staff Login</h2>
+      <form id="gateLoginForm">
+        <label>Organization ID<input name="organizationId" required></label>
+        <label>Staff code<input name="staffCode" required></label>
+        <label>Gate PIN<input name="pin" type="password" required></label>
+        <label>Gate name<input name="gateName" value="Main Gate" required></label>
+        <button type="submit">Start Duty</button>
+      </form>
+      <div class="notice hidden" id="loginNotice"></div>
+    </section>
+
+    <section class="panel hidden" id="scannerPanel">
+      <h2>Scan and Confirm</h2>
+      <form id="previewForm">
+        <label>Scan action
+          <select name="action">
+            <option value="enter">Entering</option>
+            <option value="leave">Leaving</option>
+          </select>
+        </label>
+        <label>ID QR token or scanned URL<input name="token" autocomplete="off" required></label>
+        <button type="submit">Preview Card</button>
+      </form>
+      <div class="notice hidden" id="scanNotice"></div>
+      <article class="panel hidden" id="confirmPanel">
+        <h2>Confirm Before Saving</h2>
+        <div class="scan-confirm">
+          <img id="personPhoto" class="logo-preview hidden" alt="">
+          <div>
+            <strong id="personName"></strong>
+            <div id="personMeta"></div>
+            <div id="personOrg"></div>
+            <div id="personState"></div>
+            <div id="feeStatus"></div>
+          </div>
+        </div>
+        <div class="row">
+          <button type="button" id="confirmBtn">Confirm</button>
+          <button type="button" class="secondary" id="cancelBtn">Cancel</button>
+        </div>
+      </article>
+    </section>
+  </main>
+  <script src="js/pwa.js"></script>
+  <script src="js/gate.js"></script>
+</body>
+</html>
+

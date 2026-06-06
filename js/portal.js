@@ -1,0 +1,1150 @@
+const state = { token: '', org: null, rules: null, orgRegistrationFields: {}, cards: [], templates: [], locked: false, palette: { primary: '#061a30', accent: '#149ee8', colors: ['#061a30', '#149ee8'] }, masterToken: new URLSearchParams(location.search).get('master') || '' };
+    const els = {
+      sessionStatus: document.getElementById('sessionStatus'), logoutBtn: document.getElementById('logoutBtn'),
+      portalTitle: document.getElementById('portalTitle'),
+      portalIntro: document.getElementById('portalIntro'), entryArea: document.getElementById('entryArea'), startRegisterBtn: document.getElementById('startRegisterBtn'),
+      alreadyRegisteredBtn: document.getElementById('alreadyRegisteredBtn'), loginPanel: document.getElementById('loginPanel'),
+      orgType: document.getElementById('orgType'), orgDynamicFields: document.getElementById('orgDynamicFields'), templateGallery: document.getElementById('templateGallery'),
+      orgRegisterForm: document.getElementById('orgRegisterForm'), loginForm: document.getElementById('loginForm'), loginNotice: document.getElementById('loginNotice'),
+      loginBackBtn: document.getElementById('loginBackBtn'), orgForgotToggleBtn: document.getElementById('orgForgotToggleBtn'), orgResetForm: document.getElementById('orgResetForm'), orgSendResetBtn: document.getElementById('orgSendResetBtn'),
+      registerLogoValue: document.getElementById('registerLogoValue'), registerBrandColor: document.getElementById('registerBrandColor'), registerLogoPreview: document.getElementById('registerLogoPreview'), registerLogoFile: document.getElementById('registerLogoFile'),
+      registerSignatureValue: document.getElementById('registerSignatureValue'), registerSignaturePreview: document.getElementById('registerSignaturePreview'), registerSignatureFile: document.getElementById('registerSignatureFile'), registerSignatureLabel: document.getElementById('registerSignatureLabel'),
+      templateSetup: document.getElementById('templateSetup'), initialTemplateForm: document.getElementById('initialTemplateForm'), templateSetupNotice: document.getElementById('templateSetupNotice'),
+      setupLogoValue: document.getElementById('setupLogoValue'), setupBrandColor: document.getElementById('setupBrandColor'), setupLogoPreview: document.getElementById('setupLogoPreview'), setupLogoFile: document.getElementById('setupLogoFile'),
+      setupTemplateSelect: document.getElementById('setupTemplateSelect'), setupTemplateGallery: document.getElementById('setupTemplateGallery'),
+      brandingForm: document.getElementById('brandingForm'), dashboardLogoValue: document.getElementById('dashboardLogoValue'), dashboardBrandColor: document.getElementById('dashboardBrandColor'), dashboardLogoPreview: document.getElementById('dashboardLogoPreview'),
+      dashboardLogoFile: document.getElementById('dashboardLogoFile'), templateSelect: document.getElementById('templateSelect'),
+      dashboard: document.getElementById('dashboard'), subscriptionNotice: document.getElementById('subscriptionNotice'), masterCard: document.getElementById('masterCard'),
+      orgDashboardSummary: document.getElementById('orgDashboardSummary'), recentScansBody: document.getElementById('recentScansBody'),
+      masterLogo: document.getElementById('masterLogo'), masterOrgName: document.getElementById('masterOrgName'), masterOrgType: document.getElementById('masterOrgType'),
+      masterNumber: document.getElementById('masterNumber'), masterBusiness: document.getElementById('masterBusiness'), masterQr: document.getElementById('masterQr'),
+      cardsBody: document.getElementById('cardsBody'), scanPanel: document.getElementById('scanPanel'), scanNotice: document.getElementById('scanNotice'),
+      applyForm: document.getElementById('applyForm'), roleType: document.getElementById('roleType'), dynamicFields: document.getElementById('dynamicFields'),
+      gateScanPanel: document.getElementById('gateScanPanel'), gateScanForm: document.getElementById('gateScanForm'), gateScanNotice: document.getElementById('gateScanNotice'), attendanceBody: document.getElementById('attendanceBody'),
+      gateStaffForm: document.getElementById('gateStaffForm'), gateStaffBody: document.getElementById('gateStaffBody'),
+      feePanel: document.getElementById('feePanel'), feeUploadFile: document.getElementById('feeUploadFile'), uploadFeesBtn: document.getElementById('uploadFeesBtn'), refreshFeesBtn: document.getElementById('refreshFeesBtn'), feeNotice: document.getElementById('feeNotice'), feesBody: document.getElementById('feesBody'),
+      reportsPanel: document.getElementById('reportsPanel'), reportsSummary: document.getElementById('reportsSummary'), notificationsBody: document.getElementById('notificationsBody'),
+      backSettingsForm: document.getElementById('backSettingsForm'), previewEmpty: document.getElementById('previewEmpty'), idCardStage: document.getElementById('idCardStage'),
+      schoolBackFields: document.getElementById('schoolBackFields'), schoolHourFields: document.getElementById('schoolHourFields'), dashboardSignatureValue: document.getElementById('dashboardSignatureValue'), dashboardSignaturePreview: document.getElementById('dashboardSignaturePreview'), dashboardSignatureFile: document.getElementById('dashboardSignatureFile'),
+      idFrontLogo: document.getElementById('idFrontLogo'), idBackLogo: document.getElementById('idBackLogo'), idPhoto: document.getElementById('idPhoto'),
+      idPhotoPlaceholder: document.getElementById('idPhotoPlaceholder'), idCardName: document.getElementById('idCardName'), idCardNumber: document.getElementById('idCardNumber'),
+      idCardRole: document.getElementById('idCardRole'), idCardQr: document.getElementById('idCardQr'), backReturnTitle: document.getElementById('backReturnTitle'),
+      frontAuthorityName: document.getElementById('frontAuthorityName'), frontAuthoritySignature: document.getElementById('frontAuthoritySignature'),
+      backMission: document.getElementById('backMission'), backVision: document.getElementById('backVision'), backIdentityNumber: document.getElementById('backIdentityNumber'),
+      backReturnName: document.getElementById('backReturnName'), backPoBox: document.getElementById('backPoBox'), backAddress1: document.getElementById('backAddress1'), backAddress2: document.getElementById('backAddress2'),
+      backPhone: document.getElementById('backPhone'), backDesk: document.getElementById('backDesk'), backResponsibilityTitle: document.getElementById('backResponsibilityTitle'),
+      backLostInstruction: document.getElementById('backLostInstruction'), backResponsibilities: document.getElementById('backResponsibilities')
+    };
+
+    function headers() { return { Authorization: `Bearer ${state.token}`, 'Content-Type': 'application/json' }; }
+    function qrUrl(value) { return `https://api.qrserver.com/v1/create-qr-code/?size=180x180&data=${encodeURIComponent(value)}`; }
+    function niceLabel(key) { return key.replace(/([A-Z])/g, ' $1').replace(/^./, (c) => c.toUpperCase()); }
+    function verificationUrl(token) { return `${window.location.origin}/?token=${encodeURIComponent(token)}`; }
+    function hasRegisteredOrganization() { return localStorage.getItem('mapphexOrganizationRegistered') === 'true'; }
+    function rememberRegisteredOrganization() { localStorage.setItem('mapphexOrganizationRegistered', 'true'); }
+    function isSchoolType(type) { return type === 'school' || type === 'university'; }
+    function registrationRule(type) { return state.orgRegistrationFields[type] || state.orgRegistrationFields.custom || {}; }
+    function toggleOrgDependentFields(show) {
+      const children = Array.from(els.orgRegisterForm.children);
+      let seenTypeSelect = false;
+      for (const child of children) {
+        if (child.querySelector?.('#orgType')) {
+          seenTypeSelect = true;
+          continue;
+        }
+        if (!seenTypeSelect || child.tagName === 'H2') continue;
+        child.classList.toggle('hidden', !show);
+      }
+    }
+    function renderOrgRegistrationFields() {
+      const type = els.orgType.value || '';
+      toggleOrgDependentFields(Boolean(type));
+      if (!type) {
+        els.orgDynamicFields.innerHTML = '';
+        document.getElementById('organizationFeatureMount')?.classList.add('hidden');
+        return;
+      }
+      window.loadOrganizationFeature?.(type);
+      const rule = registrationRule(type);
+      if (els.registerSignatureLabel) els.registerSignatureLabel.textContent = rule.signatureLabel || 'Digital signature';
+      els.orgDynamicFields.innerHTML = `
+        <label>${rule.nameLabel || 'Organization name'}<input name="name" required></label>
+        <label>Location<input name="location" required></label>
+        <label>${rule.registrationLabel || 'Registration number'}<input name="businessNumber" required></label>
+        <label>${rule.authorityLabel || 'Authorized person name'}<input name="ownerName" required></label>
+        ${type === 'school' ? '<label>School type<select name="schoolType" required><option value="">Choose school type</option><option value="day">Day school</option><option value="boarding">Boarding school</option><option value="mixed">Mixed day/boarding school</option></select></label>' : ''}
+        ${isSchoolType(type) ? '<label>Mission<textarea name="mission" required></textarea></label><label>Vision<textarea name="vision" required></textarea></label>' : ''}
+        <label>P.O. Box<input name="poBox"></label>
+        <label>Return/report phone<input name="returnPhone"></label>
+        <label>Return/report instruction<textarea name="reportInstruction" required></textarea></label>
+        <label>Admin email<input name="email" type="email" required></label>
+        <label>Admin phone<input name="phone" required></label>
+      `;
+    }
+    function renderSchoolBackFields() {
+      if (!els.schoolBackFields) return;
+      const type = state.org?.type || els.orgType.value || 'custom';
+      els.schoolBackFields.innerHTML = isSchoolType(type)
+        ? '<label>Mission<textarea name="mission"></textarea></label><label>Vision<textarea name="vision"></textarea></label>'
+        : '';
+      els.schoolHourFields.innerHTML = type === 'school'
+        ? '<label>School type<select name="schoolType"><option value="day">Day school</option><option value="boarding">Boarding school</option><option value="mixed">Mixed day/boarding school</option></select></label><label>Weekend release allowed<select name="weekendReleaseAllowed"><option value="no">No</option><option value="yes">Yes</option></select></label><label>Holiday dates<textarea name="holidayDates" placeholder="2026-08-01, 2026-12-20 or one date per line"></textarea></label><label>Holiday notes<textarea name="holidayNotes" placeholder="Holiday/release reason notes"></textarea></label><label>School start time<input name="schoolStartTime" type="time" value="08:00"></label><label>School end time<input name="schoolEndTime" type="time" value="16:00"></label>'
+        : '';
+    }
+    function normalizeHexColor(color) {
+      const value = String(color || '').trim();
+      if (/^#[0-9a-f]{6}$/i.test(value)) return value.toLowerCase();
+      if (/^#[0-9a-f]{3}$/i.test(value)) return `#${value[1]}${value[1]}${value[2]}${value[2]}${value[3]}${value[3]}`.toLowerCase();
+      return '#061a30';
+    }
+    function setBrandColor(color, accent = '') {
+      document.documentElement.style.setProperty('--blue', normalizeHexColor(color));
+      if (accent) document.documentElement.style.setProperty('--gold', normalizeHexColor(accent));
+    }
+    function rgbToHex(r, g, b) {
+      return `#${[r, g, b].map((value) => Math.max(0, Math.min(255, value)).toString(16).padStart(2, '0')).join('')}`;
+    }
+    function rgbToHsl(r, g, b) {
+      r /= 255; g /= 255; b /= 255;
+      const max = Math.max(r, g, b);
+      const min = Math.min(r, g, b);
+      let h = 0;
+      let s = 0;
+      const l = (max + min) / 2;
+      if (max !== min) {
+        const d = max - min;
+        s = l > 0.5 ? d / (2 - max - min) : d / (max + min);
+        if (max === r) h = (g - b) / d + (g < b ? 6 : 0);
+        else if (max === g) h = (b - r) / d + 2;
+        else h = (r - g) / d + 4;
+        h /= 6;
+      }
+      return { h: h * 360, s, l };
+    }
+    function hslToRgb(h, s, l) {
+      h = ((h % 360) + 360) % 360 / 360;
+      let r = l;
+      let g = l;
+      let b = l;
+      if (s !== 0) {
+        const hueToRgb = (p, q, t) => {
+          if (t < 0) t += 1;
+          if (t > 1) t -= 1;
+          if (t < 1 / 6) return p + (q - p) * 6 * t;
+          if (t < 1 / 2) return q;
+          if (t < 2 / 3) return p + (q - p) * (2 / 3 - t) * 6;
+          return p;
+        };
+        const q = l < 0.5 ? l * (1 + s) : l + s - l * s;
+        const p = 2 * l - q;
+        r = hueToRgb(p, q, h + 1 / 3);
+        g = hueToRgb(p, q, h);
+        b = hueToRgb(p, q, h - 1 / 3);
+      }
+      return [Math.round(r * 255), Math.round(g * 255), Math.round(b * 255)];
+    }
+    function smartenBrandColor(r, g, b) {
+      const hsl = rgbToHsl(r, g, b);
+      const saturation = Math.max(0.48, Math.min(0.86, hsl.s * 1.08));
+      const lightness = Math.max(0.29, Math.min(0.52, hsl.l));
+      return rgbToHex(...hslToRgb(hsl.h, saturation, lightness));
+    }
+    function hexToRgb(hex) {
+      const value = normalizeHexColor(hex).slice(1);
+      return {
+        r: parseInt(value.slice(0, 2), 16),
+        g: parseInt(value.slice(2, 4), 16),
+        b: parseInt(value.slice(4, 6), 16)
+      };
+    }
+    function colorDistance(first, second) {
+      const a = hexToRgb(first);
+      const b = hexToRgb(second);
+      return Math.hypot(a.r - b.r, a.g - b.g, a.b - b.b);
+    }
+    function smartAccentFromPrimary(primary) {
+      const { r, g, b } = hexToRgb(primary);
+      const hsl = rgbToHsl(r, g, b);
+      return rgbToHex(...hslToRgb(hsl.h + 42, 0.78, 0.58));
+    }
+    function defaultPalette() {
+      return { primary: '#061a30', accent: '#149ee8', colors: ['#061a30', '#149ee8'] };
+    }
+    function extractLogoPalette(src) {
+      return new Promise((resolve) => {
+        if (!src) {
+          resolve(defaultPalette());
+          return;
+        }
+        const image = new Image();
+        image.onload = () => {
+          try {
+            const canvas = document.createElement('canvas');
+            const size = 140;
+            canvas.width = size;
+            canvas.height = size;
+            const context = canvas.getContext('2d');
+            context.clearRect(0, 0, size, size);
+            context.drawImage(image, 0, 0, size, size);
+            const pixels = context.getImageData(0, 0, size, size).data;
+            const buckets = new Map();
+            for (let index = 0; index < pixels.length; index += 4) {
+              const r = pixels[index];
+              const g = pixels[index + 1];
+              const b = pixels[index + 2];
+              const a = pixels[index + 3];
+              if (a < 90) continue;
+              const { h, s, l } = rgbToHsl(r, g, b);
+              if (l > 0.92 || l < 0.08 || s < 0.18) continue;
+              const isNearWhiteGrayOrBlack = Math.max(r, g, b) - Math.min(r, g, b) < 26;
+              if (isNearWhiteGrayOrBlack) continue;
+              const hueBucket = Math.round(h / 8) * 8;
+              const satBucket = Math.round(s * 6) / 6;
+              const lightBucket = Math.round(l * 6) / 6;
+              const key = `${hueBucket},${satBucket},${lightBucket}`;
+              const vividness = Math.pow(s, 1.7);
+              const readability = 1 - Math.abs(l - 0.42);
+              const alphaWeight = a / 255;
+              const score = vividness * readability * alphaWeight;
+              const existing = buckets.get(key) || { score: 0, count: 0, r: 0, g: 0, b: 0 };
+              existing.score += score;
+              existing.count += 1;
+              existing.r += r * score;
+              existing.g += g * score;
+              existing.b += b * score;
+              buckets.set(key, existing);
+            }
+            const ranked = [];
+            buckets.forEach((bucket) => {
+              const score = bucket.score * Math.log2(bucket.count + 2);
+              ranked.push({ ...bucket, finalScore: score });
+            });
+            ranked.sort((a, b) => b.finalScore - a.finalScore);
+            const picked = [];
+            for (const bucket of ranked) {
+              const color = smartenBrandColor(bucket.r / bucket.score, bucket.g / bucket.score, bucket.b / bucket.score);
+              if (picked.every((existing) => colorDistance(existing, color) > 58)) picked.push(color);
+              if (picked.length === 4) break;
+            }
+            const primary = picked[0];
+            if (!primary) {
+              resolve(defaultPalette());
+              return;
+            }
+            resolve({
+              primary,
+              accent: picked[1] || smartAccentFromPrimary(primary),
+              colors: picked.length > 1 ? picked : [primary, smartAccentFromPrimary(primary)]
+            });
+          } catch {
+            resolve(defaultPalette());
+          }
+        };
+        image.onerror = () => resolve(defaultPalette());
+        image.src = src;
+      });
+    }
+    async function extractDominantColor(src) {
+      return (await extractLogoPalette(src)).primary;
+    }
+    function showIntro() {
+      document.title = 'VeriCard Portal';
+      els.portalTitle.textContent = 'VeriCard Portal';
+      setBrandColor('#061a30');
+      els.portalIntro.classList.remove('hidden');
+      els.entryArea.classList.add('hidden');
+      els.orgRegisterForm.classList.add('hidden');
+      els.loginPanel.classList.add('hidden');
+      els.templateSetup.classList.add('hidden');
+      els.dashboard.classList.add('hidden');
+    }
+    function showRegistration() {
+      document.title = 'VeriCard Portal';
+      els.portalTitle.textContent = 'VeriCard Portal';
+      setBrandColor('#061a30');
+      els.portalIntro.classList.add('hidden');
+      els.entryArea.classList.remove('hidden');
+      els.orgRegisterForm.classList.remove('hidden');
+      els.loginPanel.classList.add('hidden');
+      els.templateSetup.classList.add('hidden');
+      els.dashboard.classList.add('hidden');
+    }
+    function showLogin() {
+      document.title = 'VeriCard Portal';
+      els.portalTitle.textContent = 'VeriCard Portal';
+      setBrandColor('#061a30');
+      els.portalIntro.classList.add('hidden');
+      els.entryArea.classList.remove('hidden');
+      els.orgRegisterForm.classList.add('hidden');
+      els.loginPanel.classList.remove('hidden');
+      els.templateSetup.classList.add('hidden');
+      els.dashboard.classList.add('hidden');
+    }
+    function showDashboardShell() {
+      els.portalIntro.classList.add('hidden');
+      els.entryArea.classList.add('hidden');
+      els.orgRegisterForm.classList.add('hidden');
+      els.loginPanel.classList.add('hidden');
+      els.templateSetup.classList.add('hidden');
+    }
+    function initializeEntryView() {
+      if (state.masterToken) {
+        els.portalIntro.classList.add('hidden');
+        els.entryArea.classList.add('hidden');
+        return;
+      }
+      if (hasRegisteredOrganization()) showLogin();
+      else showIntro();
+    }
+    function friendlyError(error) {
+      if (error && /failed to fetch/i.test(error.message || '')) {
+        return 'Could not reach VeriCard server. Open this page through the running app URL, not by double-clicking the HTML file, and confirm the server is online.';
+      }
+      return error.message || 'Request failed.';
+    }
+    function formatTime(value) {
+      return value ? new Date(value).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) : '';
+    }
+    function formatDate(value) {
+      return value ? new Date(`${value}T00:00:00`).toLocaleDateString() : '';
+    }
+    function money(value) {
+      return `KES ${Number(value || 0).toLocaleString()}`;
+    }
+    function parseCsv(text) {
+      const rows = [];
+      let current = '';
+      let row = [];
+      let quoted = false;
+      for (let index = 0; index < text.length; index += 1) {
+        const char = text[index];
+        const next = text[index + 1];
+        if (char === '"' && quoted && next === '"') {
+          current += '"';
+          index += 1;
+        } else if (char === '"') {
+          quoted = !quoted;
+        } else if (char === ',' && !quoted) {
+          row.push(current.trim());
+          current = '';
+        } else if ((char === '\n' || char === '\r') && !quoted) {
+          if (char === '\r' && next === '\n') index += 1;
+          row.push(current.trim());
+          if (row.some(Boolean)) rows.push(row);
+          row = [];
+          current = '';
+        } else {
+          current += char;
+        }
+      }
+      row.push(current.trim());
+      if (row.some(Boolean)) rows.push(row);
+      const headers = rows.shift() || [];
+      return rows.map((values) => Object.fromEntries(headers.map((header, index) => [header, values[index] || ''])));
+    }
+    async function api(path, options = {}) {
+      let response;
+      try {
+        response = await fetch(path, options);
+      } catch (error) {
+        throw new Error(friendlyError(error));
+      }
+      const data = await response.json().catch(() => ({}));
+      if (!response.ok) throw new Error(data.error || 'Request failed.');
+      return data;
+    }
+
+    async function loadSetup() {
+      const data = await api('/api/templates');
+      state.templates = data.templates || [];
+      state.orgRegistrationFields = data.orgRegistrationFields || {};
+      els.orgType.innerHTML = '<option value="">Choose organization type</option>' + Object.entries(data.organizationTypes).map(([key, rule]) => `<option value="${key}">${rule.label}</option>`).join('');
+      renderOrgRegistrationFields();
+      if (state.masterToken) await loadScanRegistration();
+    }
+
+    function renderTemplateGallery(templates, selectedId, scope = 'dashboard') {
+      const smartTemplates = buildSmartTemplates(templates, selectedId, scope);
+      const activeId = smartTemplates.some((template) => template.id === selectedId) ? selectedId : smartTemplates[0]?.id;
+      const gallery = scope === 'setup' ? els.setupTemplateGallery : els.templateGallery;
+      const select = scope === 'setup' ? els.setupTemplateSelect : els.templateSelect;
+      gallery.innerHTML = smartTemplates.map((template) => `
+        <button type="button" class="template ${template.id === activeId ? 'active' : ''}" data-template-id="${template.id}" style="--template-color:${template.color};--template-accent:${template.accent};">
+          <span class="template-preview template-${template.layout}">
+            ${state.org?.logo ? `<img src="${state.org.logo}" alt="">` : '<b>ID</b>'}
+            <i></i><em></em>
+          </span>
+          <strong>${template.name}</strong>
+          <small>${template.description}</small>
+          ${template.recommended ? '<span class="template-badge">Recommended</span>' : ''}
+        </button>`).join('');
+      select.innerHTML = smartTemplates.map((template) => `<option value="${template.id}" ${template.id === activeId ? 'selected' : ''}>${template.name}</option>`).join('');
+      if (activeId) select.value = activeId;
+    }
+
+    function buildSmartTemplates(templates, selectedId, scope = 'dashboard') {
+      const org = state.org || {};
+      const type = org.type || 'custom';
+      const label = org.typeLabel || niceLabel(type);
+      const scopedColor = scope === 'setup' ? els.setupBrandColor?.value : els.dashboardBrandColor?.value;
+      const primary = normalizeHexColor(scopedColor || org.brandColor || state.palette.primary);
+      const accent = normalizeHexColor(state.palette.accent || smartAccentFromPrimary(primary));
+      const alternate = normalizeHexColor(state.palette.colors?.[2] || smartAccentFromPrimary(accent));
+      const purpose = {
+        school: ['Scholar', 'Prefect', 'Guardian', 'Academic', 'Campus', 'Library'],
+        university: ['Campus', 'Faculty', 'Student', 'Research', 'Hostel', 'Alumni'],
+        company: ['Staff', 'Executive', 'Contractor', 'Visitor', 'Operations', 'Access'],
+        hospital: ['Clinical', 'Doctor', 'Nurse', 'Ward', 'Visitor', 'Emergency'],
+        security: ['Guard', 'Supervisor', 'Rapid', 'Patrol', 'Command', 'Access'],
+        government: ['Official', 'Department', 'Field', 'Civic', 'Permit', 'Office'],
+        ngo: ['Member', 'Volunteer', 'Outreach', 'Leader', 'Event', 'Community'],
+        custom: ['Signature', 'Member', 'Access', 'Visitor', 'Team', 'Identity']
+      }[type] || ['Signature', 'Member', 'Access', 'Visitor', 'Team', 'Identity'];
+      const layouts = ['primary', 'clean', 'bold', 'qr', 'primary', 'clean'];
+      const tones = [
+        ['Classic', primary, accent, 'Logo-led front card with a strong brand band.'],
+        ['Clear', primary, alternate, 'Clean daily-use design with easy field scanning.'],
+        ['Bold', alternate, accent, 'High-contrast layout for fast visual checking.'],
+        ['QR Focus', primary, accent, 'Verification-first card with a stronger scan area.'],
+        ['Formal', primary, '#111827', 'Reserved official layout for administrators and leaders.'],
+        ['Bright', accent, primary, 'Livelier layout for events, visitors, and guardians.']
+      ];
+      const generated = Array.from({ length: 50 }, (_, index) => {
+        const tone = tones[index % tones.length];
+        const purposeName = purpose[index % purpose.length];
+        return {
+          id: `${type}-smart-${index + 1}`,
+          layout: layouts[index % layouts.length],
+          name: `${label} ${purposeName} ${tone[0]}`,
+          description: tone[3],
+          color: tone[1],
+          accent: tone[2],
+          recommended: index === 0
+        };
+      });
+      const merged = generated;
+      if (selectedId && selectedId !== 'sample' && !merged.some((template) => template.id === selectedId)) {
+        merged.push({ id: selectedId, layout: 'clean', name: 'Saved Template', description: 'Previously saved client template.', color: primary, accent });
+      }
+      return merged;
+    }
+
+    function setImage(element, src) {
+      if (src) {
+        element.src = src;
+        element.classList.remove('hidden');
+      } else {
+        element.removeAttribute('src');
+        element.classList.add('hidden');
+      }
+    }
+
+    function setLogoValue(scope, value) {
+      const targets = {
+        register: [els.registerLogoValue, els.registerLogoPreview],
+        setup: [els.setupLogoValue, els.setupLogoPreview],
+        dashboard: [els.dashboardLogoValue, els.dashboardLogoPreview]
+      };
+      const [input, preview] = targets[scope] || targets.dashboard;
+      const removeButton = document.querySelector(`[data-logo-remove="${scope}"]`);
+      input.value = value || '';
+      setImage(preview, value || '');
+      if (removeButton) removeButton.classList.toggle('hidden', !value);
+    }
+
+    function setSignatureValue(scope, value) {
+      const targets = {
+        register: [els.registerSignatureValue, els.registerSignaturePreview],
+        dashboard: [els.dashboardSignatureValue, els.dashboardSignaturePreview]
+      };
+      const [input, preview] = targets[scope] || targets.dashboard;
+      const removeButton = document.querySelector(`[data-signature-remove="${scope}"]`);
+      if (!input || !preview) return;
+      input.value = value || '';
+      setImage(preview, value || '');
+      if (removeButton) removeButton.classList.toggle('hidden', !value);
+    }
+
+    function setBrandColorValue(scope, value) {
+      const color = normalizeHexColor(value);
+      const inputs = { register: els.registerBrandColor, setup: els.setupBrandColor, dashboard: els.dashboardBrandColor };
+      const input = inputs[scope] || els.dashboardBrandColor;
+      if (input) input.value = color;
+      state.palette.primary = color;
+      state.palette.accent = state.palette.accent || smartAccentFromPrimary(color);
+      setBrandColor(color, state.palette.accent);
+      setUploadStatus(scope, `Detected ${color.toUpperCase()}`, color);
+      if (scope === 'setup' && state.org) renderTemplateGallery(state.templates, els.setupTemplateSelect.value || state.org.templateId || 'sample', 'setup');
+      if (scope === 'dashboard' && state.org) renderTemplateGallery(state.templates, els.templateSelect.value || state.org.templateId || 'sample', 'dashboard');
+    }
+
+    function setUploadStatus(scope, text, color = '') {
+      const status = document.querySelector(`[data-logo-status="${scope}"]`);
+      if (!status) return;
+      const swatch = status.querySelector('i');
+      const label = status.querySelector('b');
+      if (swatch && color) swatch.style.background = normalizeHexColor(color);
+      if (label) label.textContent = text;
+    }
+
+    function readLogoFile(file) {
+      return new Promise((resolve, reject) => {
+        if (!file) {
+          reject(new Error('Choose a logo image first.'));
+          return;
+        }
+        const allowed = ['image/png', 'image/jpeg', 'image/webp', 'image/gif', 'image/svg+xml'];
+        if (!allowed.includes(file.type)) {
+          reject(new Error('Logo must be PNG, JPG, WEBP, GIF, or SVG.'));
+          return;
+        }
+        if (file.size > 1_500_000) {
+          reject(new Error('Logo is too large. Use an image under 1.5MB.'));
+          return;
+        }
+        const reader = new FileReader();
+        reader.onload = () => resolve(String(reader.result || ''));
+        reader.onerror = () => reject(new Error('Unable to read this logo file.'));
+        reader.readAsDataURL(file);
+      });
+    }
+
+    async function handleLogoFile(scope, file) {
+      const box = document.querySelector(`[data-logo-drop="${scope}"]`);
+      box?.classList.add('processing');
+      setUploadStatus(scope, 'Reading logo...');
+      const logo = await readLogoFile(file);
+      setLogoValue(scope, logo);
+      setUploadStatus(scope, 'Detecting color...');
+      const palette = await extractLogoPalette(logo);
+      state.palette = palette;
+      setBrandColor(palette.primary, palette.accent);
+      setBrandColorValue(scope, palette.primary);
+      setUploadStatus(scope, `Detected ${palette.primary.toUpperCase()}`, palette.primary);
+      box?.classList.remove('processing');
+    }
+
+    function setupLogoUploader(scope) {
+      const box = document.querySelector(`[data-logo-drop="${scope}"]`);
+      const fileInputs = { register: els.registerLogoFile, setup: els.setupLogoFile, dashboard: els.dashboardLogoFile };
+      const fileInput = fileInputs[scope] || els.dashboardLogoFile;
+      const pickButton = document.querySelector(`[data-logo-pick="${scope}"]`);
+      const removeButton = document.querySelector(`[data-logo-remove="${scope}"]`);
+      pickButton.addEventListener('click', () => fileInput.click());
+      removeButton.addEventListener('click', () => {
+        fileInput.value = '';
+        state.palette = defaultPalette();
+        setLogoValue(scope, '');
+        setBrandColorValue(scope, '#061a30');
+        setUploadStatus(scope, 'Auto color ready', '#061a30');
+      });
+      fileInput.addEventListener('change', () => handleLogoFile(scope, fileInput.files[0]).catch((error) => {
+        box.classList.remove('processing');
+        setUploadStatus(scope, 'Upload failed');
+        alert(friendlyError(error));
+      }));
+      box.addEventListener('dragover', (event) => {
+        event.preventDefault();
+        box.classList.add('dragging');
+      });
+      box.addEventListener('dragleave', () => box.classList.remove('dragging'));
+      box.addEventListener('drop', (event) => {
+        event.preventDefault();
+        box.classList.remove('dragging');
+        handleLogoFile(scope, event.dataTransfer.files[0]).catch((error) => {
+          box.classList.remove('processing');
+          setUploadStatus(scope, 'Upload failed');
+          alert(friendlyError(error));
+        });
+      });
+      box.addEventListener('keydown', (event) => {
+        if (event.key === 'Enter' || event.key === ' ') {
+          event.preventDefault();
+          fileInput.click();
+        }
+      });
+    }
+
+    function setupSignatureUploader(scope) {
+      const box = document.querySelector(`[data-signature-drop="${scope}"]`);
+      const fileInput = scope === 'register' ? els.registerSignatureFile : els.dashboardSignatureFile;
+      const pickButton = document.querySelector(`[data-signature-pick="${scope}"]`);
+      const removeButton = document.querySelector(`[data-signature-remove="${scope}"]`);
+      if (!box || !fileInput || !pickButton || !removeButton) return;
+      pickButton.addEventListener('click', () => fileInput.click());
+      removeButton.addEventListener('click', () => {
+        fileInput.value = '';
+        setSignatureValue(scope, '');
+      });
+      fileInput.addEventListener('change', async () => {
+        try { setSignatureValue(scope, await readLogoFile(fileInput.files[0])); }
+        catch (error) { alert(friendlyError(error)); }
+      });
+      box.addEventListener('keydown', (event) => {
+        if (event.key === 'Enter' || event.key === ' ') {
+          event.preventDefault();
+          fileInput.click();
+        }
+      });
+    }
+
+    async function loadScanRegistration() {
+      els.scanPanel.classList.remove('hidden');
+      try {
+        const data = await api(`/api/org/register-info?token=${encodeURIComponent(state.masterToken)}`);
+        state.org = data.organization;
+        state.rules = data.rules;
+        window.loadOrganizationFeature?.(data.organization.type);
+        document.title = `${data.organization.name} Registration`;
+        els.portalTitle.textContent = `${data.organization.name} Registration`;
+        setBrandColor(data.organization.brandColor || '#061a30');
+        els.scanNotice.textContent = `${data.organization.name} is active. Choose the correct registration type and submit for admin approval.`;
+        els.applyForm.classList.remove('hidden');
+        els.roleType.innerHTML = Object.entries(data.rules.roles).map(([key, role]) => `<option value="${key}">${role.label}</option>`).join('');
+        renderDynamicFields();
+      } catch (error) {
+        els.scanNotice.classList.add('danger');
+        els.scanNotice.textContent = error.message;
+      }
+    }
+
+    function renderDynamicFields() {
+      const role = state.rules.roles[els.roleType.value];
+      let fields = role.required.concat(role.optional || []);
+      if (state.org?.type === 'school' && els.roleType.value === 'student') {
+        const schoolType = state.org?.backSettings?.schoolType || 'day';
+        if (schoolType !== 'mixed') fields = fields.filter((field) => field !== 'studentCategory');
+      }
+      els.dynamicFields.innerHTML = fields.map((field) => {
+        if (field === 'studentCategory') return '<label>Student category<select name="studentCategory" required><option value="">Choose student category</option><option value="day">Day student</option><option value="boarding">Boarding student</option></select></label>';
+        const type = field === 'photo' ? 'url' : (field === 'email' ? 'email' : (field === 'dateOfBirth' ? 'date' : 'text'));
+        return `<label>${niceLabel(field)}<input name="${field}" type="${type}" ${role.required.includes(field) ? 'required' : ''}></label>`;
+      }).join('');
+    }
+
+    function fillBackSettingsForm() {
+      const settings = state.org?.backSettings || {};
+      renderSchoolBackFields();
+      for (const element of els.backSettingsForm.elements) {
+        if (element.name && settings[element.name] !== undefined) element.value = settings[element.name] || '';
+      }
+      setSignatureValue('dashboard', settings.authoritySignature || '');
+    }
+
+    function renderBackSettings(card = null) {
+      const settings = state.org?.backSettings || {};
+      const fields = card?.fields || {};
+      const student = card?.roleType === 'student';
+      const schoolLike = isSchoolType(state.org?.type);
+      els.backMission.textContent = schoolLike && settings.mission ? `MISSION: ${settings.mission}` : '';
+      els.backVision.textContent = schoolLike && settings.vision ? `VISION: ${settings.vision}` : '';
+      els.backIdentityNumber.textContent = student
+        ? `${state.org?.type === 'university' ? 'Matric No' : 'Admission No'}: ${fields.matricNumber || fields.admissionNumber || fields.displayNumber || ''}`
+        : (card?.nationalId ? `National ID No: ${card.nationalId}` : '');
+      els.backReturnTitle.textContent = settings.returnTitle || '';
+      els.backReturnName.textContent = settings.returnName || '';
+      els.backPoBox.textContent = settings.poBox ? `P.O. Box: ${settings.poBox}` : '';
+      els.backAddress1.textContent = settings.addressLine1 || '';
+      els.backAddress2.textContent = settings.addressLine2 || '';
+      els.backPhone.textContent = settings.phone ? `Phone: ${settings.phone}` : '';
+      els.backDesk.textContent = settings.returnDesk ? `Return to: ${settings.returnDesk}` : '';
+      els.backResponsibilityTitle.textContent = settings.responsibilityTitle || 'Cardholder Responsibilities:';
+      els.backLostInstruction.textContent = settings.lostInstruction || '';
+      els.backResponsibilities.textContent = settings.cardholderResponsibilities || '';
+    }
+
+    function frontCardNumber(card) {
+      const fields = card?.fields || {};
+      return fields.displayNumber || fields.admissionNumber || fields.matricNumber || fields.employeeId || fields.staffId || fields.nationalId || card?.id || '';
+    }
+
+    function showIdCard(card) {
+      if (!card || (card.status || 'Pending') !== 'Approved') {
+        alert('Approve this record before viewing the ID card.');
+        return;
+      }
+      const logo = state.org?.logo || '';
+      els.previewEmpty.classList.add('hidden');
+      els.idCardStage.classList.remove('hidden');
+      setImage(els.idFrontLogo, logo);
+      setImage(els.idBackLogo, logo);
+      els.idCardName.textContent = card.name || '';
+      els.idCardNumber.textContent = frontCardNumber(card);
+      els.idCardRole.textContent = card.position || card.roleType || '';
+      els.frontAuthorityName.textContent = state.org?.backSettings?.authorityName || state.org?.ownerName || '';
+      setImage(els.frontAuthoritySignature, state.org?.backSettings?.authoritySignature || '');
+      if (card.photo) {
+        els.idPhoto.src = card.photo;
+        els.idPhoto.classList.remove('hidden');
+        els.idPhotoPlaceholder.classList.add('hidden');
+      } else {
+        els.idPhoto.removeAttribute('src');
+        els.idPhoto.classList.add('hidden');
+        els.idPhotoPlaceholder.classList.remove('hidden');
+      }
+      els.idCardQr.src = qrUrl(verificationUrl(card.verificationToken || ''));
+      renderBackSettings(card);
+    }
+
+    function applySubscriptionLock(locked) {
+      document.querySelectorAll('[data-requires-subscription]').forEach((panel) => {
+        panel.classList.toggle('hidden', Boolean(locked));
+      });
+      if (locked) {
+        els.subscriptionNotice.textContent = 'Template saved. Subscription inactive: payment unlocks master card download, registrations, approvals, and printing.';
+        els.subscriptionNotice.classList.add('danger');
+        els.subscriptionNotice.classList.remove('hidden');
+      } else {
+        els.subscriptionNotice.classList.add('hidden');
+      }
+    }
+
+    function setOrgSession(data) {
+      state.token = data.token;
+      state.org = data.organization;
+      window.loadOrganizationFeature?.(data.organization.type);
+      state.templates = data.templates || state.templates;
+      state.locked = Boolean(data.locked);
+      state.palette.primary = normalizeHexColor(data.organization.brandColor || '#061a30');
+      state.palette.accent = smartAccentFromPrimary(state.palette.primary);
+      state.palette.colors = [state.palette.primary, state.palette.accent];
+      document.title = `${data.organization.name} ID Cards Portal`;
+      els.portalTitle.textContent = `${data.organization.name} ID Cards Portal`;
+      els.sessionStatus.textContent = `${data.organization.name} - ${data.organization.subscriptionStatus}`;
+      els.logoutBtn.classList.remove('hidden');
+      if (needsInitialTemplateChoice(data.organization)) {
+        showInitialTemplateSetup();
+        return;
+      }
+      openDashboard(state.locked);
+    }
+
+    function needsInitialTemplateChoice(org) {
+      return !org.templateId || org.templateId === 'sample';
+    }
+
+    function showInitialTemplateSetup() {
+      els.portalIntro.classList.add('hidden');
+      els.entryArea.classList.add('hidden');
+      els.dashboard.classList.add('hidden');
+      els.templateSetup.classList.remove('hidden');
+      setLogoValue('setup', state.org.logo || '');
+      setBrandColorValue('setup', state.org.brandColor || '#061a30');
+      renderTemplateGallery(state.templates, state.org.templateId || 'sample', 'setup');
+    }
+
+    function openDashboard(locked) {
+      els.templateSetup.classList.add('hidden');
+      els.dashboard.classList.remove('hidden');
+      showDashboardShell();
+      fillBackSettingsForm();
+      setLogoValue('dashboard', state.org.logo || '');
+      setBrandColorValue('dashboard', state.org.brandColor || '#061a30');
+      renderTemplateGallery(state.templates, state.org.templateId || 'sample', 'dashboard');
+      applySubscriptionLock(locked);
+      if (locked) {
+        return;
+      } else {
+        loadCards().catch((error) => alert(error.message));
+        loadAttendance().catch((error) => alert(error.message));
+        loadGateStaff().catch((error) => alert(error.message));
+        loadOrgSummary().catch((error) => alert(error.message));
+        loadFees().catch((error) => alert(error.message));
+        loadNotifications().catch((error) => alert(error.message));
+      }
+    }
+
+    async function saveInitialTemplate() {
+      if (!els.setupTemplateSelect.value) throw new Error('Choose a template before continuing.');
+      const data = await api('/api/org/branding', {
+        method: 'PATCH',
+        headers: headers(),
+        body: JSON.stringify({ logo: els.setupLogoValue.value, brandColor: els.setupBrandColor.value, templateId: els.setupTemplateSelect.value })
+      });
+      state.org = data.organization;
+      state.templates = data.templates || state.templates;
+      state.locked = state.org.subscriptionStatus !== 'Active';
+      setLogoValue('dashboard', state.org.logo || '');
+      setBrandColorValue('dashboard', state.org.brandColor || '#061a30');
+      openDashboard(state.locked);
+    }
+
+    async function loadMasterCard() {
+      const data = await api('/api/org/master-card', { headers: headers() });
+      const card = data.masterCard;
+      els.masterCard.classList.remove('hidden');
+      setImage(els.masterLogo, card.organization.logo || '');
+      els.masterOrgName.textContent = card.organization.name;
+      els.masterOrgType.textContent = card.organization.typeLabel;
+      els.masterNumber.textContent = `Master No: ${card.number}`;
+      els.masterBusiness.textContent = `Reg No: ${card.organization.businessNumber}`;
+      els.masterQr.src = qrUrl(card.qrUrl);
+    }
+
+    async function loadCards() {
+      const data = await api('/api/org/cards', { headers: headers() });
+      state.cards = data.cards || [];
+      if (!data.cards.length) {
+        els.cardsBody.innerHTML = '<tr><td colspan="7">No registrations yet.</td></tr>';
+        return;
+      }
+      els.cardsBody.innerHTML = data.cards.map((card) => `
+        <tr>
+          <td>${card.id}</td><td>${card.name}</td><td>${card.roleType || card.position}</td>
+          <td>${card.phone || ''}</td><td>${card.email || ''}</td><td>${card.status || 'Pending'}</td>
+          <td class="row">
+            ${(card.status || 'Pending') === 'Approved' ? `<button data-id="${card.id}" data-action="view">View Card</button>` : ''}
+            <button data-id="${card.id}" data-status="Approved">Approve</button>
+            <button data-id="${card.id}" data-status="Rejected" class="secondary">Reject</button>
+            <button data-id="${card.id}" data-status="Inactive" class="secondary">Inactive</button>
+          </td>
+        </tr>`).join('');
+    }
+
+    async function loadAttendance() {
+      els.gateScanPanel.classList.remove('hidden');
+      const data = await api('/api/org/attendance', { headers: headers() });
+      const rows = data.attendance || [];
+      els.attendanceBody.innerHTML = rows.length ? rows.map((row) => `
+        <tr>
+          <td>${row.studentName}</td>
+          <td>${row.studentNumber || ''}</td>
+          <td>${row.classGrade || ''}</td>
+          <td>${formatDate(row.attendanceDate)}</td>
+          <td>${formatTime(row.entryAt)}</td>
+          <td>${formatTime(row.exitAt)}</td>
+          <td>${row.status}</td>
+        </tr>`).join('') : '<tr><td colspan="7">No attendance scans yet.</td></tr>';
+    }
+
+    async function loadGateStaff() {
+      const data = await api('/api/org/gate-staff', { headers: headers() });
+      const rows = data.staff || [];
+      els.gateStaffBody.innerHTML = rows.length ? rows.map((staff) => `
+        <tr>
+          <td>${staff.fullName}<br>${staff.phone || ''}</td>
+          <td>${staff.staffCode}</td>
+          <td>${staff.gateName}</td>
+          <td>${staff.status}</td>
+          <td><button type="button" data-gate-staff="${staff.id}" data-status="${staff.status === 'Active' ? 'Suspended' : 'Active'}">${staff.status === 'Active' ? 'Suspend' : 'Activate'}</button></td>
+        </tr>`).join('') : '<tr><td colspan="5">No gate staff registered yet.</td></tr>';
+    }
+
+    async function registerGateStaff() {
+      const payload = Object.fromEntries(new FormData(els.gateStaffForm).entries());
+      await api('/api/org/gate-staff', { method: 'POST', headers: headers(), body: JSON.stringify(payload) });
+      els.gateStaffForm.reset();
+      await loadGateStaff();
+    }
+
+    async function loadOrgSummary() {
+      const data = await api('/api/org/dashboard-summary', { headers: headers() });
+      const summary = data.summary || {};
+      const cards = [
+        ['Total students', summary.totalStudents || 0],
+        ['Active cards', summary.activeCards || 0],
+        ['Fee defaulters', summary.feeDefaulters || 0],
+        ['Cleared students', summary.clearedStudents || 0],
+        ['Suspended students', summary.suspendedStudents || 0],
+        ['Fee balance total', money(summary.feeBalanceTotal || 0)]
+      ];
+      els.orgDashboardSummary.innerHTML = cards.map(([label, value]) => `<div class="dash-card"><strong>${value}</strong>${label}</div>`).join('');
+      els.reportsSummary.innerHTML = cards.map(([label, value]) => `<div class="dash-card"><strong>${value}</strong>${label}</div>`).join('');
+      const scans = data.recentScans || [];
+      els.recentScansBody.innerHTML = scans.length ? scans.map((scan) => `
+        <tr><td>${scan.studentName}</td><td>${formatDate(scan.attendanceDate)}</td><td>${formatTime(scan.entryAt)}</td><td>${formatTime(scan.exitAt)}</td><td>${scan.status}</td></tr>
+      `).join('') : '<tr><td colspan="5">No recent scans yet.</td></tr>';
+    }
+
+    async function loadFees() {
+      if (!isSchoolType(state.org?.type)) {
+        els.feePanel.classList.add('hidden');
+        els.reportsPanel.classList.add('hidden');
+        return;
+      }
+      els.feePanel.classList.remove('hidden');
+      els.reportsPanel.classList.remove('hidden');
+      const data = await api('/api/org/fees', { headers: headers() });
+      const fees = data.fees || [];
+      els.feesBody.innerHTML = fees.length ? fees.map((fee) => `
+        <tr>
+          <td>${fee.admissionNumber}</td>
+          <td>${fee.studentName}</td>
+          <td>${fee.classGrade || ''}</td>
+          <td>${money(fee.balance)}</td>
+          <td>${fee.dueDate || ''}</td>
+          <td>${fee.feeStatus}</td>
+          <td><button type="button" data-fee-notify="${fee.admissionNumber}">Notify Parent</button></td>
+        </tr>`).join('') : '<tr><td colspan="7">No fee records yet.</td></tr>';
+    }
+
+    async function loadNotifications() {
+      if (!isSchoolType(state.org?.type)) return;
+      const data = await api('/api/org/notifications', { headers: headers() });
+      const logs = data.notifications || [];
+      els.notificationsBody.innerHTML = logs.length ? logs.map((log) => `
+        <tr>
+          <td>${log.studentName}</td>
+          <td>${log.admissionNumber || ''}</td>
+          <td>${log.parentEmail || log.parentPhone || ''}</td>
+          <td>${String(log.channel || 'sms').toUpperCase()}</td>
+          <td>${log.notificationType}</td>
+          <td>${log.deliveryStatus || log.status || 'Queued'}</td>
+          <td>${log.message}</td>
+          <td>${new Date(log.createdAt).toLocaleString()}</td>
+        </tr>`).join('') : '<tr><td colspan="8">No parent communication logs yet.</td></tr>';
+    }
+
+    async function uploadFees() {
+      const file = els.feeUploadFile.files[0];
+      if (!file) throw new Error('Choose a CSV file exported from Excel first.');
+      const rows = parseCsv(await file.text());
+      const data = await api('/api/org/fees/upload', {
+        method: 'POST',
+        headers: headers(),
+        body: JSON.stringify({ rows })
+      });
+      els.feeNotice.textContent = `${(data.fees || []).length} fee row(s) saved. ${(data.notifications || []).length} SMS/email notification(s) queued.`;
+      els.feeNotice.classList.remove('hidden', 'danger');
+      await Promise.all([loadFees(), loadNotifications(), loadOrgSummary()]);
+    }
+
+    async function recordGateScan() {
+      const payload = Object.fromEntries(new FormData(els.gateScanForm).entries());
+      const data = await api('/api/org/gate-scan', { method: 'POST', headers: headers(), body: JSON.stringify(payload) });
+      els.gateScanNotice.textContent = data.message || 'Gate scan recorded.';
+      els.gateScanNotice.classList.remove('hidden', 'danger');
+      els.gateScanForm.elements.token.value = '';
+      await loadAttendance();
+    }
+
+    async function saveBackSettings() {
+      const backSettings = Object.fromEntries(new FormData(els.backSettingsForm).entries());
+      backSettings.authoritySignature = els.dashboardSignatureValue.value || backSettings.authoritySignature || '';
+      const data = await api('/api/org/back-settings', { method: 'PATCH', headers: headers(), body: JSON.stringify({ backSettings }) });
+      state.org = data.organization;
+      fillBackSettingsForm();
+      renderBackSettings();
+      alert('Back card settings saved.');
+    }
+
+    async function sendOrgResetCode() {
+      const form = new FormData(els.orgResetForm);
+      const data = await api('/api/org-forgot-password', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ email: form.get('email') })
+      });
+      els.loginNotice.textContent = data.message || 'Verification code created.';
+      els.loginNotice.classList.remove('hidden');
+    }
+
+    async function resetOrgPassword() {
+      const payload = Object.fromEntries(new FormData(els.orgResetForm).entries());
+      await api('/api/org-reset-password', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(payload)
+      });
+      els.loginNotice.textContent = 'Password reset successfully. Login with the new password.';
+      els.loginNotice.classList.remove('hidden');
+      els.orgResetForm.classList.add('hidden');
+    }
+
+    async function saveBranding() {
+      const data = await api('/api/org/branding', {
+        method: 'PATCH',
+        headers: headers(),
+        body: JSON.stringify({ logo: els.dashboardLogoValue.value, brandColor: els.dashboardBrandColor.value, templateId: els.templateSelect.value })
+      });
+      state.org = data.organization;
+      state.templates = data.templates || state.templates;
+      setLogoValue('dashboard', state.org.logo || '');
+      setBrandColorValue('dashboard', state.org.brandColor || '#061a30');
+      renderTemplateGallery(state.templates, state.org.templateId || els.templateSelect.value, 'dashboard');
+      alert('Branding saved.');
+    }
+
+    els.orgRegisterForm.addEventListener('submit', async (event) => {
+      event.preventDefault();
+      const payload = Object.fromEntries(new FormData(els.orgRegisterForm).entries());
+      if (!payload.type) {
+        alert('Choose organization type first.');
+        return;
+      }
+      try {
+        const data = await api('/api/organizations/register', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(payload) });
+        rememberRegisteredOrganization();
+        alert(`${data.organization.name} registered. Log in to choose and save the ID template before payment.`);
+        showLogin();
+      } catch (error) { alert(friendlyError(error)); }
+    });
+
+    els.orgForgotToggleBtn.addEventListener('click', () => els.orgResetForm.classList.toggle('hidden'));
+    els.loginBackBtn.addEventListener('click', showIntro);
+    els.orgSendResetBtn.addEventListener('click', () => sendOrgResetCode().catch((error) => {
+      els.loginNotice.textContent = friendlyError(error);
+      els.loginNotice.classList.remove('hidden');
+    }));
+    els.orgResetForm.addEventListener('submit', async (event) => {
+      event.preventDefault();
+      try { await resetOrgPassword(); }
+      catch (error) {
+        els.loginNotice.textContent = friendlyError(error);
+        els.loginNotice.classList.remove('hidden');
+      }
+    });
+
+    els.loginForm.addEventListener('submit', async (event) => {
+      event.preventDefault();
+      const payload = Object.fromEntries(new FormData(els.loginForm).entries());
+      try { setOrgSession(await api('/api/org-login', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(payload) })); }
+      catch (error) { els.loginNotice.textContent = friendlyError(error); els.loginNotice.classList.remove('hidden'); }
+    });
+
+    els.gateScanForm.addEventListener('submit', async (event) => {
+      event.preventDefault();
+      try { await recordGateScan(); }
+      catch (error) {
+        els.gateScanNotice.textContent = friendlyError(error);
+        els.gateScanNotice.classList.add('danger');
+        els.gateScanNotice.classList.remove('hidden');
+      }
+    });
+
+    els.gateStaffForm.addEventListener('submit', async (event) => {
+      event.preventDefault();
+      try {
+        await registerGateStaff();
+        alert('Gate staff registered.');
+      } catch (error) {
+        alert(friendlyError(error));
+      }
+    });
+
+    els.gateStaffBody.addEventListener('click', async (event) => {
+      const button = event.target.closest('[data-gate-staff]');
+      if (!button) return;
+      try {
+        await api(`/api/org/gate-staff/${encodeURIComponent(button.dataset.gateStaff)}`, {
+          method: 'PATCH',
+          headers: headers(),
+          body: JSON.stringify({ status: button.dataset.status })
+        });
+        await loadGateStaff();
+      } catch (error) {
+        alert(friendlyError(error));
+      }
+    });
+
+    els.uploadFeesBtn.addEventListener('click', async () => {
+      try { await uploadFees(); }
+      catch (error) {
+        els.feeNotice.textContent = friendlyError(error);
+        els.feeNotice.classList.add('danger');
+        els.feeNotice.classList.remove('hidden');
+      }
+    });
+
+    els.refreshFeesBtn.addEventListener('click', () => {
+      Promise.all([loadFees(), loadNotifications(), loadOrgSummary()]).catch((error) => alert(friendlyError(error)));
+    });
+
+    els.feesBody.addEventListener('click', async (event) => {
+      const button = event.target.closest('[data-fee-notify]');
+      if (!button) return;
+      try {
+        await api(`/api/org/fees/${encodeURIComponent(button.dataset.feeNotify)}/notify`, {
+          method: 'POST',
+          headers: headers(),
+          body: JSON.stringify({ type: 'fee_balance_updated' })
+        });
+        await loadNotifications();
+        alert('Parent SMS/email notification queued.');
+      } catch (error) {
+        alert(friendlyError(error));
+      }
+    });
+
+    els.applyForm.addEventListener('submit', async (event) => {
+      event.preventDefault();
+      const fields = Object.fromEntries(new FormData(els.applyForm).entries());
+      delete fields.roleType;
+      try {
+        await api('/api/org/apply', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ masterToken: state.masterToken, roleType: els.roleType.value, fields }) });
+        alert('Registration submitted. Organization admin must approve it.');
+        els.applyForm.reset();
+        renderDynamicFields();
+      } catch (error) { alert(friendlyError(error)); }
+    });
+
+    els.backSettingsForm.addEventListener('submit', async (event) => {
+      event.preventDefault();
+      try { await saveBackSettings(); }
+      catch (error) { alert(friendlyError(error)); }
+    });
+
+    els.brandingForm.addEventListener('submit', async (event) => {
+      event.preventDefault();
+      try { await saveBranding(); }
+      catch (error) { alert(friendlyError(error)); }
+    });
+    els.initialTemplateForm.addEventListener('submit', async (event) => {
+      event.preventDefault();
+      try { await saveInitialTemplate(); }
+      catch (error) { alert(friendlyError(error)); }
+    });
+
+    els.roleType.addEventListener('change', renderDynamicFields);
+    els.orgType.addEventListener('change', renderOrgRegistrationFields);
+    els.registerBrandColor.addEventListener('input', () => setBrandColorValue('register', els.registerBrandColor.value));
+    els.setupBrandColor.addEventListener('input', () => setBrandColorValue('setup', els.setupBrandColor.value));
+    els.dashboardBrandColor.addEventListener('input', () => setBrandColorValue('dashboard', els.dashboardBrandColor.value));
+    els.setupTemplateSelect.addEventListener('change', () => renderTemplateGallery(state.templates, els.setupTemplateSelect.value, 'setup'));
+    els.templateSelect.addEventListener('change', () => renderTemplateGallery(state.templates, els.templateSelect.value));
+    els.setupTemplateGallery.addEventListener('click', (event) => {
+      const button = event.target.closest('[data-template-id]');
+      if (!button) return;
+      els.setupTemplateSelect.value = button.dataset.templateId;
+      renderTemplateGallery(state.templates, button.dataset.templateId, 'setup');
+    });
+    els.templateGallery.addEventListener('click', (event) => {
+      const button = event.target.closest('[data-template-id]');
+      if (!button) return;
+      els.templateSelect.value = button.dataset.templateId;
+      renderTemplateGallery(state.templates, button.dataset.templateId, 'dashboard');
+    });
+    els.startRegisterBtn.addEventListener('click', showRegistration);
+    els.alreadyRegisteredBtn.addEventListener('click', () => {
+      rememberRegisteredOrganization();
+      showLogin();
+    });
+    document.getElementById('loadMasterBtn').addEventListener('click', () => loadMasterCard().catch((error) => alert(friendlyError(error))));
+    document.getElementById('printMasterBtn').addEventListener('click', () => window.print());
+    document.getElementById('refreshCardsBtn').addEventListener('click', () => loadCards().catch((error) => alert(friendlyError(error))));
+    els.logoutBtn.addEventListener('click', () => location.reload());
+    els.cardsBody.addEventListener('click', async (event) => {
+      const button = event.target.closest('button[data-id]');
+      if (!button) return;
+      try {
+        if (button.dataset.action === 'view') {
+          showIdCard(state.cards.find((card) => card.id === button.dataset.id));
+          return;
+        }
+        await api(`/api/org/cards/${encodeURIComponent(button.dataset.id)}/status`, { method: 'PATCH', headers: headers(), body: JSON.stringify({ status: button.dataset.status }) });
+        await loadCards();
+      } catch (error) { alert(friendlyError(error)); }
+    });
+
+    setupLogoUploader('register');
+    setupLogoUploader('setup');
+    setupLogoUploader('dashboard');
+    setupSignatureUploader('register');
+    setupSignatureUploader('dashboard');
+    initializeEntryView();
+    loadSetup().catch((error) => alert(friendlyError(error)));
+
+
+
+
+

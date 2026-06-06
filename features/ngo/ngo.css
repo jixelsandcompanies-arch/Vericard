@@ -1,0 +1,2 @@
+html[data-organization-feature="ngo"] .feature-ngo { border-left: 4px solid var(--gold); }
+html[data-organization-feature="ngo"] #gateScanPanel h2::after { content: " - Member attendance"; color: var(--muted); font-size: 12px; }

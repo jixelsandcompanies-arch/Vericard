@@ -1,0 +1,19 @@
+{
+  "name": "VeriCard Gate Scanner",
+  "short_name": "VeriCard Gate",
+  "description": "Gate and attendance scanner for VeriCard Portal.",
+  "start_url": "/gate.html",
+  "scope": "/",
+  "display": "standalone",
+  "background_color": "#eef2f6",
+  "theme_color": "#061a30",
+  "orientation": "portrait",
+  "icons": [
+    {
+      "src": "/assets/vericard-logo.jpeg",
+      "sizes": "512x512",
+      "type": "image/jpeg",
+      "purpose": "any"
+    }
+  ]
+}

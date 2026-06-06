@@ -1,0 +1,2 @@
+html[data-organization-feature="school"] .feature-school { border-left: 4px solid var(--gold); }
+html[data-organization-feature="school"] #gateScanPanel h2::after { content: " - School attendance"; color: var(--muted); font-size: 12px; }

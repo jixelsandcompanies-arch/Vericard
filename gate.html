@@ -7,6 +7,19 @@
   <link rel="manifest" href="/manifest.webmanifest">
   <meta name="theme-color" content="#061a30">
   <link rel="stylesheet" href="/css/portal.css">
+  <script src="https://cdn.onesignal.com/sdks/web/v16/OneSignalSDK.page.js" defer></script>
+  <script>
+    window.OneSignalDeferred = window.OneSignalDeferred || [];
+    OneSignalDeferred.push(async function(OneSignal) {
+      await OneSignal.init({
+        appId: "925da875-fc2e-4bdd-b050-02258a7ccbcc",
+        safari_web_id: "web.onesignal.auto.014ea808-90d0-46f9-a566-af81aa1c1278",
+        notifyButton: {
+          enable: true
+        }
+      });
+    });
+  </script>
 </head>
 <body>
   <header>

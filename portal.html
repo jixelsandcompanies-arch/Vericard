@@ -167,7 +167,6 @@
         <form id="brandingForm">
           <input name="logo" id="dashboardLogoValue" type="hidden">
           <label>Brand color<input name="brandColor" id="dashboardBrandColor" type="color" value="#061a30"></label>
-          <label>Selected template<select name="templateId" id="templateSelect"></select></label>
           <div class="upload-box" data-logo-drop="dashboard" tabindex="0">
             <div class="upload-row">
               <img class="logo-preview hidden" id="dashboardLogoPreview" alt="">
@@ -185,9 +184,8 @@
           </div>
           <button type="submit">Save Branding</button>
         </form>
-        <div id="templateGallery" class="templates"></div>
         <ul class="feature-list">
-          <li>Choose one ID card front template for your organization.</li>
+          <li>The saved ID template is managed during setup.</li>
           <li>Use your organization name, business number, and logo.</li>
           <li>Edit the back-card return address, phone, and lost-card instructions.</li>
           <li>Approve registrations from your master card QR after subscription.</li>
@@ -196,6 +194,7 @@
 
       <div class="panel" id="masterPanel" data-requires-subscription data-dashboard-view="master">
         <h2>Master Card</h2>
+        <div class="notice danger hidden" data-lock-notice>Subscription is inactive. Payment unlocks the master card.</div>
         <div class="card-stage hidden" id="masterCard">
           <article class="id-card master-front">
             <img class="logo-front" id="masterLogo" alt="">
@@ -233,6 +232,7 @@
 
       <div class="panel" data-requires-subscription data-dashboard-view="records">
         <h2>Own ID Card Records</h2>
+        <div class="notice danger hidden" data-lock-notice>Subscription is inactive. Payment unlocks approvals and ID card records.</div>
         <div class="row">
           <button type="button" id="refreshCardsBtn">Refresh</button>
         </div>
@@ -246,6 +246,7 @@
 
       <div class="panel" id="gateScanPanel" data-requires-subscription data-dashboard-view="gate">
         <h2>Gate / Attendance Scanner</h2>
+        <div class="notice danger hidden" data-lock-notice>Subscription is inactive. Payment unlocks gate scanning and attendance.</div>
         <div class="notice">For daily gate work, register gate staff below and let them use the separate scanner page.</div>
         <a class="button secondary" href="/gate.html" target="_blank" rel="noopener">Open Gate Scanner App</a>
         <form id="gateScanForm">
@@ -295,6 +296,7 @@
 
       <div class="panel" id="feePanel" data-requires-subscription data-dashboard-view="fees">
         <h2>Fee Management</h2>
+        <div class="notice danger hidden" data-lock-notice>Subscription is inactive. Payment unlocks fee uploads and parent notifications.</div>
         <div class="notice">Upload CSV exported from Excel with columns: Admission Number, Student Name, Class, Balance, Due Date.</div>
         <label>Excel/CSV fee file<input id="feeUploadFile" type="file" accept=".csv,text/csv,.txt"></label>
         <div class="row">
@@ -312,6 +314,7 @@
 
       <div class="panel" id="reportsPanel" data-requires-subscription data-dashboard-view="reports">
         <h2>Reports</h2>
+        <div class="notice danger hidden" data-lock-notice>Subscription is inactive. Payment unlocks live reports and communication logs.</div>
         <div class="dashboard-grid" id="reportsSummary"></div>
         <h3>Parent Communication Logs</h3>
         <div class="table-wrap">

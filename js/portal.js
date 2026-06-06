@@ -4,7 +4,7 @@ const state = { token: '', org: null, rules: null, orgRegistrationFields: {}, ca
       portalTitle: document.getElementById('portalTitle'),
       portalIntro: document.getElementById('portalIntro'), entryArea: document.getElementById('entryArea'), startRegisterBtn: document.getElementById('startRegisterBtn'),
       alreadyRegisteredBtn: document.getElementById('alreadyRegisteredBtn'), loginPanel: document.getElementById('loginPanel'),
-      orgType: document.getElementById('orgType'), orgDynamicFields: document.getElementById('orgDynamicFields'), templateGallery: document.getElementById('templateGallery'),
+      orgType: document.getElementById('orgType'), orgDynamicFields: document.getElementById('orgDynamicFields'),
       orgRegisterForm: document.getElementById('orgRegisterForm'), registerBackBtn: document.getElementById('registerBackBtn'), loginForm: document.getElementById('loginForm'), loginNotice: document.getElementById('loginNotice'),
       loginBackBtn: document.getElementById('loginBackBtn'), orgForgotToggleBtn: document.getElementById('orgForgotToggleBtn'), orgResetForm: document.getElementById('orgResetForm'), orgSendResetBtn: document.getElementById('orgSendResetBtn'),
       registerLogoValue: document.getElementById('registerLogoValue'), registerBrandColor: document.getElementById('registerBrandColor'), registerLogoPreview: document.getElementById('registerLogoPreview'), registerLogoFile: document.getElementById('registerLogoFile'),
@@ -12,7 +12,7 @@ const state = { token: '', org: null, rules: null, orgRegistrationFields: {}, ca
       setupLogoValue: document.getElementById('setupLogoValue'), setupBrandColor: document.getElementById('setupBrandColor'), setupLogoPreview: document.getElementById('setupLogoPreview'), setupLogoFile: document.getElementById('setupLogoFile'),
       setupTemplateSelect: document.getElementById('setupTemplateSelect'), setupTemplateGallery: document.getElementById('setupTemplateGallery'),
       brandingForm: document.getElementById('brandingForm'), dashboardLogoValue: document.getElementById('dashboardLogoValue'), dashboardBrandColor: document.getElementById('dashboardBrandColor'), dashboardLogoPreview: document.getElementById('dashboardLogoPreview'),
-      dashboardLogoFile: document.getElementById('dashboardLogoFile'), templateSelect: document.getElementById('templateSelect'),
+      dashboardLogoFile: document.getElementById('dashboardLogoFile'),
       dashboard: document.getElementById('dashboard'), subscriptionNotice: document.getElementById('subscriptionNotice'), masterCard: document.getElementById('masterCard'),
       orgDashboardSummary: document.getElementById('orgDashboardSummary'), recentScansBody: document.getElementById('recentScansBody'),
       masterLogo: document.getElementById('masterLogo'), masterOrgName: document.getElementById('masterOrgName'), masterOrgType: document.getElementById('masterOrgType'),
@@ -352,8 +352,7 @@ const state = { token: '', org: null, rules: null, orgRegistrationFields: {}, ca
     }
     function setDashboardView(view) {
       document.querySelectorAll('[data-dashboard-view]').forEach((panel) => {
-        const lockedPanel = state.locked && panel.hasAttribute('data-requires-subscription');
-        panel.classList.toggle('hidden', lockedPanel || panel.dataset.dashboardView !== view);
+        panel.classList.toggle('hidden', panel.dataset.dashboardView !== view);
       });
       document.querySelectorAll('[data-drawer-view]').forEach((button) => {
         button.classList.toggle('active', button.dataset.drawerView === view);
@@ -429,8 +428,9 @@ const state = { token: '', org: null, rules: null, orgRegistrationFields: {}, ca
     function renderTemplateGallery(templates, selectedId, scope = 'dashboard') {
       const smartTemplates = buildSmartTemplates(templates, selectedId, scope);
       const activeId = smartTemplates.some((template) => template.id === selectedId) ? selectedId : smartTemplates[0]?.id;
-      const gallery = scope === 'setup' ? els.setupTemplateGallery : els.templateGallery;
-      const select = scope === 'setup' ? els.setupTemplateSelect : els.templateSelect;
+      const gallery = scope === 'setup' ? els.setupTemplateGallery : null;
+      const select = scope === 'setup' ? els.setupTemplateSelect : null;
+      if (!gallery || !select) return;
       gallery.innerHTML = smartTemplates.map((template) => `
         <button type="button" class="template ${template.id === activeId ? 'active' : ''}" data-template-id="${template.id}" style="--template-color:${template.color};--template-accent:${template.accent};">
           <span class="template-preview template-${template.layout}">
@@ -525,7 +525,6 @@ const state = { token: '', org: null, rules: null, orgRegistrationFields: {}, ca
       setBrandColor(color, state.palette.accent);
       setUploadStatus(scope, `Detected ${color.toUpperCase()}`, color);
       if (scope === 'setup' && state.org) renderTemplateGallery(state.templates, els.setupTemplateSelect.value || state.org.templateId || 'sample', 'setup');
-      if (scope === 'dashboard' && state.org) renderTemplateGallery(state.templates, els.templateSelect.value || state.org.templateId || 'sample', 'dashboard');
     }
 
     function setUploadStatus(scope, text, color = '') {
@@ -729,11 +728,21 @@ const state = { token: '', org: null, rules: null, orgRegistrationFields: {}, ca
     }
 
     function applySubscriptionLock(locked) {
-      if (locked) document.querySelectorAll('[data-requires-subscription]').forEach((panel) => panel.classList.add('hidden'));
+      document.querySelectorAll('[data-lock-notice]').forEach((notice) => {
+        notice.classList.toggle('hidden', !locked);
+      });
       if (locked) {
         els.subscriptionNotice.textContent = 'Template saved. Subscription inactive: payment unlocks master card download, registrations, approvals, and printing.';
         els.subscriptionNotice.classList.add('danger');
         els.subscriptionNotice.classList.remove('hidden');
+        els.masterCard.classList.add('hidden');
+        els.cardsBody.innerHTML = '<tr><td colspan="7">Subscription is inactive. Payment unlocks approvals and ID card records.</td></tr>';
+        els.attendanceBody.innerHTML = '<tr><td colspan="7">Subscription is inactive. Payment unlocks gate attendance.</td></tr>';
+        els.gateStaffBody.innerHTML = '<tr><td colspan="5">Subscription is inactive. Payment unlocks gate staff management.</td></tr>';
+        els.gateDevicesBody.innerHTML = '<tr><td colspan="5">Subscription is inactive. Payment unlocks scanner device approval.</td></tr>';
+        els.feesBody.innerHTML = '<tr><td colspan="7">Subscription is inactive. Payment unlocks fee management.</td></tr>';
+        els.reportsSummary.innerHTML = '<div class="dash-card"><strong>Locked</strong>Subscription inactive</div>';
+        els.notificationsBody.innerHTML = '<tr><td colspan="8">Subscription is inactive. Payment unlocks parent communication logs.</td></tr>';
       } else {
         els.subscriptionNotice.classList.toggle('hidden', document.querySelector('[data-dashboard-view="front"]')?.classList.contains('hidden'));
       }
@@ -782,7 +791,6 @@ const state = { token: '', org: null, rules: null, orgRegistrationFields: {}, ca
       fillBackSettingsForm();
       setLogoValue('dashboard', state.org.logo || '');
       setBrandColorValue('dashboard', state.org.brandColor || '#061a30');
-      renderTemplateGallery(state.templates, state.org.templateId || 'sample', 'dashboard');
       applySubscriptionLock(locked);
       if (locked) {
         return;
@@ -922,8 +930,7 @@ const state = { token: '', org: null, rules: null, orgRegistrationFields: {}, ca
 
     async function loadFees() {
       if (!isSchoolType(state.org?.type)) {
-        els.feePanel.classList.add('hidden');
-        els.reportsPanel.classList.add('hidden');
+        els.feesBody.innerHTML = '<tr><td colspan="7">Fee management is available for schools and universities.</td></tr>';
         return;
       }
       const data = await api('/api/org/fees', { headers: headers() });
@@ -941,7 +948,10 @@ const state = { token: '', org: null, rules: null, orgRegistrationFields: {}, ca
     }
 
     async function loadNotifications() {
-      if (!isSchoolType(state.org?.type)) return;
+      if (!isSchoolType(state.org?.type)) {
+        els.notificationsBody.innerHTML = '<tr><td colspan="8">Parent communication logs are available for schools and universities.</td></tr>';
+        return;
+      }
       const data = await api('/api/org/notifications', { headers: headers() });
       const logs = data.notifications || [];
       els.notificationsBody.innerHTML = logs.length ? logs.map((log) => `
@@ -1016,13 +1026,12 @@ const state = { token: '', org: null, rules: null, orgRegistrationFields: {}, ca
       const data = await api('/api/org/branding', {
         method: 'PATCH',
         headers: headers(),
-        body: JSON.stringify({ logo: els.dashboardLogoValue.value, brandColor: els.dashboardBrandColor.value, templateId: els.templateSelect.value })
+        body: JSON.stringify({ logo: els.dashboardLogoValue.value, brandColor: els.dashboardBrandColor.value, templateId: state.org?.templateId || 'sample' })
       });
       state.org = data.organization;
       state.templates = data.templates || state.templates;
       setLogoValue('dashboard', state.org.logo || '');
       setBrandColorValue('dashboard', state.org.brandColor || '#061a30');
-      renderTemplateGallery(state.templates, state.org.templateId || els.templateSelect.value, 'dashboard');
       alert('Branding saved.');
     }
 
@@ -1184,18 +1193,11 @@ const state = { token: '', org: null, rules: null, orgRegistrationFields: {}, ca
     els.setupBrandColor.addEventListener('input', () => setBrandColorValue('setup', els.setupBrandColor.value));
     els.dashboardBrandColor.addEventListener('input', () => setBrandColorValue('dashboard', els.dashboardBrandColor.value));
     els.setupTemplateSelect.addEventListener('change', () => renderTemplateGallery(state.templates, els.setupTemplateSelect.value, 'setup'));
-    els.templateSelect.addEventListener('change', () => renderTemplateGallery(state.templates, els.templateSelect.value));
     els.setupTemplateGallery.addEventListener('click', (event) => {
       const button = event.target.closest('[data-template-id]');
       if (!button) return;
       els.setupTemplateSelect.value = button.dataset.templateId;
       renderTemplateGallery(state.templates, button.dataset.templateId, 'setup');
-    });
-    els.templateGallery.addEventListener('click', (event) => {
-      const button = event.target.closest('[data-template-id]');
-      if (!button) return;
-      els.templateSelect.value = button.dataset.templateId;
-      renderTemplateGallery(state.templates, button.dataset.templateId, 'dashboard');
     });
     els.startRegisterBtn.addEventListener('click', showRegistration);
     els.alreadyRegisteredBtn.addEventListener('click', () => {

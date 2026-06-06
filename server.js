@@ -1,7 +1,8 @@
 import 'dotenv/config';
 import crypto from 'node:crypto';
+import { existsSync } from 'node:fs';
 import { pathToFileURL } from 'node:url';
-import { dirname, join } from 'node:path';
+import { dirname, join, normalize, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import express from 'express';
 import { createClient } from '@supabase/supabase-js';
@@ -10,6 +11,12 @@ const app = express();
 const port = process.env.PORT || 3000;
 const sessionSecret = process.env.SESSION_SECRET || 'mapphex-local-secret';
 const appRoot = dirname(fileURLToPath(import.meta.url));
+const staticRoots = [...new Set([
+  appRoot,
+  process.cwd(),
+  join(appRoot, '..'),
+  join(process.cwd(), '..')
+].map((root) => resolve(root)))];
 
 const supabaseUrl = process.env.SUPABASE_URL;
 const supabaseKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
@@ -21,12 +28,36 @@ const db = createClient(supabaseUrl || 'http://localhost', supabaseKey || 'missi
 });
 
 app.use(express.json({ limit: '8mb' }));
-app.get('/', async (req, res, next) => {
-  if (!req.query.token) return res.sendFile(join(appRoot, 'index.html'));
+
+function staticFilePath(filePath) {
+  const cleanPath = normalize(String(filePath || '').replace(/^[/\\]+/, ''));
+  if (!cleanPath || cleanPath.startsWith('..')) return '';
+  for (const root of staticRoots) {
+    const candidate = resolve(root, cleanPath);
+    if (candidate.startsWith(root) && existsSync(candidate)) return candidate;
+  }
+  return '';
+}
+
+function sendStaticFile(res, filePath, fallback = '') {
+  const requested = staticFilePath(filePath) || (fallback ? staticFilePath(fallback) : '');
+  if (!requested) return res.status(404).send('Not found');
+  return res.sendFile(requested);
+}
+
+app.get('/', async (req, res) => {
+  if (!req.query.token) return sendStaticFile(res, 'index.html');
   const result = await verifyCardToken(req.query.token);
   res.send(buildVerificationHtml(result));
 });
-app.use(express.static(appRoot));
+app.get(['/index.html', '/portal.html', '/gate.html', '/super-admin.html'], (req, res) => sendStaticFile(res, req.path));
+app.get(['/manifest.webmanifest', '/sw.js'], (req, res) => sendStaticFile(res, req.path));
+app.get(['/favicon.ico', '/favicon.png'], (req, res) => sendStaticFile(res, req.path, 'assets/vericard-logo.jpeg'));
+app.use('/css', express.static(staticFilePath('css') || join(appRoot, 'css')));
+app.use('/js', express.static(staticFilePath('js') || join(appRoot, 'js')));
+app.use('/assets', express.static(staticFilePath('assets') || join(appRoot, 'assets')));
+app.use('/features', express.static(staticFilePath('features') || join(appRoot, 'features')));
+app.use(express.static(staticFilePath('.') || appRoot));
 
 const templates = [
   { id: 'sample', name: 'Classic Blue', description: 'Clean corporate card with QR verification.' },
@@ -715,7 +746,7 @@ async function adminSettings() {
   return row;
 }
 
-app.get('/admin', (req, res) => res.sendFile(`${process.cwd()}/super-admin.html`));
+app.get('/admin', (req, res) => sendStaticFile(res, 'super-admin.html'));
 app.get('/api/templates', (req, res) => res.json({ templates, organizationTypes, orgRegistrationFields }));
 
 app.get('/api/verify-card', async (req, res) => {

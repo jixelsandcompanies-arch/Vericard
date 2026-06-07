@@ -380,6 +380,7 @@ const state = { token: '', org: null, rules: null, orgRegistrationFields: {}, ca
       els.loginPanel.classList.add('hidden');
       els.templateSetup.classList.add('hidden');
       els.drawerToggle.classList.remove('hidden');
+      updateDashboardNavigation();
       setDashboardView('dashboard');
     }
     function initializeEntryView() {
@@ -406,12 +407,28 @@ const state = { token: '', org: null, rules: null, orgRegistrationFields: {}, ca
     function money(value) {
       return `KES ${Number(value || 0).toLocaleString()}`;
     }
+    function availableDashboardViews() {
+      const schoolPortal = isSchoolType(state.org?.type);
+      const views = ['dashboard', 'front', 'back', 'master', 'records'];
+      if (schoolPortal) views.push('gate', 'fees', 'reports');
+      return views;
+    }
+    function updateDashboardNavigation() {
+      const views = availableDashboardViews();
+      document.querySelectorAll('[data-drawer-view]').forEach((button) => {
+        const allowed = views.includes(button.dataset.drawerView);
+        button.classList.toggle('hidden', !allowed);
+        button.disabled = !allowed;
+      });
+    }
     function setDashboardView(view) {
+      const views = availableDashboardViews();
+      const nextView = views.includes(view) ? view : 'dashboard';
       document.querySelectorAll('[data-dashboard-view]').forEach((panel) => {
-        panel.classList.toggle('hidden', panel.dataset.dashboardView !== view);
+        panel.classList.toggle('hidden', panel.dataset.dashboardView !== nextView);
       });
       document.querySelectorAll('[data-drawer-view]').forEach((button) => {
-        button.classList.toggle('active', button.dataset.drawerView === view);
+        button.classList.toggle('active', button.dataset.drawerView === nextView);
       });
       els.dashboardDrawer?.classList.remove('open');
       els.drawerScrim?.classList.add('hidden');
@@ -932,12 +949,14 @@ const state = { token: '', org: null, rules: null, orgRegistrationFields: {}, ca
         return;
       } else {
         loadCards().catch((error) => alert(error.message));
-        loadAttendance().catch((error) => alert(error.message));
-        loadGateStaff().catch((error) => alert(error.message));
         loadOrgSummary().catch((error) => alert(error.message));
-        loadFees().catch((error) => alert(error.message));
-        loadNotifications().catch((error) => alert(error.message));
-        loadSecurityLogs().catch((error) => alert(error.message));
+        if (isSchoolType(state.org?.type)) {
+          loadAttendance().catch((error) => alert(error.message));
+          loadGateStaff().catch((error) => alert(error.message));
+          loadFees().catch((error) => alert(error.message));
+          loadNotifications().catch((error) => alert(error.message));
+          loadSecurityLogs().catch((error) => alert(error.message));
+        }
       }
     }
 
@@ -1053,11 +1072,16 @@ const state = { token: '', org: null, rules: null, orgRegistrationFields: {}, ca
     async function loadOrgSummary() {
       const data = await api('/api/org/dashboard-summary', { headers: headers() });
       const summary = data.summary || {};
-      const cards = [
+      const cards = isSchoolType(state.org?.type) ? [
         ['Total students', summary.totalStudents || 0],
         ['Active cards', summary.activeCards || 0],
         ['Cleared students', summary.clearedStudents || 0],
         ['Suspended students', summary.suspendedStudents || 0]
+      ] : [
+        ['Total records', summary.totalStudents || 0],
+        ['Active cards', summary.activeCards || 0],
+        ['Ready records', summary.clearedStudents || 0],
+        ['Suspended records', summary.suspendedStudents || 0]
       ];
       els.orgDashboardSummary.innerHTML = cards.map(([label, value]) => `<div class="dash-card"><strong>${escapeHtml(value)}</strong>${escapeHtml(label)}</div>`).join('');
       els.reportsSummary.innerHTML = cards.map(([label, value]) => `<div class="dash-card"><strong>${escapeHtml(value)}</strong>${escapeHtml(label)}</div>`).join('');

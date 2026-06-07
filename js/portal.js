@@ -6,6 +6,7 @@ const state = { token: '', org: null, rules: null, orgRegistrationFields: {}, ca
       alreadyRegisteredBtn: document.getElementById('alreadyRegisteredBtn'), loginPanel: document.getElementById('loginPanel'),
       orgType: document.getElementById('orgType'), orgDynamicFields: document.getElementById('orgDynamicFields'),
       orgRegisterForm: document.getElementById('orgRegisterForm'), registerBackBtn: document.getElementById('registerBackBtn'), loginForm: document.getElementById('loginForm'), loginNotice: document.getElementById('loginNotice'),
+      assistantIntroMessage: document.getElementById('assistantIntroMessage'), assistantNotificationsPrompt: document.getElementById('assistantNotificationsPrompt'),
       loginBackBtn: document.getElementById('loginBackBtn'), orgForgotToggleBtn: document.getElementById('orgForgotToggleBtn'), orgResetForm: document.getElementById('orgResetForm'), orgSendResetBtn: document.getElementById('orgSendResetBtn'),
       registerLogoValue: document.getElementById('registerLogoValue'), registerBrandColor: document.getElementById('registerBrandColor'), registerLogoPreview: document.getElementById('registerLogoPreview'), registerLogoFile: document.getElementById('registerLogoFile'),
       templateSetup: document.getElementById('templateSetup'), initialTemplateForm: document.getElementById('initialTemplateForm'), templateSetupNotice: document.getElementById('templateSetupNotice'),
@@ -23,7 +24,7 @@ const state = { token: '', org: null, rules: null, orgRegistrationFields: {}, ca
       gateScanPanel: document.getElementById('gateScanPanel'), gateScanForm: document.getElementById('gateScanForm'), gateScanNotice: document.getElementById('gateScanNotice'), attendanceBody: document.getElementById('attendanceBody'),
       gateStaffForm: document.getElementById('gateStaffForm'), gateStaffBody: document.getElementById('gateStaffBody'), gateDevicesBody: document.getElementById('gateDevicesBody'),
       feePanel: document.getElementById('feePanel'), feeUploadFile: document.getElementById('feeUploadFile'), uploadFeesBtn: document.getElementById('uploadFeesBtn'), refreshFeesBtn: document.getElementById('refreshFeesBtn'), feeNotice: document.getElementById('feeNotice'), feesBody: document.getElementById('feesBody'),
-      reportsPanel: document.getElementById('reportsPanel'), reportsSummary: document.getElementById('reportsSummary'), reportPeriod: document.getElementById('reportPeriod'), downloadReportBtn: document.getElementById('downloadReportBtn'), sendTestPushBtn: document.getElementById('sendTestPushBtn'), securityLogResult: document.getElementById('securityLogResult'), securityLogAlert: document.getElementById('securityLogAlert'), notificationsBody: document.getElementById('notificationsBody'), securityLogsBody: document.getElementById('securityLogsBody'),
+      reportsPanel: document.getElementById('reportsPanel'), reportsSummary: document.getElementById('reportsSummary'), reportPeriod: document.getElementById('reportPeriod'), downloadReportBtn: document.getElementById('downloadReportBtn'), sendTestPushBtn: document.getElementById('sendTestPushBtn'), communicationLogsTitle: document.getElementById('communicationLogsTitle'), communicationLogsHead: document.getElementById('communicationLogsHead'), securityLogResult: document.getElementById('securityLogResult'), securityLogAlert: document.getElementById('securityLogAlert'), notificationsBody: document.getElementById('notificationsBody'), securityLogsBody: document.getElementById('securityLogsBody'),
       assistantGreeting: document.getElementById('assistantGreeting'), assistantMessages: document.getElementById('assistantMessages'), assistantForm: document.getElementById('assistantForm'), assistantQuestion: document.getElementById('assistantQuestion'),
       backSettingsForm: document.getElementById('backSettingsForm'), previewEmpty: document.getElementById('previewEmpty'), idCardStage: document.getElementById('idCardStage'),
       schoolBackFields: document.getElementById('schoolBackFields'), schoolHourFields: document.getElementById('schoolHourFields'),
@@ -167,7 +168,7 @@ const state = { token: '', org: null, rules: null, orgRegistrationFields: {}, ca
         }
       };
       return profiles[type] || {
-        personLabel: 'Total students',
+        personLabel: 'Records',
         visitorLabel: 'Visitors',
         activeLabel: 'Inside now',
         approvalLabel: 'Pending approvals',
@@ -177,6 +178,30 @@ const state = { token: '', org: null, rules: null, orgRegistrationFields: {}, ca
         scanNoun: 'Gate scan',
         assistantScan: 'Open Gate to scan entry, report/update location, and exit.'
       };
+    }
+    function applyOrganizationLanguage() {
+      const schoolPortal = isSchoolType(state.org?.type);
+      const profile = orgWorkflowProfile();
+      if (els.assistantIntroMessage) {
+        els.assistantIntroMessage.textContent = schoolPortal
+          ? 'Ask me about approvals, master cards, QR registration, gate scans, parent notifications, reports, fees, bulk printing, or school attendance.'
+          : `Ask me about approvals, master cards, QR registration, ${profile.scanNoun.toLowerCase()}, reports, access zones, bulk printing, or who is inside now.`;
+      }
+      if (els.assistantNotificationsPrompt) {
+        els.assistantNotificationsPrompt.textContent = schoolPortal ? 'Parent notifications' : 'Logs';
+        els.assistantNotificationsPrompt.dataset.aiPrompt = schoolPortal ? 'How do parent notifications work?' : 'How do communication logs work?';
+      }
+      if (els.communicationLogsTitle) {
+        els.communicationLogsTitle.textContent = schoolPortal ? 'Parent Communication Logs' : 'Operational Communication Logs';
+      }
+      if (els.communicationLogsHead) {
+        els.communicationLogsHead.innerHTML = schoolPortal
+          ? '<tr><th>Student</th><th>Admission No.</th><th>Parent Contact</th><th>Channel</th><th>Type</th><th>Status</th><th>Message</th><th>Date</th></tr>'
+          : '<tr><th>Person</th><th>ID No.</th><th>Contact</th><th>Channel</th><th>Type</th><th>Status</th><th>Message</th><th>Date</th></tr>';
+      }
+      if (els.sendTestPushBtn) {
+        els.sendTestPushBtn.classList.toggle('hidden', !schoolPortal);
+      }
     }
     function registrationRule(type) { return state.orgRegistrationFields[type] || state.orgRegistrationFields.custom || {}; }
     function toggleOrgDependentFields(show) {
@@ -545,16 +570,24 @@ const state = { token: '', org: null, rules: null, orgRegistrationFields: {}, ca
           : `${profile.scanNoun} logs are saved when people scan in, report at an area, or leave. Use Records for approvals and Reports for movement/security history.`;
       }
       if (/approve|reject|inactive|record/.test(q)) return 'Open Records, review each submitted person, then approve, reject, or mark inactive. Approved cards can be viewed, downloaded in bulk, or sent to super admin for printing.';
-      if (/master|qr|register/.test(q)) return 'Open Master Card, load the master card, then share or print its QR. Scanning that QR opens the registration form for students, teachers, staff, employees, or the roles for this organization.';
+      if (/master|qr|register/.test(q)) {
+        return schoolPortal
+          ? 'Open Master Card, load the master card, then share or print its QR. Scanning that QR opens the school or university registration form.'
+          : 'Open Master Card, load the master card, then share or print its QR. Scanning that QR opens the registration form for this organization roles.';
+      }
       if (/print|download|bulk|card/.test(q)) return 'Open Records, tick approved cards, then use Download Selected Approved or Request Admin Print. Printing requests are priced at KES 100 per card for super admin handling.';
-      if (/fee|balance/.test(q)) return schoolPortal ? 'Open Fees to upload a CSV from Excel. Parent notifications can be queued from fee balances.' : 'Fees are hidden for this portal because they are school/university features.';
+      if (/fee|balance/.test(q)) return schoolPortal ? 'Open Fees to upload a CSV from Excel. Parent notifications can be queued from fee balances.' : 'This portal uses operational reports, access history, approvals, and security logs instead of fee workflows.';
       if (/gate|scan|attendance|work|job|location|area/.test(q)) return schoolPortal ? 'Open Gate to register scanner staff and scan entry, report/update location, or exit. Entry and exit times are saved by the system timestamp.' : profile.assistantScan;
       if (/report|daily|weekly|monthly|year/.test(q)) return schoolPortal ? 'Open Reports, choose daily, weekly, monthly, or yearly, then download the report file.' : `Open Reports to download ${profile.reportPrefix.toLowerCase()} movement, active-location, and security-log history.`;
       return 'Start from Dashboard for status, Records for approvals, Master Card for QR registration, Set Front/Back for card design, and Teams AI whenever you need the next step.';
     }
     function renderAssistantMessages() {
       els.assistantGreeting.textContent = `${state.org?.name || 'VeriCard'} Teams AI`;
-      const messages = state.assistantMessages.length ? state.assistantMessages : [{ role: 'assistant', content: 'Ask me about approvals, master cards, QR registration, gate scans, parent notifications, reports, fees, bulk printing, or who is at work today.' }];
+      const profile = orgWorkflowProfile();
+      const intro = isSchoolType(state.org?.type)
+        ? 'Ask me about approvals, master cards, QR registration, gate scans, parent notifications, reports, fees, bulk printing, or school attendance.'
+        : `Ask me about approvals, master cards, QR registration, ${profile.scanNoun.toLowerCase()}, reports, access zones, bulk printing, or who is inside now.`;
+      const messages = state.assistantMessages.length ? state.assistantMessages : [{ role: 'assistant', content: intro }];
       els.assistantMessages.innerHTML = messages.map((message) => `<div class="assistant-message ${message.role === 'user' ? 'assistant-message-user' : 'assistant-message-ai'}">${escapeHtml(message.content)}</div>`).join('');
       els.assistantMessages.scrollTop = els.assistantMessages.scrollHeight;
     }
@@ -699,7 +732,7 @@ const state = { token: '', org: null, rules: null, orgRegistrationFields: {}, ca
         ['Bold', alternate, accent, 'High-contrast layout for fast visual checking.'],
         ['QR Focus', primary, accent, 'Verification-first card with a stronger scan area.'],
         ['Formal', primary, '#111827', 'Reserved official layout for administrators and leaders.'],
-        ['Bright', accent, primary, 'Livelier layout for events, visitors, and guardians.']
+        ['Bright', accent, primary, 'Livelier layout for events, visitors, and front-desk use.']
       ];
       const generated = Array.from({ length: 50 }, (_, index) => {
         const tone = tones[index % tones.length];
@@ -886,6 +919,7 @@ const state = { token: '', org: null, rules: null, orgRegistrationFields: {}, ca
         const data = await api(`/api/org/register-info?token=${encodeURIComponent(state.masterToken)}`);
         state.org = data.organization;
         state.rules = data.rules;
+        applyOrganizationLanguage();
         window.loadOrganizationFeature?.(data.organization.type);
         document.title = `${data.organization.name} Registration`;
         els.portalTitle.textContent = `${data.organization.name} Registration`;
@@ -1014,14 +1048,19 @@ const state = { token: '', org: null, rules: null, orgRegistrationFields: {}, ca
         els.subscriptionNotice.textContent = 'Template saved. Subscription inactive: payment unlocks master card download, registrations, approvals, and printing.';
         els.subscriptionNotice.classList.add('danger');
         els.subscriptionNotice.classList.remove('hidden');
+        const schoolPortal = isSchoolType(state.org?.type);
         els.masterCard.classList.add('hidden');
         els.cardsBody.innerHTML = '<tr><td colspan="7">Subscription is inactive. Payment unlocks approvals and ID card records.</td></tr>';
         els.attendanceBody.innerHTML = '<tr><td colspan="7">Subscription is inactive. Payment unlocks gate attendance.</td></tr>';
         els.gateStaffBody.innerHTML = '<tr><td colspan="5">Subscription is inactive. Payment unlocks scanner staff management.</td></tr>';
         els.gateDevicesBody.innerHTML = '<tr><td colspan="5">Subscription is inactive. Payment unlocks scanner device approval.</td></tr>';
-        els.feesBody.innerHTML = '<tr><td colspan="7">Subscription is inactive. Payment unlocks fee management.</td></tr>';
+        els.feesBody.innerHTML = schoolPortal
+          ? '<tr><td colspan="7">Subscription is inactive. Payment unlocks fee management.</td></tr>'
+          : '<tr><td colspan="7">This organization uses operational access reports, not fee management.</td></tr>';
         els.reportsSummary.innerHTML = '<div class="dash-card"><strong>Locked</strong>Subscription inactive</div>';
-        els.notificationsBody.innerHTML = '<tr><td colspan="8">Subscription is inactive. Payment unlocks parent communication logs.</td></tr>';
+        els.notificationsBody.innerHTML = schoolPortal
+          ? '<tr><td colspan="8">Subscription is inactive. Payment unlocks parent communication logs.</td></tr>'
+          : '<tr><td colspan="8">Subscription is inactive. Payment unlocks operational logs.</td></tr>';
       } else {
         els.subscriptionNotice.classList.toggle('hidden', document.querySelector('[data-dashboard-view="front"]')?.classList.contains('hidden'));
       }
@@ -1031,6 +1070,7 @@ const state = { token: '', org: null, rules: null, orgRegistrationFields: {}, ca
       state.token = data.token;
       state.org = data.organization;
       window.loadOrganizationFeature?.(data.organization.type);
+      applyOrganizationLanguage();
       state.templates = data.templates || state.templates;
       state.locked = Boolean(data.locked);
       state.palette.primary = normalizeHexColor(data.organization.brandColor || '#061a30');
@@ -1067,6 +1107,7 @@ const state = { token: '', org: null, rules: null, orgRegistrationFields: {}, ca
       els.templateSetup.classList.add('hidden');
       els.dashboard.classList.remove('hidden');
       showDashboardShell();
+      applyOrganizationLanguage();
       fillBackSettingsForm();
       setLogoValue('dashboard', state.org.logo || '');
       setBrandColorValue('dashboard', state.org.brandColor || '#061a30');
@@ -1081,9 +1122,9 @@ const state = { token: '', org: null, rules: null, orgRegistrationFields: {}, ca
         if (isSchoolType(state.org?.type)) {
           loadFees().catch((error) => alert(error.message));
           loadNotifications().catch((error) => alert(error.message));
-          loadSecurityLogs().catch((error) => alert(error.message));
         }
       }
+      loadSecurityLogs().catch((error) => alert(error.message));
     }
 
     async function saveInitialTemplate() {
@@ -1227,7 +1268,7 @@ const state = { token: '', org: null, rules: null, orgRegistrationFields: {}, ca
 
     async function loadFees() {
       if (!isSchoolType(state.org?.type)) {
-        els.feesBody.innerHTML = '<tr><td colspan="7">Fee management is available for schools and universities.</td></tr>';
+        els.feesBody.innerHTML = '<tr><td colspan="7">This organization uses operational access reports instead.</td></tr>';
         return;
       }
       const data = await api('/api/org/fees', { headers: headers() });
@@ -1246,7 +1287,7 @@ const state = { token: '', org: null, rules: null, orgRegistrationFields: {}, ca
 
     async function loadNotifications() {
       if (!isSchoolType(state.org?.type)) {
-        els.notificationsBody.innerHTML = '<tr><td colspan="8">Parent communication logs are available for schools and universities.</td></tr>';
+        els.notificationsBody.innerHTML = '<tr><td colspan="8">Operational communication logs are not enabled for this organization yet.</td></tr>';
         return;
       }
       const data = await api('/api/org/notifications', { headers: headers() });
@@ -1391,8 +1432,9 @@ const state = { token: '', org: null, rules: null, orgRegistrationFields: {}, ca
       });
       const cards = data.cards || [];
       const attendance = data.attendanceRecords || [];
-      const fees = data.feeRecords || [];
-      const notifications = data.parentNotifications || [];
+      const schoolPortal = isSchoolType(state.org?.type);
+      const fees = schoolPortal ? (data.feeRecords || []) : [];
+      const notifications = schoolPortal ? (data.parentNotifications || []) : [];
       const securityLogs = data.scanSecurityLogs || [];
       const filteredAttendance = attendance.filter((row) => inDateRange(row.created_at || row.attendance_date || row.entry_at || row.exit_at, start, end));
       const filteredFees = fees.filter((row) => inDateRange(row.updated_at || row.created_at || row.due_date, start, end));
@@ -1403,31 +1445,36 @@ const state = { token: '', org: null, rules: null, orgRegistrationFields: {}, ca
         acc[label] = (acc[label] || 0) + 1;
         return acc;
       }, {});
+      const summary = {
+        totalCards: cards.length,
+        approvedCards: cards.filter((card) => card.status === 'Approved').length,
+        pendingCards: cards.filter((card) => card.status === 'Pending').length,
+        attendanceScans: filteredAttendance.length,
+        securityEvents: filteredSecurityLogs.length,
+        activeInside: filteredAttendance.filter((row) => row.status === 'Inside').length,
+        reportBreakdownLabel: profile.reportPrefix,
+        areaBreakdown
+      };
+      if (schoolPortal) {
+        summary.feeRows = filteredFees.length;
+        summary.feeBalanceTotal = filteredFees.reduce((sum, fee) => sum + Number(fee.balance || 0), 0);
+        summary.notifications = filteredNotifications.length;
+      }
       const report = {
         organization: data.organization,
         period,
         from: start.toISOString(),
         to: end.toISOString(),
         generatedAt: new Date().toISOString(),
-        summary: {
-          totalCards: cards.length,
-          approvedCards: cards.filter((card) => card.status === 'Approved').length,
-          pendingCards: cards.filter((card) => card.status === 'Pending').length,
-          attendanceScans: filteredAttendance.length,
-          feeRows: filteredFees.length,
-          feeBalanceTotal: filteredFees.reduce((sum, fee) => sum + Number(fee.balance || 0), 0),
-          notifications: filteredNotifications.length,
-          securityEvents: filteredSecurityLogs.length,
-          activeInside: filteredAttendance.filter((row) => row.status === 'Inside').length,
-          reportBreakdownLabel: profile.reportPrefix,
-          areaBreakdown
-        },
+        summary,
         cards,
         attendance: filteredAttendance,
-        fees: filteredFees,
-        parentNotifications: filteredNotifications,
         scanSecurityLogs: filteredSecurityLogs
       };
+      if (schoolPortal) {
+        report.fees = filteredFees;
+        report.parentNotifications = filteredNotifications;
+      }
       const name = (state.org?.name || 'vericard').replace(/[^a-z0-9]+/gi, '-').replace(/^-|-$/g, '').toLowerCase() || 'vericard';
       downloadJson(`${name}-${period}-report-${new Date().toISOString().slice(0, 10)}.json`, report);
     }

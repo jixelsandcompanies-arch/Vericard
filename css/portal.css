@@ -98,9 +98,10 @@
     .scan-confirm { display: grid; grid-template-columns: 120px 1fr; gap: 12px; align-items: center; }
     .master-card { width: 330px; height: 520px; border: 1px solid var(--line); border-radius: 22px; background: #fff; overflow: hidden; position: relative; box-shadow: 0 10px 22px rgba(31,47,68,.13); }
     .master-logo { position: absolute; top: 22px; left: 42px; width: 246px; height: 112px; object-fit: contain; }
-    .master-band { position: absolute; left: 24px; right: 24px; top: 158px; height: 166px; border-radius: 16px; background: var(--blue); color: #fff; padding: 18px; display: grid; align-content: center; gap: 8px; }
+    .master-band { position: absolute; left: 24px; right: 24px; top: 158px; height: 166px; border-radius: 16px; background: var(--blue); color: #fff; padding: 18px; display: grid; align-content: center; gap: 8px; overflow: hidden; }
     .master-band strong { color: var(--gold); font-size: 24px; }
-    .master-meta { position: absolute; left: 34px; right: 34px; top: 346px; display: grid; gap: 8px; font-size: 13px; font-weight: 800; }
+    .master-band span, .master-meta span { overflow-wrap: anywhere; line-height: 1.2; }
+    .master-meta { position: absolute; left: 34px; right: 34px; top: 346px; display: grid; gap: 8px; font-size: 13px; font-weight: 800; overflow: hidden; }
     .qr { width: 106px; height: 106px; border: 1px solid var(--line); background: #fff; padding: 5px; justify-self: center; }
     .qr img { width: 100%; height: 100%; object-fit: contain; }
     .card-stage { display: grid; grid-template-columns: repeat(2, 330px); gap: 18px; justify-content: start; overflow-x: auto; }
@@ -114,7 +115,7 @@
     .photo-ring img { width: 100%; height: 100%; object-fit: cover; object-position: center top; }
     .photo-ring span { color: #8ca3be; font-size: 26px; font-weight: 800; }
     .front-info { position: absolute; left: 40px; right: 40px; top: 332px; z-index: 2; }
-    .front-authority { position: absolute; left: 42px; right: 42px; bottom: 20px; display: grid; gap: 8px; align-items: end; font-size: 11px; font-weight: 800; color: var(--ink); }
+    .front-authority { position: absolute; left: 42px; right: 42px; bottom: 20px; display: grid; gap: 8px; align-items: end; font-size: 11px; font-weight: 800; color: var(--ink); overflow-wrap: anywhere; max-height: 28px; overflow: hidden; }
     .front-authority img { max-width: 92px; max-height: 42px; object-fit: contain; justify-self: end; }
     .detail-line { display: grid; grid-template-columns: 74px 1fr; gap: 7px; padding: 5px 0; border-bottom: 1px solid rgba(255,255,255,.18); }
     .detail-label { color: rgba(255,255,255,.78); font-size: 11px; font-weight: 900; text-transform: uppercase; }
@@ -122,7 +123,7 @@
     .id-number, .person-role { color: #fff; font-size: 14px; font-weight: 800; overflow-wrap: anywhere; }
     .card-qr { position: absolute; left: 50%; top: 22px; transform: translateX(-50%); width: 132px; height: 132px; padding: 8px; border: 2px solid var(--blue); background: #fff; }
     .card-qr img { width: 100%; height: 100%; object-fit: contain; }
-    .back-text { position: absolute; left: 32px; right: 32px; top: 178px; bottom: 98px; font-weight: 700; font-size: 12.5px; line-height: 1.32; display: grid; align-content: start; gap: 4px; overflow: hidden; }
+    .back-text { position: absolute; left: 32px; right: 32px; top: 178px; bottom: 98px; font-weight: 700; font-size: 12.5px; line-height: 1.32; display: grid; align-content: start; gap: 4px; overflow: hidden; overflow-wrap: anywhere; }
     .back-text .indent { margin-left: 22px; }
     .mission-block { color: var(--blue); font-size: 11px; font-weight: 900; line-height: 1.25; text-align: center; overflow-wrap: anywhere; }
     .responsibility-title { color: var(--blue); margin-top: 16px; font-weight: 900; }
@@ -171,4 +172,13 @@
       .panel { padding: 14px; }
       input, select, textarea, button, .button { min-height: 44px; }
     }
-    @media print { header, .no-print, .panel:not(#masterPanel):not(#idPreviewPanel) { display: none !important; } body { background: #fff; } #masterPanel, #idPreviewPanel { border: 0; padding: 0; } .master-card, .id-card { box-shadow: none; } }
+    @page { size: auto; margin: 10mm; }
+    @media print {
+      header, .no-print, .drawer, .drawer-scrim, .panel:not(#masterPanel):not(#idPreviewPanel) { display: none !important; }
+      body { background: #fff; }
+      main, .wrap, .dashboard-content { width: auto; padding: 0; margin: 0; display: block; }
+      #masterPanel, #idPreviewPanel { border: 0; padding: 0; box-shadow: none; }
+      #masterPanel > h2, #idPreviewPanel > h2, #previewEmpty { display: none !important; }
+      .card-stage { display: flex; gap: 18px; justify-content: center; overflow: visible; padding: 0; page-break-inside: avoid; break-inside: avoid; }
+      .master-card, .id-card { box-shadow: none; page-break-inside: avoid; break-inside: avoid; print-color-adjust: exact; -webkit-print-color-adjust: exact; }
+    }

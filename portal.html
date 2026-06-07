@@ -173,11 +173,11 @@
           </div>
         </div>
         <div class="assistant-chat" id="assistantMessages" aria-live="polite">
-          <div class="assistant-message assistant-message-ai">Ask me about approvals, master cards, QR registration, gate scans, parent notifications, reports, fees, bulk printing, or who is at work today.</div>
+          <div class="assistant-message assistant-message-ai" id="assistantIntroMessage">Ask me about approvals, master cards, QR registration, access scans, reports, bulk printing, or who is inside now.</div>
         </div>
         <div class="assistant-prompts">
           <button type="button" data-ai-prompt="How do I approve cards?">Approve Cards</button>
-          <button type="button" data-ai-prompt="How do parent notifications work?">Notifications</button>
+          <button type="button" data-ai-prompt="How do communication logs work?" id="assistantNotificationsPrompt">Logs</button>
           <button type="button" data-ai-prompt="How do I download or print cards?">Printing</button>
           <button type="button" data-ai-prompt="How do reports work?">Reports</button>
         </div>
@@ -365,14 +365,14 @@
           <button type="button" id="downloadReportBtn">Download Report</button>
         </div>
         <div class="dashboard-grid" id="reportsSummary"></div>
-        <h3>Parent Communication Logs</h3>
+        <h3 id="communicationLogsTitle">Communication Logs</h3>
         <div class="row">
           <button type="button" id="sendTestPushBtn">Send Test Push</button>
         </div>
         <div class="table-wrap">
           <table>
-            <thead><tr><th>Student</th><th>Admission No.</th><th>Parent Contact</th><th>Channel</th><th>Type</th><th>Status</th><th>Message</th><th>Date</th></tr></thead>
-            <tbody id="notificationsBody"><tr><td colspan="8">No parent communication logs loaded.</td></tr></tbody>
+            <thead id="communicationLogsHead"><tr><th>Person</th><th>ID No.</th><th>Contact</th><th>Channel</th><th>Type</th><th>Status</th><th>Message</th><th>Date</th></tr></thead>
+            <tbody id="notificationsBody"><tr><td colspan="8">No communication logs loaded.</td></tr></tbody>
           </table>
         </div>
         <h3>Gate Security Logs</h3>
@@ -408,14 +408,14 @@
         <div id="schoolBackFields"></div>
         <div id="schoolHourFields"></div>
         <label>Return title<input name="returnTitle" required></label>
-        <label>Return name/company/school<input name="returnName" required></label>
+        <label>Return name / organization<input name="returnName" required></label>
         <label>P.O. Box<input name="poBox"></label>
         <label>Address line 1<input name="addressLine1"></label>
         <label>Phone number<input name="phone"></label>
         <label>Return department/person<input name="returnDesk" required></label>
         <label>Cardholder responsibilities<textarea name="cardholderResponsibilities" required></textarea></label>
         <label>Lost card/report instruction<textarea name="lostInstruction" required></textarea></label>
-        <label>Electronic signature full name<input name="authorityName" placeholder="Principal / Head Teacher full name"></label>
+        <label>Electronic signature full name<input name="authorityName" placeholder="Authorized signer full name"></label>
         <label>Card expiry date<input name="cardExpiryDate" type="date"></label>
         <button type="submit">Save Back Settings</button>
       </form>

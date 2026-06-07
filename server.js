@@ -2810,6 +2810,7 @@ export {
   readToken,
   secureEqualText,
   signToken,
+  validateRoleFields,
   validatePassword,
   validCoordinate,
   validateRuntimeConfig,

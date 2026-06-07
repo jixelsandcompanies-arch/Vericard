@@ -18,6 +18,7 @@ const {
   readToken,
   securityConfidence,
   signToken,
+  validateRoleFields,
   validatePassword,
   validateRuntimeConfig,
   validCoordinate,
@@ -164,6 +165,54 @@ test('non-school card access applies organization-specific movement rules', () =
   assert.equal(cardAccessDecision(hospitalVisitor, { type: 'hospital' }, 'ICU').allowed, false);
   assert.equal(cardAccessDecision(securityGuard, { type: 'security' }, 'West Site').allowed, false);
   assert.equal(cardAccessDecision(eventVolunteer, { type: 'ngo' }, 'Event Gate').allowed, false);
+});
+
+test('school master registration enforces day boarding and mixed student rules', () => {
+  const baseFields = {
+    name: 'Jane Student',
+    admissionNumber: 'ADM-1',
+    classGrade: 'Grade 4',
+    parentGuardianName: 'Parent One',
+    parentGuardianPhone: '0712345678',
+    photo: 'data:image/png;base64,abc'
+  };
+  const dayOrg = { type: 'school', back_settings: { schoolType: 'day' } };
+  const boardingOrg = { type: 'school', back_settings: { schoolType: 'boarding' } };
+  const mixedOrg = { type: 'school', back_settings: { schoolType: 'mixed' } };
+
+  const dayFields = { ...baseFields };
+  assert.equal(validateRoleFields(dayOrg, 'student', dayFields).error, undefined);
+  assert.equal(dayFields.studentCategory, 'day');
+  assert.equal(dayFields.registrationSource, 'home-master-qr');
+
+  assert.match(validateRoleFields(boardingOrg, 'student', { ...baseFields }).error, /Class teacher name/i);
+  const boardingFields = { ...baseFields, classTeacherName: 'Teacher One', classTeacherPhone: '0712000000' };
+  assert.equal(validateRoleFields(boardingOrg, 'student', boardingFields).error, undefined);
+  assert.equal(boardingFields.studentCategory, 'boarding');
+  assert.equal(boardingFields.registrationSource, 'class-teacher');
+
+  assert.match(validateRoleFields(mixedOrg, 'student', { ...baseFields }).error, /student category/i);
+  const mixedDayFields = { ...baseFields, studentCategory: 'day' };
+  assert.equal(validateRoleFields(mixedOrg, 'student', mixedDayFields).error, undefined);
+  assert.equal(mixedDayFields.registrationSource, 'home-master-qr');
+  assert.match(validateRoleFields(mixedOrg, 'student', { ...baseFields, studentCategory: 'boarding' }).error, /Class teacher name/i);
+});
+
+test('school class-teacher registration requires assigned class only for class teachers', () => {
+  const school = { type: 'school', back_settings: { schoolType: 'day' } };
+  const teacherFields = {
+    name: 'Teacher One',
+    nationalId: '12345678',
+    staffId: 'T-1',
+    department: 'Primary',
+    phone: '0712345678',
+    email: 'teacher@example.com',
+    photo: 'data:image/png;base64,abc'
+  };
+
+  assert.equal(validateRoleFields(school, 'teacher', { ...teacherFields, classTeacherStatus: 'no' }).error, undefined);
+  assert.match(validateRoleFields(school, 'teacher', { ...teacherFields, classTeacherStatus: 'yes' }).error, /Assigned class/i);
+  assert.equal(validateRoleFields(school, 'teacher', { ...teacherFields, classTeacherStatus: 'yes', assignedClass: 'Grade 4' }).error, undefined);
 });
 
 test('QR endpoint returns a PNG and rejects empty data', async () => {

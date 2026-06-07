@@ -928,6 +928,15 @@ function movementClosedFor(card, org, action) {
   return '';
 }
 
+function scanAction(value) {
+  const action = normalizeText(value).toLowerCase();
+  return ['enter', 'leave', 'report'].includes(action) ? action : 'enter';
+}
+
+function actionLabel(action) {
+  return action === 'leave' ? 'Leaving' : action === 'report' ? 'Reporting location' : 'Entering';
+}
+
 async function currentOpenMovement(orgId, cardId) {
   const { data } = await db
     .from('attendance_records')
@@ -2391,7 +2400,7 @@ app.post('/api/gate/logout', async (req, res) => {
 app.post('/api/gate/preview', gateRateLimit, async (req, res) => {
   const { session, org } = await readGateSession(req.body.sessionToken);
   if (!session) return res.status(401).json({ error: 'Gate scanner is not on duty.' });
-  const action = req.body.action === 'leave' ? 'leave' : 'enter';
+  const action = scanAction(req.body.action);
   const meta = scanMeta(req, 'gate-app');
   const context = { org, action, session, gateName: session.gate_name, meta, source: 'gate-app' };
   const device = await sessionDeviceDecision(org, session, meta);
@@ -2412,6 +2421,7 @@ app.post('/api/gate/preview', gateRateLimit, async (req, res) => {
   const openRecord = await currentOpenMovement(org.id, card.id);
   if (action === 'enter' && openRecord) return denyScan(res, 409, `${card.name} is already marked inside.`, context);
   if (action === 'leave' && !openRecord) return denyScan(res, 409, `${card.name} is already marked outside. No open entry record exists.`, context);
+  if (action === 'report' && !openRecord) return denyScan(res, 409, `${card.name} must scan entering before location reporting can update active tracking.`, context);
   const fields = card.fields || {};
   const fee = card.role_type === 'student' ? await feeForCard(org, card) : null;
   res.json({
@@ -2430,6 +2440,7 @@ app.post('/api/gate/preview', gateRateLimit, async (req, res) => {
     },
     organization: { id: org.id, name: org.name, type: org.type, typeLabel: organizationTypes[org.type]?.label || org.type },
     action,
+    actionLabel: actionLabel(action),
     fee,
     state: openRecord ? 'Inside' : 'Outside',
     scanChallenge: signGateChallenge({ session, card, action, token })
@@ -2439,7 +2450,7 @@ app.post('/api/gate/preview', gateRateLimit, async (req, res) => {
 app.post('/api/gate/confirm', gateRateLimit, async (req, res) => {
   const { session, org } = await readGateSession(req.body.sessionToken);
   if (!session) return res.status(401).json({ error: 'Gate scanner is not on duty.' });
-  const action = req.body.action === 'leave' ? 'leave' : 'enter';
+  const action = scanAction(req.body.action);
   const meta = scanMeta(req, 'gate-app');
   const context = { org, action, session, gateName: session.gate_name, meta, source: 'gate-app' };
   const challenge = readGateChallenge(req.body.scanChallenge);
@@ -2495,6 +2506,25 @@ app.post('/api/gate/confirm', gateRateLimit, async (req, res) => {
     if (card.role_type === 'student') await logParentNotification(org, card, 'student_entered', 0, data.entry_at);
     return res.json({ attendance: toAttendance(data), message: `${card.name} entry saved.` });
   }
+  if (action === 'report') {
+    if (!openRecord) return denyScan(res, 409, `${card.name} must scan entering before location reporting can update active tracking.`, context);
+    const { data, error } = await db.from('attendance_records').update({
+      gate_name: session.gate_name,
+      device_id: meta.deviceId,
+      scan_source: 'gate-app',
+      latitude: meta.latitude,
+      longitude: meta.longitude,
+      location_accuracy: meta.locationAccuracy,
+      security_status: 'allowed',
+      security_reason: 'Active location updated by area/report scan.',
+      status: 'Inside',
+      updated_at: new Date().toISOString()
+    }).eq('id', openRecord.id).select('*').single();
+    if (error) return res.status(400).json({ error: error.message });
+    await audit('Active location updated by gate scan', card.id, session.staff_name);
+    await logScanSecurity({ ...context, result: 'allowed', reason: 'Active location updated while cardholder remains inside.' });
+    return res.json({ attendance: toAttendance(data), message: `${card.name} current location updated at ${session.gate_name}.` });
+  }
   if (!openRecord) return denyScan(res, 409, `${card.name} is already marked outside.`, context);
   const { data, error } = await db.from('attendance_records').update({
     exit_at: new Date().toISOString(),
@@ -2520,7 +2550,7 @@ app.post('/api/gate/confirm', gateRateLimit, async (req, res) => {
 app.post('/api/org/gate-scan', requireOrg, gateRateLimit, async (req, res) => {
   const org = await getOrg(req.orgId);
   if (!org || !hasActiveSubscription(org)) return res.status(403).json({ error: 'Subscription must be active before gate scanning.' });
-  const action = req.body.action === 'leave' ? 'leave' : 'enter';
+  const action = scanAction(req.body.action);
   const token = extractVerificationToken(req.body.token);
   const gateName = normalizeText(req.body.gateName) || 'Main Gate';
   const meta = scanMeta(req, 'admin-dashboard');
@@ -2576,6 +2606,25 @@ app.post('/api/org/gate-scan', requireOrg, gateRateLimit, async (req, res) => {
     await logScanSecurity({ ...context, result: 'allowed', reason: 'Admin dashboard entry confirmed.' });
     if (card.role_type === 'student') await logParentNotification(org, card, 'student_entered', 0, data.entry_at);
     return res.json({ attendance: toAttendance(data), message: `${card.name} entered at ${new Date(data.entry_at).toLocaleTimeString()}.` });
+  }
+  if (action === 'report') {
+    if (!openRecord) return denyScan(res, 409, `${card.name} must scan entering before location reporting can update active tracking.`, context);
+    const { data, error: updateError } = await db.from('attendance_records').update({
+      gate_name: gateName,
+      device_id: meta.deviceId,
+      scan_source: 'admin-dashboard',
+      latitude: meta.latitude,
+      longitude: meta.longitude,
+      location_accuracy: meta.locationAccuracy,
+      security_status: 'allowed',
+      security_reason: 'Active location updated by admin area/report scan.',
+      status: 'Inside',
+      updated_at: new Date().toISOString()
+    }).eq('id', openRecord.id).select('*').single();
+    if (updateError) return res.status(400).json({ error: updateError.message });
+    await audit('Active location updated by admin scan', card.id, org.name);
+    await logScanSecurity({ ...context, result: 'allowed', reason: 'Admin dashboard updated active location while cardholder remains inside.' });
+    return res.json({ attendance: toAttendance(data), message: `${card.name} current location updated at ${gateName}.` });
   }
   if (!openRecord) return denyScan(res, 409, `${card.name} is already marked outside. Scan entering first.`, context);
   const { data, error: updateError } = await db.from('attendance_records').update({

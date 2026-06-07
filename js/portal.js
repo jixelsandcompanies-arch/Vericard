@@ -1003,7 +1003,41 @@ const state = { token: '', org: null, rules: null, orgRegistrationFields: {}, ca
 
     function frontCardNumber(card) {
       const fields = card?.fields || {};
-      return fields.displayNumber || fields.admissionNumber || fields.matricNumber || fields.employeeId || fields.staffId || fields.nationalId || card?.id || '';
+      return fields.displayNumber
+        || fields.admissionNumber
+        || fields.matricNumber
+        || fields.employeeId
+        || fields.contractorId
+        || fields.internId
+        || fields.staffId
+        || fields.membershipId
+        || fields.workerId
+        || fields.leaderId
+        || fields.guardId
+        || fields.supervisorId
+        || fields.officerId
+        || fields.contractId
+        || fields.memberId
+        || fields.nationalId
+        || card?.id
+        || '';
+    }
+
+    function frontCardRole(card) {
+      const fields = card?.fields || {};
+      return card?.position || fields.position || fields.role || fields.rank || fields.department || card?.roleType || '';
+    }
+
+    function frontCardExpiry(card) {
+      const fields = card?.fields || {};
+      return fields.validUntilAt
+        || fields.validUntil
+        || fields.expiryDate
+        || fields.credentialExpiryDate
+        || fields.licenseExpiryDate
+        || fields.visitDate
+        || state.org?.backSettings?.cardExpiryDate
+        || '';
     }
 
     function showIdCard(card) {
@@ -1023,8 +1057,8 @@ const state = { token: '', org: null, rules: null, orgRegistrationFields: {}, ca
       els.idCardNumber.textContent = frontCardNumber(card);
       const isSchoolStudentCard = state.org?.type === 'school' && card.roleType === 'student';
       els.idCardRoleLabel.textContent = isSchoolStudentCard ? 'Class:' : 'Role:';
-      els.idCardRole.textContent = isSchoolStudentCard ? [card.fields?.classGrade, card.fields?.stream].filter(Boolean).join(' - ') : (card.position || card.roleType || '');
-      els.idCardExpiry.textContent = card.fields?.expiryDate || state.org?.backSettings?.cardExpiryDate || '';
+      els.idCardRole.textContent = isSchoolStudentCard ? [card.fields?.classGrade, card.fields?.stream].filter(Boolean).join(' - ') : frontCardRole(card);
+      els.idCardExpiry.textContent = frontCardExpiry(card);
       const authorityName = state.org?.backSettings?.authorityName || state.org?.ownerName || '';
       els.frontAuthorityName.textContent = authorityName ? `E-Signature: ${authorityName}` : '';
       if (card.photo) {

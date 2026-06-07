@@ -2165,6 +2165,29 @@ app.get('/api/org/notifications', requireOrg, async (req, res) => {
   res.json({ notifications: (data || []).map(toNotification) });
 });
 
+app.post('/api/org/notifications/test', requireOrg, async (req, res) => {
+  const org = await getOrg(req.orgId);
+  if (!org) return res.status(404).json({ error: 'Organization not found.' });
+  const message = `VeriCard test push for ${org.name}. If you received this, push notifications are working.`;
+  const row = {
+    organization_id: org.id,
+    organization_name: org.name,
+    card_id: null,
+    admission_number: 'TEST',
+    student_name: 'Test Notification',
+    parent_phone: '',
+    parent_email: '',
+    channel: 'push',
+    notification_type: 'test_push',
+    message,
+    status: 'Queued',
+    delivery_status: 'Queued'
+  };
+  const { data, error } = await db.from('parent_notifications').insert(row).select('*').single();
+  if (error) return res.status(400).json({ error: error.message });
+  res.json({ notification: toNotification(await deliverParentNotification(data)) });
+});
+
 app.get('/api/org/security-logs', requireOrg, async (req, res) => {
   const result = normalizeText(req.query.result).toLowerCase();
   const alertLevel = normalizeText(req.query.alertLevel).toLowerCase();

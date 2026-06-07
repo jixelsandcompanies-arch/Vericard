@@ -34,7 +34,7 @@ async function initPushNotifications() {
   window.OneSignalDeferred.push(async (OneSignal) => {
     await OneSignal.init({
       appId: oneSignalAppId,
-      serviceWorkerPath: 'sw.js',
+      serviceWorkerPath: '/sw.js',
       serviceWorkerParam: { scope: '/' }
     });
     if (Notification.permission === 'default' && OneSignal.Notifications?.requestPermission) {

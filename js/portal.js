@@ -23,7 +23,7 @@ const state = { token: '', org: null, rules: null, orgRegistrationFields: {}, ca
       gateScanPanel: document.getElementById('gateScanPanel'), gateScanForm: document.getElementById('gateScanForm'), gateScanNotice: document.getElementById('gateScanNotice'), attendanceBody: document.getElementById('attendanceBody'),
       gateStaffForm: document.getElementById('gateStaffForm'), gateStaffBody: document.getElementById('gateStaffBody'), gateDevicesBody: document.getElementById('gateDevicesBody'),
       feePanel: document.getElementById('feePanel'), feeUploadFile: document.getElementById('feeUploadFile'), uploadFeesBtn: document.getElementById('uploadFeesBtn'), refreshFeesBtn: document.getElementById('refreshFeesBtn'), feeNotice: document.getElementById('feeNotice'), feesBody: document.getElementById('feesBody'),
-      reportsPanel: document.getElementById('reportsPanel'), reportsSummary: document.getElementById('reportsSummary'), reportPeriod: document.getElementById('reportPeriod'), downloadReportBtn: document.getElementById('downloadReportBtn'), securityLogResult: document.getElementById('securityLogResult'), securityLogAlert: document.getElementById('securityLogAlert'), notificationsBody: document.getElementById('notificationsBody'), securityLogsBody: document.getElementById('securityLogsBody'),
+      reportsPanel: document.getElementById('reportsPanel'), reportsSummary: document.getElementById('reportsSummary'), reportPeriod: document.getElementById('reportPeriod'), downloadReportBtn: document.getElementById('downloadReportBtn'), sendTestPushBtn: document.getElementById('sendTestPushBtn'), securityLogResult: document.getElementById('securityLogResult'), securityLogAlert: document.getElementById('securityLogAlert'), notificationsBody: document.getElementById('notificationsBody'), securityLogsBody: document.getElementById('securityLogsBody'),
       assistantGreeting: document.getElementById('assistantGreeting'), assistantMessages: document.getElementById('assistantMessages'), assistantForm: document.getElementById('assistantForm'), assistantQuestion: document.getElementById('assistantQuestion'),
       backSettingsForm: document.getElementById('backSettingsForm'), previewEmpty: document.getElementById('previewEmpty'), idCardStage: document.getElementById('idCardStage'),
       schoolBackFields: document.getElementById('schoolBackFields'), schoolHourFields: document.getElementById('schoolHourFields'),
@@ -1209,7 +1209,7 @@ const state = { token: '', org: null, rules: null, orgRegistrationFields: {}, ca
         headers: headers(),
         body: JSON.stringify({ rows })
       });
-      els.feeNotice.textContent = `${(data.fees || []).length} fee row(s) saved. ${(data.notifications || []).length} SMS/email notification(s) queued.`;
+      els.feeNotice.textContent = `${(data.fees || []).length} fee row(s) saved. ${(data.notifications || []).length} push notification(s) queued.`;
       els.feeNotice.classList.remove('hidden', 'danger');
       await Promise.all([loadFees(), loadNotifications(), loadOrgSummary()]);
     }
@@ -1469,6 +1469,15 @@ const state = { token: '', org: null, rules: null, orgRegistrationFields: {}, ca
       Promise.all([loadFees(), loadNotifications(), loadSecurityLogs(), loadOrgSummary()]).catch((error) => alert(friendlyError(error)));
     });
     els.downloadReportBtn.addEventListener('click', () => downloadPeriodReport().catch((error) => alert(friendlyError(error))));
+    els.sendTestPushBtn?.addEventListener('click', async () => {
+      try {
+        const data = await api('/api/org/notifications/test', { method: 'POST', headers: headers(), body: '{}' });
+        await loadNotifications();
+        alert(`Test push status: ${data.notification?.deliveryStatus || data.notification?.status || 'Queued'}`);
+      } catch (error) {
+        alert(friendlyError(error));
+      }
+    });
 
     els.feesBody.addEventListener('click', async (event) => {
       const button = event.target.closest('[data-fee-notify]');
@@ -1481,7 +1490,7 @@ const state = { token: '', org: null, rules: null, orgRegistrationFields: {}, ca
         });
         await loadNotifications();
         await loadSecurityLogs();
-        alert('Parent SMS/email notification queued.');
+        alert('Parent push notification queued.');
       } catch (error) {
         alert(friendlyError(error));
       }

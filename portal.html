@@ -141,7 +141,7 @@
           <button type="button" data-drawer-view="master">Master Card</button>
           <button type="button" data-drawer-view="records">Records</button>
           <button type="button" data-drawer-view="assistant">Teams AI</button>
-          <button type="button" data-drawer-view="gate" data-nav-scope="school">Gate</button>
+          <button type="button" data-drawer-view="gate">Gate</button>
           <button type="button" data-drawer-view="fees" data-nav-scope="school">Fees</button>
           <button type="button" data-drawer-view="reports" data-nav-scope="school">Reports</button>
         </nav>
@@ -275,7 +275,7 @@
         <a class="button secondary" href="/gate.html" target="_blank" rel="noopener">Open Gate Scanner App</a>
         <form id="gateScanForm">
           <label>Gate name<input name="gateName" value="Main Gate" required></label>
-          <label>Student QR token or scanned URL<input name="token" placeholder="Scan or paste student QR result" required></label>
+          <label>Card QR token or scanned URL<input name="token" placeholder="Scan or paste card QR result" required></label>
           <label>Scan action
             <select name="action">
               <option value="enter">Entering campus</option>
@@ -287,7 +287,7 @@
         <div id="gateScanNotice" class="notice hidden"></div>
         <div class="table-wrap">
           <table>
-            <thead><tr><th>Student</th><th>No.</th><th>Class</th><th>Date</th><th>Entered</th><th>Left</th><th>Status</th></tr></thead>
+            <thead><tr><th>Person</th><th>No.</th><th>Group</th><th>Date</th><th>Entered</th><th>Left</th><th>Status</th></tr></thead>
             <tbody id="attendanceBody"><tr><td colspan="7">No attendance scans loaded.</td></tr></tbody>
           </table>
         </div>
@@ -299,13 +299,23 @@
           <label>Full name<input name="fullName" required></label>
           <label>Phone<input name="phone"></label>
           <label>Staff code<input name="staffCode" required></label>
+          <label>Scanner role
+            <select name="staffRole">
+              <option value="Gate Staff">Gate Staff</option>
+              <option value="Supervisor">Supervisor</option>
+              <option value="Agent Leader">Agent Leader</option>
+              <option value="Sales Leader">Sales Leader</option>
+              <option value="Team Leader">Team Leader</option>
+              <option value="Security Lead">Security Lead</option>
+            </select>
+          </label>
           <label>Gate name<input name="gateName" value="Main Gate" required></label>
           <label>Gate PIN<input name="pin" type="password" required></label>
           <button type="submit">Register Gate Staff</button>
         </form>
         <div class="table-wrap">
           <table>
-            <thead><tr><th>Name</th><th>Staff Code</th><th>Gate</th><th>Status</th><th>Action</th></tr></thead>
+            <thead><tr><th>Name</th><th>Staff Code</th><th>Role / Gate</th><th>Status</th><th>Action</th></tr></thead>
             <tbody id="gateStaffBody"><tr><td colspan="5">No gate staff loaded.</td></tr></tbody>
           </table>
         </div>

@@ -819,6 +819,7 @@ function toGateStaff(row) {
     fullName: row.full_name,
     phone: row.phone,
     staffCode: row.staff_code,
+    staffRole: row.staff_role || 'Gate Staff',
     gateName: row.gate_name,
     status: row.status,
     createdAt: row.created_at,
@@ -1893,7 +1894,7 @@ app.get('/api/org/dashboard-summary', requireOrg, async (req, res) => {
   if (!org) return res.status(404).json({ error: 'Organization not found.' });
   const [cards, attendance, fees] = await Promise.all([
     db.from('cards').select('*').eq('organization_id', req.orgId),
-    db.from('attendance_records').select('*').eq('organization_id', req.orgId).order('created_at', { ascending: false }).limit(10),
+    db.from('attendance_records').select('*').eq('organization_id', req.orgId).order('created_at', { ascending: false }).limit(1000),
     db.from('fee_records').select('*').eq('organization_id', req.orgId)
   ]);
   if (cards.error) return res.status(500).json({ error: cards.error.message });
@@ -1913,6 +1914,8 @@ app.get('/api/org/dashboard-summary', requireOrg, async (req, res) => {
   }).length;
   const accessZones = new Set(cardRows.map((card) => normalizeText(card.fields?.accessZone || card.fields?.allowedGate)).filter(Boolean));
   const recentRows = attendance.data || [];
+  const today = new Date().toISOString().slice(0, 10);
+  const atWorkToday = recentRows.filter((row) => row.attendance_date === today && row.entry_at).length;
   const branchCounts = new Map();
   for (const card of cardRows) {
     const key = normalizeText(card.branch || card.fields?.department || card.fields?.site || card.fields?.assignedSite || card.fields?.officeBranch || card.fields?.accessZone || card.role_type || 'General');
@@ -1937,9 +1940,10 @@ app.get('/api/org/dashboard-summary', requireOrg, async (req, res) => {
       pendingApprovals,
       accessZones: accessZones.size,
       insideNow: recentRows.filter((row) => row.status === 'Inside').length,
+      atWorkToday,
       branchReports
     },
-    recentScans: recentRows.map(toAttendance)
+    recentScans: recentRows.slice(0, 10).map(toAttendance)
   });
 });
 
@@ -2114,12 +2118,20 @@ app.post('/api/org/gate-staff', requireOrg, async (req, res) => {
     full_name: fullName,
     phone: normalizePhone(req.body.phone),
     staff_code: staffCode,
+    staff_role: normalizeText(req.body.staffRole) || 'Gate Staff',
     gate_name: normalizeText(req.body.gateName) || 'Main Gate',
     pin_hash: passwordHash,
     salt,
     status: req.body.status || 'Active'
   };
-  const { data, error } = await db.from('gate_staff').insert(row).select('*').single();
+  let { data, error } = await db.from('gate_staff').insert(row).select('*').single();
+  if (error && isMissingColumnError(error, 'staff_role')) {
+    const legacyRow = { ...row };
+    delete legacyRow.staff_role;
+    const fallback = await db.from('gate_staff').insert(legacyRow).select('*').single();
+    data = fallback.data;
+    error = fallback.error;
+  }
   if (error) return res.status(400).json({ error: error.message });
   await audit('Gate staff registered', data.id, org.name);
   res.json({ staff: toGateStaff(data) });

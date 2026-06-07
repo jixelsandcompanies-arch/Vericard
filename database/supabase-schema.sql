@@ -130,6 +130,7 @@ create table if not exists gate_staff (
   full_name text not null,
   phone text not null default '',
   staff_code text not null,
+  staff_role text not null default 'Gate Staff',
   gate_name text not null default 'Main Gate',
   pin_hash text not null,
   salt text not null,
@@ -246,6 +247,7 @@ alter table parent_notifications add column if not exists channel text not null 
 alter table parent_notifications add column if not exists delivery_status text not null default 'Queued';
 alter table parent_notifications alter column status set default 'Queued';
 alter table password_resets add column if not exists used_at timestamptz;
+alter table gate_staff add column if not exists staff_role text not null default 'Gate Staff';
 alter table gate_devices add column if not exists device_secret text not null default '';
 alter table gate_sessions add column if not exists device_id text not null default '';
 alter table gate_sessions add column if not exists user_agent text not null default '';

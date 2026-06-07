@@ -410,8 +410,8 @@ const state = { token: '', org: null, rules: null, orgRegistrationFields: {}, ca
     }
     function availableDashboardViews() {
       const schoolPortal = isSchoolType(state.org?.type);
-      const views = ['dashboard', 'front', 'back', 'master', 'records', 'assistant'];
-      if (schoolPortal) views.push('gate', 'fees', 'reports');
+      const views = ['dashboard', 'front', 'back', 'master', 'records', 'assistant', 'gate'];
+      if (schoolPortal) views.push('fees', 'reports');
       return views;
     }
     function updateDashboardNavigation() {
@@ -463,7 +463,7 @@ const state = { token: '', org: null, rules: null, orgRegistrationFields: {}, ca
       if (/master|qr|register/.test(q)) return 'Open Master Card, load the master card, then share or print its QR. Scanning that QR opens the registration form for students, teachers, staff, employees, or the roles for this organization.';
       if (/print|download|bulk|card/.test(q)) return 'Open Records, tick approved cards, then use Download Selected Approved or Request Admin Print. Printing requests are priced at KES 100 per card for super admin handling.';
       if (/fee|balance/.test(q)) return schoolPortal ? 'Open Fees to upload a CSV from Excel. Parent notifications can be queued from fee balances.' : 'Fees are hidden for this portal because they are school/university features.';
-      if (/gate|scan|attendance/.test(q)) return schoolPortal ? 'Open Gate to register gate staff and scan entry/exit. Entry and exit times are saved by the system timestamp.' : 'Gate and attendance tools are hidden for this organization type to keep the portal simple.';
+      if (/gate|scan|attendance|work|job/.test(q)) return schoolPortal ? 'Open Gate to register gate staff and scan entry/exit. Entry and exit times are saved by the system timestamp.' : 'Open Gate to register supervisors, agent leaders, sales leaders, or gate staff. When employees scan in, the admin dashboard shows who is at work today.';
       if (/report|daily|weekly|monthly|year/.test(q)) return schoolPortal ? 'Open Reports, choose daily, weekly, monthly, or yearly, then download the report file.' : 'Reports are currently focused on school attendance, fees, notifications, and security logs.';
       return 'Start from Dashboard for status, Records for approvals, Master Card for QR registration, Set Front/Back for card design, and Teams AI whenever you need the next step.';
     }
@@ -971,9 +971,9 @@ const state = { token: '', org: null, rules: null, orgRegistrationFields: {}, ca
       } else {
         loadCards().catch((error) => alert(error.message));
         loadOrgSummary().catch((error) => alert(error.message));
+        loadAttendance().catch((error) => alert(error.message));
+        loadGateStaff().catch((error) => alert(error.message));
         if (isSchoolType(state.org?.type)) {
-          loadAttendance().catch((error) => alert(error.message));
-          loadGateStaff().catch((error) => alert(error.message));
           loadFees().catch((error) => alert(error.message));
           loadNotifications().catch((error) => alert(error.message));
           loadSecurityLogs().catch((error) => alert(error.message));
@@ -1065,7 +1065,7 @@ const state = { token: '', org: null, rules: null, orgRegistrationFields: {}, ca
         <tr>
           <td>${escapeHtml(staff.fullName)}<br>${escapeHtml(staff.phone || '')}</td>
           <td>${escapeHtml(staff.staffCode)}</td>
-          <td>${escapeHtml(staff.gateName)}</td>
+          <td>${escapeHtml(staff.staffRole || 'Gate Staff')}<br>${escapeHtml(staff.gateName)}</td>
           <td>${escapeHtml(staff.status)}</td>
           <td><button type="button" data-gate-staff="${escapeAttr(staff.id)}" data-status="${staff.status === 'Active' ? 'Suspended' : 'Active'}">${staff.status === 'Active' ? 'Suspend' : 'Activate'}</button></td>
         </tr>`).join('') : '<tr><td colspan="5">No gate staff registered yet.</td></tr>';
@@ -1107,7 +1107,8 @@ const state = { token: '', org: null, rules: null, orgRegistrationFields: {}, ca
             ['Expiring soon', summary.expiringSoon || 0],
             ['Pending approvals', summary.pendingApprovals || 0],
             ['Access zones', summary.accessZones || 0],
-            ['Inside now', summary.insideNow || 0]
+            ['Inside now', summary.insideNow || 0],
+            ['At work today', summary.atWorkToday || 0]
           ];
       els.orgDashboardSummary.innerHTML = cards.map(([label, value]) => `<div class="dash-card"><strong>${escapeHtml(value)}</strong>${escapeHtml(label)}</div>`).join('');
       const branchCards = Array.isArray(summary.branchReports) ? summary.branchReports.map((item) => [`${item.label}`, item.count]) : [];

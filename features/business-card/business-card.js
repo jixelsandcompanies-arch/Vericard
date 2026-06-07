@@ -10,7 +10,7 @@ window.VeriCardFeatures = window.VeriCardFeatures || {};
     'Music / Entertainment', 'Printing / Branding', 'Bakery', 'Phone / Electronics', 'General Business'
   ];
   const styleNames = ['Signature', 'Elite', 'Studio', 'Executive', 'Fresh', 'Classic', 'Prime', 'Urban', 'Clean', 'Bold'];
-  const layouts = ['luxe', 'modern', 'premium'];
+  const layouts = ['primary', 'clean', 'bold', 'qr'];
   const state = {
     type: '',
     templateId: '',
@@ -155,8 +155,8 @@ window.VeriCardFeatures = window.VeriCardFeatures || {};
     const activeTemplate = templatesFor(state.type).find((template) => template.id === state.templateId);
     const stage = $('bcPreviewStage');
     if (stage) {
-      stage.classList.remove('bc-template-luxe', 'bc-template-modern', 'bc-template-premium');
-      stage.classList.add(`bc-template-${activeTemplate?.layout || 'luxe'}`);
+      stage.classList.remove('bc-template-primary', 'bc-template-clean', 'bc-template-bold', 'bc-template-qr');
+      stage.classList.add(`bc-template-${activeTemplate?.layout || 'primary'}`);
     }
     setCardColors();
     const submit = $('bcSubmitBtn');
@@ -183,13 +183,17 @@ window.VeriCardFeatures = window.VeriCardFeatures || {};
     const list = templatesFor(state.type);
     if (state.templateId && !list.some((template) => template.id === state.templateId)) state.templateId = '';
     grid.innerHTML = list.map((template) => `
-      <button type="button" class="bc-template-choice ${template.id === state.templateId ? 'active' : ''}" data-bc-template="${escapeHtml(template.id)}" style="--bc-primary:${state.colors.primary};--bc-accent:${state.colors.accent};">
-        <span class="bc-template-preview bc-mini-${escapeHtml(template.layout)}">
-          ${formValues.logo ? `<img class="bc-mini-logo" src="${escapeAttr(formValues.logo)}" alt="">` : '<span class="bc-mini-logo-text">LOGO</span>'}
-          <span class="bc-mini-brand">${escapeHtml(formValues.businessName || template.name)}</span>
-          <span class="bc-mini-tagline">${escapeHtml(formValues.tagline || template.description)}</span>
-          <span class="bc-mini-lines"><i></i><i></i><i></i></span>
-          <span class="bc-mini-qr">QR</span>
+      <button type="button" class="bc-template-choice ${template.id === state.templateId ? 'active' : ''}" data-bc-template="${escapeHtml(template.id)}" style="--template-color:${state.colors.primary};--template-accent:${state.colors.accent};">
+        <span class="template-preview template-${escapeHtml(template.layout)}">
+          <span class="template-logo">${formValues.logo ? `<img src="${escapeAttr(formValues.logo)}" alt="">` : '<b>ID</b>'}</span>
+          <span class="template-org">${escapeHtml(formValues.businessName || template.name)}</span>
+          <span class="template-photo"></span>
+          <span class="template-band">
+            <span></span>
+            <span></span>
+            <span></span>
+          </span>
+          <span class="template-qr-mark"></span>
         </span>
         <strong>${escapeHtml(template.name)}</strong>
         <span>${escapeHtml(template.description)}</span>

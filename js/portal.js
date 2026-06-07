@@ -963,10 +963,8 @@ const state = { token: '', org: null, rules: null, orgRegistrationFields: {}, ca
       const cards = [
         ['Total students', summary.totalStudents || 0],
         ['Active cards', summary.activeCards || 0],
-        ['Fee defaulters', summary.feeDefaulters || 0],
         ['Cleared students', summary.clearedStudents || 0],
-        ['Suspended students', summary.suspendedStudents || 0],
-        ['Fee balance total', money(summary.feeBalanceTotal || 0)]
+        ['Suspended students', summary.suspendedStudents || 0]
       ];
       els.orgDashboardSummary.innerHTML = cards.map(([label, value]) => `<div class="dash-card"><strong>${escapeHtml(value)}</strong>${escapeHtml(label)}</div>`).join('');
       els.reportsSummary.innerHTML = cards.map(([label, value]) => `<div class="dash-card"><strong>${escapeHtml(value)}</strong>${escapeHtml(label)}</div>`).join('');

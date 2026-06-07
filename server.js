@@ -272,15 +272,15 @@ const organizationTypes = {
   } },
   company: { label: 'Company', roles: {
     employee: role('Employee', ['name', 'nationalId', 'employeeId', 'department', 'position', 'phone', 'email', 'photo'], ['accessZone', 'validFrom', 'validUntil', 'offboardingDate']),
-    contractor: role('Contractor', ['name', 'nationalId', 'contractorId', 'vendorName', 'site', 'phone', 'email', 'expiryDate', 'photo'], ['accessZone', 'hostName', 'hostPhone', 'supervisorApprovalStatus']),
+    contractor: role('Contractor', ['name', 'nationalId', 'contractorId', 'vendorName', 'site', 'phone', 'email', 'expiryDate', 'photo'], ['accessZone', 'hostName', 'hostPhone', 'supervisorApprovalStatus', 'afterHoursApprovalStatus']),
     intern: role('Intern', ['name', 'nationalId', 'internId', 'department', 'supervisorName', 'phone', 'email', 'photo'], ['accessZone', 'validFrom', 'validUntil']),
-    visitor: role('Visitor', ['name', 'nationalId', 'phone', 'visitingFrom', 'visitTo', 'visitDate'], ['photo', 'accessZone', 'hostName', 'hostPhone', 'hostApprovalStatus', 'validUntilAt'])
+    visitor: role('Visitor', ['name', 'nationalId', 'phone', 'visitingFrom', 'visitTo', 'visitDate'], ['photo', 'accessZone', 'hostName', 'hostPhone', 'hostApprovalStatus', 'afterHoursApprovalStatus', 'validUntilAt'])
   } },
   hospital: { label: 'Hospital', roles: {
     doctor: role('Doctor', ['name', 'nationalId', 'staffId', 'department', 'specialty', 'licenseNumber', 'phone', 'email', 'photo'], ['accessZone', 'credentialExpiryDate']),
     nurse: role('Nurse', ['name', 'nationalId', 'staffId', 'department', 'licenseNumber', 'phone', 'email', 'photo'], ['ward', 'accessZone', 'credentialExpiryDate']),
     staff: role('Staff', ['name', 'nationalId', 'staffId', 'department', 'position', 'phone', 'email', 'photo'], ['accessZone']),
-    visitor: role('Visitor', ['name', 'nationalId', 'phone', 'visitTo', 'visitDate'], ['photo', 'accessZone', 'hostName', 'hostPhone', 'hostApprovalStatus', 'validUntilAt', 'emergencyOverrideReason'])
+    visitor: role('Visitor', ['name', 'nationalId', 'phone', 'visitTo', 'visitDate'], ['photo', 'accessZone', 'hostName', 'hostPhone', 'hostApprovalStatus', 'afterHoursApprovalStatus', 'validUntilAt', 'emergencyOverrideReason'])
   } },
   ngo: { label: 'NGO/Church', roles: {
     member: role('Member', ['name', 'nationalId', 'membershipId', 'department', 'phone', 'photo'], ['email', 'accessZone', 'validUntil']),
@@ -288,19 +288,19 @@ const organizationTypes = {
     leader: role('Leader', ['name', 'nationalId', 'leaderId', 'position', 'department', 'phone', 'email', 'photo'], ['accessZone'])
   } },
   security: { label: 'Security Agency', roles: {
-    guard: role('Guard', ['name', 'nationalId', 'guardId', 'rank', 'assignedSite', 'phone', 'photo'], ['email', 'accessZone', 'licenseExpiryDate', 'shiftName', 'deploymentSite', 'supervisorApprovalStatus', 'incidentReportReference']),
+    guard: role('Guard', ['name', 'nationalId', 'guardId', 'rank', 'assignedSite', 'phone', 'photo'], ['email', 'accessZone', 'licenseExpiryDate', 'shiftName', 'deploymentSite', 'supervisorApprovalStatus', 'afterHoursApprovalStatus', 'incidentReportReference']),
     supervisor: role('Supervisor', ['name', 'nationalId', 'supervisorId', 'rank', 'site', 'phone', 'email', 'photo'], ['accessZone', 'licenseExpiryDate', 'deploymentSite']),
     operations: role('Operations Staff', ['name', 'nationalId', 'staffId', 'department', 'position', 'phone', 'email', 'photo'], ['accessZone', 'incidentReportReference'])
   } },
   government: { label: 'Government Office', roles: {
     officer: role('Officer', ['name', 'nationalId', 'officerId', 'department', 'position', 'officeBranch', 'phone', 'email', 'photo'], ['accessZone', 'credentialExpiryDate']),
     contract: role('Contract Staff', ['name', 'nationalId', 'contractId', 'department', 'role', 'phone', 'email', 'expiryDate', 'photo'], ['accessZone', 'supervisorName']),
-    visitor: role('Visitor', ['name', 'nationalId', 'phone', 'visitTo', 'visitDate'], ['photo', 'accessZone', 'appointmentReference', 'queueNumber', 'visitPurpose', 'hostName', 'hostPhone', 'hostApprovalStatus', 'validUntilAt'])
+    visitor: role('Visitor', ['name', 'nationalId', 'phone', 'visitTo', 'visitDate'], ['photo', 'accessZone', 'appointmentReference', 'queueNumber', 'visitPurpose', 'hostName', 'hostPhone', 'hostApprovalStatus', 'afterHoursApprovalStatus', 'validUntilAt'])
   } },
   custom: { label: 'Custom Organization', roles: {
     member: role('Member', ['name', 'nationalId', 'memberId', 'role', 'department', 'phone', 'email', 'photo'], ['accessZone', 'customAccessRule', 'validUntil']),
     staff: role('Staff', ['name', 'nationalId', 'staffId', 'position', 'department', 'phone', 'email', 'photo'], ['accessZone', 'customAccessRule', 'validUntil']),
-    visitor: role('Visitor', ['name', 'nationalId', 'phone', 'purposeOfVisit', 'visitDate'], ['photo', 'accessZone', 'hostName', 'hostPhone', 'hostApprovalStatus', 'customAccessRule', 'validUntilAt'])
+    visitor: role('Visitor', ['name', 'nationalId', 'phone', 'purposeOfVisit', 'visitDate'], ['photo', 'accessZone', 'hostName', 'hostPhone', 'hostApprovalStatus', 'afterHoursApprovalStatus', 'customAccessRule', 'validUntilAt'])
   } }
 };
 
@@ -556,6 +556,20 @@ function startOfDate(value) {
   return Number.isFinite(date.getTime()) ? date : null;
 }
 
+function approvedText(value) {
+  return ['approved', 'accepted', 'cleared'].includes(normalizeText(value).toLowerCase());
+}
+
+function restrictedHospitalZone(value) {
+  const zone = normalizeText(value).toLowerCase();
+  return ['ward', 'icu', 'pharmacy', 'lab', 'laboratory', 'theatre', 'theater', 'operating theatre', 'emergency'].some((item) => zone.includes(item));
+}
+
+function sensitiveGovernmentZone(value) {
+  const zone = normalizeText(value).toLowerCase();
+  return ['records', 'registry', 'finance', 'cash', 'server', 'data', 'archive', 'director', 'restricted'].some((item) => zone.includes(item));
+}
+
 function cardAccessDecision(card, org, gateName = '') {
   if (!nonAcademicOrg(org)) return { allowed: true };
   const fields = card?.fields || {};
@@ -563,16 +577,22 @@ function cardAccessDecision(card, org, gateName = '') {
   const offboarding = endOfDate(fields.offboardingDate);
   if (offboarding && offboarding.getTime() <= now) return { allowed: false, reason: 'Cardholder has been offboarded. Badge and QR access are disabled.' };
   const hostApproval = normalizeText(fields.hostApprovalStatus).toLowerCase();
-  if (card?.role_type === 'visitor' && hostApproval && !['approved', 'accepted', 'cleared'].includes(hostApproval)) {
+  if (card?.role_type === 'visitor' && hostApproval && !approvedText(hostApproval)) {
     return { allowed: false, reason: `Visitor host approval is ${fields.hostApprovalStatus}. Approve the visit before scanning.` };
   }
   const supervisorApproval = normalizeText(fields.supervisorApprovalStatus).toLowerCase();
-  if (supervisorApproval && !['approved', 'accepted', 'cleared'].includes(supervisorApproval)) {
+  if (supervisorApproval && !approvedText(supervisorApproval)) {
     return { allowed: false, reason: `Supervisor approval is ${fields.supervisorApprovalStatus}. Approval is required before access.` };
   }
   const screening = normalizeText(fields.screeningStatus || fields.childYouthScreeningStatus).toLowerCase();
   if (screening && ['blocked', 'failed', 'rejected', 'not cleared'].includes(screening)) {
     return { allowed: false, reason: 'Screening status is not cleared for access.' };
+  }
+  if (org.type === 'government' && card?.role_type === 'visitor' && (!normalizeText(fields.appointmentReference) || !normalizeText(fields.visitPurpose))) {
+    return { allowed: false, reason: 'Government visitors require an appointment reference and visit purpose before access.' };
+  }
+  if (org.type === 'ngo' && normalizeText(fields.accessZone).toLowerCase().includes('event') && !normalizeText(fields.eventName)) {
+    return { allowed: false, reason: 'Event access requires an event name.' };
   }
   const validFrom = startOfDate(fields.validFrom);
   if (validFrom && validFrom.getTime() > now) return { allowed: false, reason: `Card access starts on ${validFrom.toISOString().slice(0, 10)}.` };
@@ -582,6 +602,16 @@ function cardAccessDecision(card, org, gateName = '') {
   const currentGate = normalizeText(gateName).toLowerCase();
   if (explicitZones.length && currentGate && !explicitZones.some((zone) => zone.toLowerCase() === currentGate)) {
     return { allowed: false, reason: `Card is approved for ${explicitZones.join(' / ')}, not ${gateName || 'this gate'}.` };
+  }
+  if (org.type === 'hospital' && restrictedHospitalZone(gateName || fields.accessZone) && !['doctor', 'nurse', 'staff'].includes(card?.role_type)) {
+    return { allowed: false, reason: 'Restricted hospital areas require approved clinical or staff access.' };
+  }
+  if (org.type === 'security' && normalizeText(fields.deploymentSite || fields.assignedSite) && currentGate) {
+    const site = normalizeText(fields.deploymentSite || fields.assignedSite).toLowerCase();
+    if (site !== currentGate) return { allowed: false, reason: `Guard is deployed to ${fields.deploymentSite || fields.assignedSite}, not ${gateName}.` };
+  }
+  if (org.type === 'government' && sensitiveGovernmentZone(gateName || fields.accessZone) && card?.role_type === 'visitor' && !approvedText(fields.hostApprovalStatus)) {
+    return { allowed: false, reason: 'Sensitive government access requires approved host clearance.' };
   }
   return { allowed: true };
 }
@@ -883,6 +913,16 @@ function movementClosedFor(card, org, action) {
     const schoolType = settings.schoolType || 'day';
     const category = card.fields?.studentCategory || (schoolType === 'boarding' ? 'boarding' : 'day');
     if (category === 'boarding') return '';
+  }
+  if (nonAcademicOrg(org)) {
+    const fields = card.fields || {};
+    const afterHours = minutes < 360 || minutes >= 1320;
+    if (afterHours && ['visitor', 'contractor', 'contract'].includes(card.role_type) && !approvedText(fields.afterHoursApprovalStatus || fields.hostApprovalStatus || fields.supervisorApprovalStatus)) {
+      return 'After-hours access requires approved host or supervisor clearance.';
+    }
+    if (org.type === 'company' && card.role_type === 'visitor' && !approvedText(fields.hostApprovalStatus)) return 'Company visitor access requires host approval.';
+    if (org.type === 'security' && card.role_type === 'guard' && !normalizeText(fields.shiftName)) return 'Guard movement requires an assigned shift name.';
+    if (org.type === 'government' && card.role_type === 'visitor' && (!normalizeText(fields.appointmentReference) || !normalizeText(fields.visitPurpose))) return 'Government visitor movement requires appointment reference and visit purpose.';
   }
   return '';
 }

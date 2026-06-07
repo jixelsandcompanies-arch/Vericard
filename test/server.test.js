@@ -153,6 +153,19 @@ test('non-school card access respects expiry and explicit gate zones', () => {
   assert.equal(cardAccessDecision(active, { type: 'school' }, 'South Gate').allowed, true);
 });
 
+test('non-school card access applies organization-specific movement rules', () => {
+  const governmentVisitor = { role_type: 'visitor', fields: { visitDate: '2999-01-01', hostApprovalStatus: 'approved' } };
+  const hospitalVisitor = { role_type: 'visitor', fields: { hostApprovalStatus: 'approved', visitDate: '2999-01-01' } };
+  const securityGuard = { role_type: 'guard', fields: { deploymentSite: 'East Site', licenseExpiryDate: '2999-01-01' } };
+  const eventVolunteer = { role_type: 'volunteer', fields: { accessZone: 'Event Gate', screeningStatus: 'cleared', validUntil: '2999-01-01' } };
+
+  assert.equal(cardAccessDecision(governmentVisitor, { type: 'government' }, 'Main Gate').allowed, false);
+  assert.equal(cardAccessDecision({ ...governmentVisitor, fields: { ...governmentVisitor.fields, appointmentReference: 'APT-1', visitPurpose: 'Permit pickup' } }, { type: 'government' }, 'Main Gate').allowed, true);
+  assert.equal(cardAccessDecision(hospitalVisitor, { type: 'hospital' }, 'ICU').allowed, false);
+  assert.equal(cardAccessDecision(securityGuard, { type: 'security' }, 'West Site').allowed, false);
+  assert.equal(cardAccessDecision(eventVolunteer, { type: 'ngo' }, 'Event Gate').allowed, false);
+});
+
 test('QR endpoint returns a PNG and rejects empty data', async () => {
   await withServer(async (baseUrl) => {
     const ok = await fetch(`${baseUrl}/api/qr?data=${encodeURIComponent('verify-me')}`);

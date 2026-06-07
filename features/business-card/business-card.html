@@ -1,0 +1,75 @@
+<section class="business-card-flow" id="businessCardFlow">
+  <div class="bc-step" id="bcTypeStep">
+    <h2>Choose Business Card Type</h2>
+    <div class="bc-type-grid" id="bcTypeGrid"></div>
+  </div>
+
+  <form class="bc-step hidden" id="bcOrderForm">
+    <div class="panel-heading">
+      <button type="button" class="icon-button" id="bcTypeBack" aria-label="Choose another business type">&larr;</button>
+      <h2>Business Card Order</h2>
+    </div>
+    <div class="notice" id="bcNotice">Choose a template, fill the required details, upload a logo, and choose quantity before submitting.</div>
+    <input type="hidden" id="bcBusinessType" name="businessType">
+    <input type="hidden" id="bcTemplateId" name="templateId">
+    <input type="hidden" id="bcLogoValue" name="logo">
+    <input type="hidden" id="bcBrandColor" name="brandColor" value="#061a30">
+    <input type="hidden" id="bcAccentColor" name="accentColor" value="#149ee8">
+
+    <div class="bc-order-grid">
+      <div class="bc-fields">
+        <label>Business / brand name<input id="bcBusinessName" name="businessName" required></label>
+        <label>Name<input id="bcContactName" name="contactName" required></label>
+        <label>Phone number<input id="bcPhone" name="phone" required></label>
+        <label>Quantity needed<input id="bcQuantity" name="quantity" type="number" min="1" step="1" required></label>
+        <label>Email<input id="bcEmail" name="email" type="email"></label>
+        <label>WhatsApp number<input id="bcWhatsapp" name="whatsapp"></label>
+        <label>Website / social media<input id="bcWebsite" name="website"></label>
+        <label>Short tagline<input id="bcTagline" name="tagline"></label>
+        <label>Services<textarea id="bcServices" name="services"></textarea></label>
+
+        <div class="bc-upload" id="bcLogoDrop" tabindex="0">
+          <img class="bc-logo-preview hidden" id="bcLogoPreview" alt="">
+          <div>
+            <strong>Logo</strong>
+            <span id="bcColorStatus">Logo color will guide the card colors.</span>
+            <div class="logo-actions">
+              <button type="button" class="secondary" id="bcLogoPick">Choose Logo</button>
+              <button type="button" class="secondary hidden" id="bcLogoRemove">Remove</button>
+            </div>
+          </div>
+          <input id="bcLogoFile" type="file" accept="image/png,image/jpeg,image/webp,image/gif,image/svg+xml" hidden>
+        </div>
+      </div>
+
+      <div class="bc-design">
+        <h3>Choose Template</h3>
+        <div class="bc-template-grid" id="bcTemplateGrid"></div>
+        <div class="bc-preview-stage" id="bcPreviewStage">
+          <article class="bc-card bc-card-front" id="bcPreviewFront">
+            <img class="bc-card-logo hidden" id="bcPreviewLogoFront" alt="">
+            <div class="bc-brand" id="bcPreviewBusiness">Business Name</div>
+            <div class="bc-tagline" id="bcPreviewTagline">Tagline</div>
+            <div class="bc-contact">
+              <strong id="bcPreviewName">Name</strong>
+              <span id="bcPreviewPhone">Phone</span>
+              <span id="bcPreviewEmail">Email</span>
+              <span id="bcPreviewWebsite">Website / social</span>
+              <span id="bcPreviewWhatsapp">WhatsApp</span>
+            </div>
+            <div class="bc-qr-sample" aria-label="QR preview locked until payment"><i></i><b>QR</b></div>
+          </article>
+          <article class="bc-card bc-card-back" id="bcPreviewBack">
+            <img class="bc-card-logo bc-card-logo-back hidden" id="bcPreviewLogoBack" alt="">
+            <div class="bc-back-services" id="bcPreviewServices">Services appear here</div>
+          </article>
+        </div>
+      </div>
+    </div>
+
+    <div class="row">
+      <button type="submit" id="bcSubmitBtn" disabled>Submit</button>
+      <button type="button" class="secondary" id="bcResetBtn">Unsubmit / Edit</button>
+    </div>
+  </form>
+</section>

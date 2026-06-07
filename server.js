@@ -133,6 +133,16 @@ const qrRateLimit = createRateLimit({
   key: (req) => req.ip,
   message: 'Too many QR requests. Please slow down and try again.'
 });
+const scanOptimizedQrOptions = {
+  type: 'png',
+  margin: 4,
+  width: 384,
+  errorCorrectionLevel: 'H',
+  color: {
+    dark: '#000000',
+    light: '#ffffff'
+  }
+};
 
 function staticFilePath(filePath) {
   const cleanPath = normalize(String(filePath || '').replace(/^[/\\]+/, ''));
@@ -180,7 +190,7 @@ app.get('/api/qr', qrRateLimit, async (req, res) => {
   const data = normalizeText(req.query.data);
   if (!data || data.length > 2048) return res.status(400).send('Invalid QR data');
   try {
-    const png = await QRCode.toBuffer(data, { type: 'png', margin: 0, width: 240, errorCorrectionLevel: 'M' });
+    const png = await QRCode.toBuffer(data, scanOptimizedQrOptions);
     res.setHeader('Cache-Control', 'no-store');
     res.type('png').send(png);
   } catch {
@@ -248,6 +258,13 @@ const orgRegistrationFields = {
     signatureLabel: 'Authorized Officer digital signature',
     registrationLabel: 'Office code / registration number'
   },
+  'business-card': {
+    label: 'Business Card',
+    nameLabel: 'Business / brand name',
+    authorityLabel: 'Contact person name',
+    signatureLabel: 'Contact person name',
+    registrationLabel: 'Business card order reference'
+  },
   custom: {
     label: 'Custom Organization',
     nameLabel: 'Organization name',
@@ -296,6 +313,9 @@ const organizationTypes = {
     officer: role('Officer', ['name', 'nationalId', 'officerId', 'department', 'position', 'officeBranch', 'phone', 'email', 'photo'], ['accessZone', 'credentialExpiryDate']),
     contract: role('Contract Staff', ['name', 'nationalId', 'contractId', 'department', 'role', 'phone', 'email', 'expiryDate', 'photo'], ['accessZone', 'supervisorName']),
     visitor: role('Visitor', ['name', 'nationalId', 'phone', 'visitTo', 'visitDate'], ['photo', 'accessZone', 'appointmentReference', 'queueNumber', 'visitPurpose', 'hostName', 'hostPhone', 'hostApprovalStatus', 'afterHoursApprovalStatus', 'validUntilAt'])
+  } },
+  'business-card': { label: 'Business Card', roles: {
+    client: role('Business Card Client', ['businessName', 'contactName', 'phone', 'quantity', 'logo'], ['email', 'whatsapp', 'website', 'tagline', 'services'])
   } },
   custom: { label: 'Custom Organization', roles: {
     member: role('Member', ['name', 'nationalId', 'memberId', 'role', 'department', 'phone', 'email', 'photo'], ['accessZone', 'customAccessRule', 'validUntil']),
@@ -1662,6 +1682,69 @@ async function createSupabaseRecoveryLink(email) {
 
 app.get('/api/templates', (req, res) => res.json({ templates, organizationTypes, orgRegistrationFields }));
 
+app.post('/api/business-card-requests', qrRateLimit, async (req, res) => {
+  const businessType = normalizeText(req.body.businessType);
+  const templateId = normalizeText(req.body.templateId);
+  const logo = normalizeText(req.body.logo);
+  const businessName = normalizeText(req.body.businessName);
+  const contactName = normalizeText(req.body.contactName);
+  const phone = normalizePhone(req.body.phone);
+  const quantity = Number.parseInt(req.body.quantity, 10);
+  if (!businessType) return res.status(400).json({ error: 'Choose business card type first.' });
+  if (!templateId) return res.status(400).json({ error: 'Choose a business card template.' });
+  if (!logo) return res.status(400).json({ error: 'Upload a logo before submitting.' });
+  if (!businessName) return res.status(400).json({ error: 'Business or brand name is required.' });
+  if (!contactName) return res.status(400).json({ error: 'Name is required.' });
+  if (!phone) return res.status(400).json({ error: 'Phone number is required.' });
+  if (!Number.isInteger(quantity) || quantity < 1) return res.status(400).json({ error: 'Choose how many business cards are needed.' });
+  if (quantity > 10000) return res.status(400).json({ error: 'Quantity is too high for one request.' });
+
+  const pricePerCard = 100;
+  const requestedAt = new Date().toISOString();
+  const row = {
+    organization_id: `BUSCARD-${Date.now()}-${crypto.randomBytes(3).toString('hex')}`,
+    organization_name: businessName,
+    requested_by: contactName,
+    card_count: quantity,
+    price_per_card: pricePerCard,
+    total_amount: quantity * pricePerCard,
+    status: 'Requested',
+    cards_file: {
+      exportedAt: requestedAt,
+      requestType: 'Business Card',
+      paymentRequiredBeforeQrActivation: true,
+      qr: {
+        status: 'Locked until payment and Super Admin processing',
+        previewOnly: true,
+        scannableBeforePayment: false
+      },
+      design: {
+        businessType,
+        templateId,
+        logo,
+        brandColor: normalizeText(req.body.brandColor),
+        accentColor: normalizeText(req.body.accentColor)
+      },
+      businessCard: {
+        businessName,
+        contactName,
+        phone,
+        email: normalizeEmail(req.body.email),
+        whatsapp: normalizePhone(req.body.whatsapp),
+        website: normalizeText(req.body.website),
+        tagline: normalizeText(req.body.tagline),
+        services: normalizeText(req.body.services),
+        quantity
+      }
+    },
+    notes: `Business Card order. Type: ${businessType}. Template: ${templateId}. QR inactive until payment.`
+  };
+  const { data, error } = await db.from('print_requests').insert(row).select('*').single();
+  if (error) return res.status(400).json({ error: error.message });
+  await audit('Business card print request submitted', String(data.id), businessName);
+  res.json({ request: toPrintRequest(data) });
+});
+
 app.get('/api/verify-card', async (req, res) => {
   res.json(await verifyCardToken(req.query.token));
 });
@@ -2808,6 +2891,7 @@ export {
   normalizeIdentifier,
   normalizePhone,
   readToken,
+  scanOptimizedQrOptions,
   secureEqualText,
   signToken,
   validateRoleFields,

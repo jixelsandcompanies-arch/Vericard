@@ -2,8 +2,8 @@ window.VeriCardFeatures = window.VeriCardFeatures || {};
 
 (function () {
   const loadedCss = new Set();
-  const loadedJs = new Set();
-  const validTypes = new Set(['school', 'university', 'company', 'hospital', 'ngo', 'security', 'government', 'custom']);
+  const loadedJs = new Map();
+  const validTypes = new Set(['school', 'university', 'company', 'hospital', 'ngo', 'security', 'government', 'business-card', 'custom']);
 
   function safeType(type) {
     return validTypes.has(type) ? type : 'custom';
@@ -20,13 +20,18 @@ window.VeriCardFeatures = window.VeriCardFeatures || {};
   }
 
   function loadJs(type) {
-    if (loadedJs.has(type)) return;
-    const script = document.createElement('script');
-    script.src = `/features/${type}/${type}.js`;
-    script.defer = true;
-    script.dataset.featureJs = type;
-    document.body.appendChild(script);
-    loadedJs.add(type);
+    if (loadedJs.has(type)) return loadedJs.get(type);
+    const promise = new Promise((resolve, reject) => {
+      const script = document.createElement('script');
+      script.src = `/features/${type}/${type}.js`;
+      script.defer = true;
+      script.dataset.featureJs = type;
+      script.onload = resolve;
+      script.onerror = reject;
+      document.body.appendChild(script);
+    });
+    loadedJs.set(type, promise);
+    return promise;
   }
 
   async function loadHtml(type) {
@@ -46,8 +51,7 @@ window.VeriCardFeatures = window.VeriCardFeatures || {};
     const featureType = safeType(type);
     document.documentElement.dataset.organizationFeature = featureType;
     loadCss(featureType);
-    loadJs(featureType);
-    await loadHtml(featureType);
+    await Promise.all([loadJs(featureType), loadHtml(featureType)]);
     const feature = window.VeriCardFeatures?.[featureType];
     if (feature?.activate) feature.activate();
   };

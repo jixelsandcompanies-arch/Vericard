@@ -16,6 +16,7 @@ const {
   normalizeIdentifier,
   normalizePhone,
   readToken,
+  scanOptimizedQrOptions,
   securityConfidence,
   signToken,
   validateRoleFields,
@@ -216,6 +217,10 @@ test('school class-teacher registration requires assigned class only for class t
 });
 
 test('QR endpoint returns a PNG and rejects empty data', async () => {
+  assert.equal(scanOptimizedQrOptions.errorCorrectionLevel, 'H');
+  assert.equal(scanOptimizedQrOptions.margin, 4);
+  assert.ok(scanOptimizedQrOptions.width >= 384);
+
   await withServer(async (baseUrl) => {
     const ok = await fetch(`${baseUrl}/api/qr?data=${encodeURIComponent('verify-me')}`);
     assert.equal(ok.status, 200);

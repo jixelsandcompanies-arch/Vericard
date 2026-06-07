@@ -225,6 +225,11 @@ const state = { token: '', org: null, rules: null, orgRegistrationFields: {}, ca
         return;
       }
       window.loadOrganizationFeature?.(type);
+      if (type === 'business-card') {
+        toggleOrgDependentFields(false);
+        els.orgDynamicFields.innerHTML = '';
+        return;
+      }
       const rule = registrationRule(type);
       els.orgDynamicFields.innerHTML = `
         <label>${rule.nameLabel || 'Organization name'}<input name="name" required></label>

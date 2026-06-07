@@ -102,7 +102,7 @@
     .master-band strong { color: var(--gold); font-size: 24px; }
     .master-band span, .master-meta span { overflow-wrap: anywhere; line-height: 1.2; }
     .master-meta { position: absolute; left: 34px; right: 34px; top: 346px; display: grid; gap: 8px; font-size: 13px; font-weight: 800; overflow: hidden; }
-    .qr { width: 106px; height: 106px; border: 1px solid var(--line); background: #fff; padding: 5px; justify-self: center; }
+    .qr { width: 118px; height: 118px; border: 1px solid var(--line); background: #fff; padding: 4px; justify-self: center; }
     .qr img { width: 100%; height: 100%; object-fit: contain; }
     .card-stage { display: grid; grid-template-columns: repeat(2, 330px); gap: 18px; justify-content: start; overflow-x: auto; }
     .id-card { width: 330px; height: 520px; background: #fff; border: 1px solid var(--line); border-radius: 22px; position: relative; overflow: hidden; box-shadow: 0 10px 22px rgba(31,47,68,.13); }
@@ -121,7 +121,7 @@
     .detail-label { color: rgba(255,255,255,.78); font-size: 11px; font-weight: 900; text-transform: uppercase; }
     .person-name { color: var(--gold); font-size: 18px; font-weight: 800; overflow-wrap: anywhere; }
     .id-number, .person-role { color: #fff; font-size: 14px; font-weight: 800; overflow-wrap: anywhere; }
-    .card-qr { position: absolute; left: 50%; top: 22px; transform: translateX(-50%); width: 132px; height: 132px; padding: 8px; border: 2px solid var(--blue); background: #fff; }
+    .card-qr { position: absolute; left: 50%; top: 22px; transform: translateX(-50%); width: 150px; height: 150px; padding: 4px; border: 2px solid var(--blue); background: #fff; }
     .card-qr img { width: 100%; height: 100%; object-fit: contain; }
     .back-text { position: absolute; left: 32px; right: 32px; top: 178px; bottom: 98px; font-weight: 700; font-size: 12.5px; line-height: 1.32; display: grid; align-content: start; gap: 4px; overflow: hidden; overflow-wrap: anywhere; }
     .back-text .indent { margin-left: 22px; }
@@ -142,7 +142,7 @@
     .card-layout-bold .front-info { left: 38px; right: 104px; top: 336px; }
     .card-layout-bold .logo-front { left: 36%; }
     .card-layout-bold .front-org-name { right: 96px; }
-    .card-layout-qr.card-back .card-qr { width: 154px; height: 154px; }
+    .card-layout-qr.card-back .card-qr { width: 166px; height: 166px; }
     .card-layout-qr.card-back .back-text { top: 204px; bottom: 88px; }
     .card-layout-qr .logo-back { width: 82px; height: 50px; bottom: 16px; }
     .table-wrap { overflow-x: auto; border: 1px solid var(--line); border-radius: 8px; }

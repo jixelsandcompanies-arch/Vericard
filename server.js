@@ -49,7 +49,7 @@ function securityHeaders(req, res, next) {
     "style-src 'self' 'unsafe-inline'",
     "img-src 'self' data: blob:",
     "font-src 'self' data:",
-    "connect-src 'self'",
+    "connect-src 'self' https://onesignal.com https://api.onesignal.com https://cdn.onesignal.com",
     "worker-src 'self' blob: https://cdn.onesignal.com",
     "manifest-src 'self'"
   ].join('; ');
@@ -1195,13 +1195,27 @@ function notificationMessage(type, studentName, balance, eventAt = new Date()) {
   return `Dear Parent, your child ${name} has an outstanding balance of KES ${amount}. Kindly clear the fees balance.`;
 }
 
+function notificationChannel() {
+  const channel = normalizeText(process.env.NOTIFICATION_CHANNEL || 'push').toLowerCase();
+  if (['push', 'email', 'sms'].includes(channel)) return channel;
+  return 'push';
+}
+
+function notificationInitialStatus(channel, parentEmail, parentPhone) {
+  if (channel === 'push') {
+    return process.env.ONESIGNAL_APP_ID && process.env.ONESIGNAL_REST_API_KEY ? 'Queued' : 'Push Not Configured';
+  }
+  if (channel === 'email') return parentEmail ? 'Queued' : 'Missing Contact';
+  return parentPhone ? 'Queued' : 'Missing Contact';
+}
+
 async function logParentNotification(org, card, type, balance = 0, eventAt = new Date()) {
   const fields = card?.fields || {};
   const message = notificationMessage(type, card?.name || fields.name, balance, eventAt);
   const parentEmail = normalizeEmail(fields.parentGuardianEmail || fields.email || '');
   const parentPhone = normalizePhone(fields.parentGuardianPhone);
-  const channel = parentEmail ? 'email' : 'sms';
-  const initialStatus = parentEmail || parentPhone ? 'Queued' : 'Missing Contact';
+  const channel = notificationChannel();
+  const initialStatus = notificationInitialStatus(channel, parentEmail, parentPhone);
   const row = {
     organization_id: org.id,
     organization_name: org.name,
@@ -1226,7 +1240,7 @@ function teamsAiFallbackAnswer(org, question = '') {
   const schoolPortal = ['school', 'university'].includes(org?.type);
   if (/notif|parent|arriv|enter|leave|left|time|morning|evening/.test(q)) {
     return schoolPortal
-      ? 'Parent notifications are queued when a student is scanned in or out. VeriCard uses the scan timestamp in the background, so the message includes morning, afternoon, or evening with the exact time. Set SMS_WEBHOOK_URL or EMAIL_WEBHOOK_URL in Vercel for real delivery.'
+      ? 'Parent notifications are queued as push notifications when a student is scanned in or out. VeriCard uses the scan timestamp in the background, so the message includes morning, afternoon, or evening with the exact time. Set ONESIGNAL_APP_ID and ONESIGNAL_REST_API_KEY in Vercel for real push delivery. Email and SMS webhooks can stay for later.'
       : 'Notifications are mainly for school and university portals. This organization can still approve cards, print cards, scan attendance, and verify QR codes.';
   }
   if (/approve|reject|inactive|record/.test(q)) return 'Open Records, review each submitted person, then approve, reject, or mark inactive. Approved cards can be viewed, downloaded in bulk, or sent to super admin for printing.';
@@ -1291,6 +1305,7 @@ async function teamsAiResponse(org, messages = [], question = '') {
 
 async function deliverParentNotification(row) {
   if ((row.delivery_status || row.status) !== 'Queued') return row;
+  if (row.channel === 'push') return deliverPushNotification(row);
   const endpoint = row.channel === 'email' ? process.env.EMAIL_WEBHOOK_URL : process.env.SMS_WEBHOOK_URL;
   if (!endpoint) return row;
   const recipient = row.channel === 'email' ? row.parent_email : row.parent_phone;
@@ -1319,6 +1334,54 @@ async function deliverParentNotification(row) {
   } catch {
     const { data } = await db.from('parent_notifications').update({ status: 'Failed', delivery_status: 'Failed' }).eq('id', row.id).select('*').single();
     return data || { ...row, status: 'Failed', delivery_status: 'Failed' };
+  }
+}
+
+async function updateNotificationDelivery(row, status) {
+  const { data } = await db.from('parent_notifications').update({ status, delivery_status: status }).eq('id', row.id).select('*').single();
+  return data || { ...row, status, delivery_status: status };
+}
+
+function oneSignalPayload(row) {
+  const target = row.parent_phone || row.parent_email || '';
+  const tagKey = normalizeText(process.env.ONESIGNAL_PARENT_TAG_KEY || '');
+  const payload = {
+    app_id: process.env.ONESIGNAL_APP_ID,
+    target_channel: 'push',
+    headings: { en: `${row.organization_name || 'VeriCard'} notification` },
+    contents: { en: row.message },
+    data: {
+      notificationId: row.id,
+      organizationId: row.organization_id,
+      cardId: row.card_id,
+      admissionNumber: row.admission_number,
+      notificationType: row.notification_type
+    }
+  };
+  if (tagKey && target) {
+    payload.filters = [{ field: 'tag', key: tagKey, relation: '=', value: target }];
+  } else {
+    payload.included_segments = [process.env.ONESIGNAL_INCLUDED_SEGMENT || 'Subscribed Users'];
+  }
+  return payload;
+}
+
+async function deliverPushNotification(row) {
+  if (!process.env.ONESIGNAL_APP_ID || !process.env.ONESIGNAL_REST_API_KEY) {
+    return updateNotificationDelivery(row, 'Push Not Configured');
+  }
+  try {
+    const response = await fetch('https://api.onesignal.com/notifications', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        Authorization: `Key ${process.env.ONESIGNAL_REST_API_KEY}`
+      },
+      body: JSON.stringify(oneSignalPayload(row))
+    });
+    return updateNotificationDelivery(row, response.ok ? 'Sent' : 'Failed');
+  } catch {
+    return updateNotificationDelivery(row, 'Failed');
   }
 }
 
@@ -2012,6 +2075,12 @@ app.get('/api/org/dashboard-summary', requireOrg, async (req, res) => {
       branchReports
     },
     recentScans: recentRows.slice(0, 10).map(toAttendance)
+  });
+});
+
+app.get('/api/public-config', (req, res) => {
+  res.json({
+    oneSignalAppId: process.env.ONESIGNAL_APP_ID || ''
   });
 });
 

@@ -115,7 +115,7 @@ create table if not exists parent_notifications (
   student_name text not null default '',
   parent_phone text not null default '',
   parent_email text not null default '',
-  channel text not null default 'sms',
+  channel text not null default 'push',
   notification_type text not null,
   message text not null,
   status text not null default 'Queued',
@@ -243,7 +243,8 @@ alter table organizations add column if not exists brand_color text not null def
 alter table organizations add column if not exists master_card jsonb not null default '{}'::jsonb;
 alter table organizations add column if not exists auth_user_id uuid;
 alter table parent_notifications add column if not exists parent_email text not null default '';
-alter table parent_notifications add column if not exists channel text not null default 'sms';
+alter table parent_notifications add column if not exists channel text not null default 'push';
+alter table parent_notifications alter column channel set default 'push';
 alter table parent_notifications add column if not exists delivery_status text not null default 'Queued';
 alter table parent_notifications alter column status set default 'Queued';
 alter table password_resets add column if not exists used_at timestamptz;

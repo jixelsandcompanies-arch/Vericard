@@ -456,7 +456,7 @@ const state = { token: '', org: null, rules: null, orgRegistrationFields: {}, ca
       const schoolPortal = isSchoolType(state.org?.type);
       if (/notif|parent|arriv|enter|leave|left|time|morning|evening/.test(q)) {
         return schoolPortal
-          ? 'Parent notifications are queued when a student is scanned in or out. VeriCard uses the scan timestamp in the background, so the message includes morning, afternoon, or evening with the exact time. Set SMS_WEBHOOK_URL or EMAIL_WEBHOOK_URL in Vercel for real delivery.'
+          ? 'Parent notifications are queued as push notifications when a student is scanned in or out. VeriCard uses the scan timestamp in the background, so the message includes morning, afternoon, or evening with the exact time. Set ONESIGNAL_APP_ID and ONESIGNAL_REST_API_KEY in Vercel for real push delivery. Email and SMS can be added later.'
           : 'Notifications are mainly for school and university portals. This organization can still approve cards, print cards, and verify QR codes.';
       }
       if (/approve|reject|inactive|record/.test(q)) return 'Open Records, review each submitted person, then approve, reject, or mark inactive. Approved cards can be viewed, downloaded in bulk, or sent to super admin for printing.';

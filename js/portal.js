@@ -530,6 +530,21 @@ const state = { token: '', org: null, rules: null, orgRegistrationFields: {}, ca
       return merged;
     }
 
+    function savedTemplateLayout() {
+      const selectedId = state.org?.templateId || 'sample';
+      const templates = buildSmartTemplates(state.templates, selectedId, 'dashboard');
+      return templates.find((template) => template.id === selectedId)?.layout || 'primary';
+    }
+
+    function applyCardLayout(stage) {
+      const layout = savedTemplateLayout();
+      const classes = ['card-layout-primary', 'card-layout-clean', 'card-layout-bold', 'card-layout-qr'];
+      stage.querySelectorAll('.id-card').forEach((card) => {
+        card.classList.remove(...classes);
+        card.classList.add(`card-layout-${layout}`);
+      });
+    }
+
     function setImage(element, src) {
       if (src) {
         element.src = src;
@@ -752,6 +767,7 @@ const state = { token: '', org: null, rules: null, orgRegistrationFields: {}, ca
       setDashboardView('front');
       els.previewEmpty.classList.add('hidden');
       els.idCardStage.classList.remove('hidden');
+      applyCardLayout(els.idCardStage);
       setImage(els.idFrontLogo, logo);
       setImage(els.idBackLogo, logo);
       els.idFrontOrgName.textContent = state.org?.name || '';
@@ -874,6 +890,7 @@ const state = { token: '', org: null, rules: null, orgRegistrationFields: {}, ca
       const card = data.masterCard;
       const settings = card.backSettings || {};
       els.masterCard.classList.remove('hidden');
+      applyCardLayout(els.masterCard);
       setImage(els.masterLogo, card.organization.logo || '');
       setImage(els.masterBackLogo, card.organization.logo || '');
       els.masterOrgName.textContent = card.organization.name;

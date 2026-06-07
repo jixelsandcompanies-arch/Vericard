@@ -94,29 +94,45 @@
     .qr img { width: 100%; height: 100%; object-fit: contain; }
     .card-stage { display: grid; grid-template-columns: repeat(2, 330px); gap: 18px; justify-content: start; overflow-x: auto; }
     .id-card { width: 330px; height: 520px; background: #fff; border: 1px solid var(--line); border-radius: 22px; position: relative; overflow: hidden; box-shadow: 0 10px 22px rgba(31,47,68,.13); }
-    .logo-front { position: absolute; top: 20px; left: 40px; width: 250px; height: 124px; object-fit: contain; }
-    .front-org-name { position: absolute; left: 28px; right: 28px; top: 125px; text-align: center; color: var(--blue); font-weight: 900; font-size: 15px; overflow-wrap: anywhere; }
-    .front-shape { position: absolute; left: 24px; top: 328px; width: 282px; height: 130px; background: var(--blue); border-radius: 18px; }
+    .card-front::after { content: ""; position: absolute; left: 20px; right: 20px; bottom: 14px; height: 4px; border-radius: 999px; background: var(--gold); opacity: .9; }
+    .logo-front { position: absolute; top: 18px; left: 50%; transform: translateX(-50%); width: 188px; height: 86px; object-fit: contain; }
+    .front-org-name { position: absolute; left: 28px; right: 28px; top: 105px; text-align: center; color: var(--blue); font-weight: 900; font-size: 15px; line-height: 1.15; overflow-wrap: anywhere; max-height: 36px; overflow: hidden; }
+    .front-shape { position: absolute; left: 24px; top: 318px; width: 282px; height: 140px; background: var(--blue); border-radius: 16px; }
     .front-shape::before { content: ""; position: absolute; left: 18px; right: 18px; top: 11px; height: 3px; background: var(--gold); border-radius: 10px; }
-    .photo-ring { position: absolute; left: 79px; top: 148px; width: 172px; height: 172px; border-radius: 50%; border: 5px solid var(--gold); background: #f8fbff; display: grid; place-items: center; overflow: hidden; z-index: 1; }
+    .photo-ring { position: absolute; left: 89px; top: 144px; width: 152px; height: 152px; border-radius: 50%; border: 5px solid var(--gold); background: #f8fbff; display: grid; place-items: center; overflow: hidden; z-index: 1; }
     .photo-ring img { width: 100%; height: 100%; object-fit: cover; object-position: center top; }
     .photo-ring span { color: #8ca3be; font-size: 26px; font-weight: 800; }
-    .front-info { position: absolute; left: 44px; right: 44px; top: 345px; z-index: 2; }
+    .front-info { position: absolute; left: 40px; right: 40px; top: 332px; z-index: 2; }
     .front-authority { position: absolute; left: 42px; right: 42px; bottom: 20px; display: grid; gap: 8px; align-items: end; font-size: 11px; font-weight: 800; color: var(--ink); }
     .front-authority img { max-width: 92px; max-height: 42px; object-fit: contain; justify-self: end; }
     .detail-line { display: grid; grid-template-columns: 74px 1fr; gap: 7px; padding: 5px 0; border-bottom: 1px solid rgba(255,255,255,.18); }
     .detail-label { color: rgba(255,255,255,.78); font-size: 11px; font-weight: 900; text-transform: uppercase; }
     .person-name { color: var(--gold); font-size: 18px; font-weight: 800; overflow-wrap: anywhere; }
     .id-number, .person-role { color: #fff; font-size: 14px; font-weight: 800; overflow-wrap: anywhere; }
-    .card-qr { position: absolute; left: 93px; top: 28px; width: 144px; height: 144px; padding: 8px; border: 2px solid var(--blue); background: #fff; }
+    .card-qr { position: absolute; left: 50%; top: 22px; transform: translateX(-50%); width: 132px; height: 132px; padding: 8px; border: 2px solid var(--blue); background: #fff; }
     .card-qr img { width: 100%; height: 100%; object-fit: contain; }
-    .back-text { position: absolute; left: 34px; right: 30px; top: 122px; font-weight: 700; font-size: 12.5px; line-height: 1.28; }
-    .back-text .indent { margin-left: 35px; }
-    .mission-block { color: var(--blue); font-size: 11px; font-weight: 900; margin-bottom: 5px; }
+    .back-text { position: absolute; left: 32px; right: 32px; top: 178px; bottom: 98px; font-weight: 700; font-size: 12.5px; line-height: 1.32; display: grid; align-content: start; gap: 4px; overflow: hidden; }
+    .back-text .indent { margin-left: 22px; }
+    .mission-block { color: var(--blue); font-size: 11px; font-weight: 900; line-height: 1.25; text-align: center; overflow-wrap: anywhere; }
     .responsibility-title { color: var(--blue); margin-top: 16px; font-weight: 900; }
     .rules { margin: 6px 0 0 18px; padding: 0; display: grid; gap: 5px; }
     #backResponsibilities { margin-top: 7px; font-size: 12px; }
-    .logo-back { position: absolute; left: 72px; bottom: 24px; width: 186px; height: 70px; object-fit: contain; opacity: .9; }
+    .logo-back { position: absolute; left: 50%; bottom: 22px; transform: translateX(-50%); width: 92px; height: 58px; object-fit: contain; opacity: .9; }
+    .master-front .logo-front { top: 22px; width: 170px; height: 104px; }
+    .master-front .master-band { top: 158px; }
+    .master-front .master-meta { top: 354px; }
+    .master-back .back-text { top: 174px; }
+    .card-layout-clean .front-shape { left: 0; right: 0; top: auto; bottom: 0; width: auto; height: 156px; border-radius: 0; }
+    .card-layout-clean .front-info { top: 342px; }
+    .card-layout-bold::before { content: ""; position: absolute; inset: 0 0 0 auto; width: 78px; background: var(--blue); }
+    .card-layout-bold .front-shape { left: 24px; right: 96px; top: 322px; width: auto; height: 136px; }
+    .card-layout-bold .photo-ring { left: 54px; top: 148px; }
+    .card-layout-bold .front-info { left: 38px; right: 104px; top: 336px; }
+    .card-layout-bold .logo-front { left: 36%; }
+    .card-layout-bold .front-org-name { right: 96px; }
+    .card-layout-qr.card-back .card-qr { width: 154px; height: 154px; }
+    .card-layout-qr.card-back .back-text { top: 204px; bottom: 88px; }
+    .card-layout-qr .logo-back { width: 82px; height: 50px; bottom: 16px; }
     .table-wrap { overflow-x: auto; border: 1px solid var(--line); border-radius: 8px; }
     table { width: 100%; min-width: 900px; border-collapse: collapse; background: #fff; font-size: 14px; }
     th, td { border-bottom: 1px solid var(--line); padding: 9px; text-align: left; vertical-align: top; }

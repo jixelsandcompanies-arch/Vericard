@@ -58,18 +58,29 @@ const state = { token: '', org: null, rules: null, orgRegistrationFields: {}, ca
     }
     function currentLocation() {
       if (!navigator.geolocation) return Promise.resolve({});
-      return new Promise((resolve) => {
+      const capture = (options) => new Promise((resolve) => {
         navigator.geolocation.getCurrentPosition(
-          (position) => resolve({
+          (position) => {
+            const coords = position.coords || {};
+            resolve({
             latitude: position.coords.latitude,
             longitude: position.coords.longitude,
             locationAccuracy: position.coords.accuracy,
+            locationSpeed: Number.isFinite(coords.speed) ? coords.speed : null,
+            locationHeading: Number.isFinite(coords.heading) ? coords.heading : null,
             locationCapturedAt: new Date(position.timestamp || Date.now()).toISOString()
-          }),
+          });
+          },
           () => resolve({}),
-          { enableHighAccuracy: true, timeout: 10000, maximumAge: 0 }
+          options
         );
       });
+      return Promise.all([
+        capture({ enableHighAccuracy: false, timeout: 3500, maximumAge: 15000 }),
+        capture({ enableHighAccuracy: true, timeout: 10000, maximumAge: 0 })
+      ]).then((locations) => locations
+        .filter((location) => location.latitude !== undefined)
+        .sort((a, b) => Number(a.locationAccuracy || Infinity) - Number(b.locationAccuracy || Infinity))[0] || {});
     }
     async function dashboardScanMeta() {
       return {
@@ -143,7 +154,7 @@ const state = { token: '', org: null, rules: null, orgRegistrationFields: {}, ca
       if (accent) document.documentElement.style.setProperty('--gold', normalizeHexColor(accent));
     }
     function rgbToHex(r, g, b) {
-      return `#${[r, g, b].map((value) => Math.max(0, Math.min(255, value)).toString(16).padStart(2, '0')).join('')}`;
+      return `#${[r, g, b].map((value) => Math.round(Math.max(0, Math.min(255, value))).toString(16).padStart(2, '0')).join('')}`;
     }
     function rgbToHsl(r, g, b) {
       r /= 255; g /= 255; b /= 255;
@@ -187,8 +198,8 @@ const state = { token: '', org: null, rules: null, orgRegistrationFields: {}, ca
     function smartenBrandColor(r, g, b) {
       const hsl = rgbToHsl(r, g, b);
       const saturation = Math.max(0.48, Math.min(0.86, hsl.s * 1.08));
-      const lightness = Math.max(0.29, Math.min(0.52, hsl.l));
-      return rgbToHex(...hslToRgb(hsl.h, saturation, lightness));
+      const lightness = Math.max(0.24, Math.min(0.46, hsl.l));
+      return ensureReadableBrandColor(rgbToHex(...hslToRgb(hsl.h, saturation, lightness)));
     }
     function hexToRgb(hex) {
       const value = normalizeHexColor(hex).slice(1);
@@ -203,10 +214,47 @@ const state = { token: '', org: null, rules: null, orgRegistrationFields: {}, ca
       const b = hexToRgb(second);
       return Math.hypot(a.r - b.r, a.g - b.g, a.b - b.b);
     }
+    function relativeLuminance(hex) {
+      const { r, g, b } = hexToRgb(hex);
+      const channel = (value) => {
+        const normalized = value / 255;
+        return normalized <= 0.03928 ? normalized / 12.92 : ((normalized + 0.055) / 1.055) ** 2.4;
+      };
+      return 0.2126 * channel(r) + 0.7152 * channel(g) + 0.0722 * channel(b);
+    }
+    function contrastRatio(first, second) {
+      const light = Math.max(relativeLuminance(first), relativeLuminance(second));
+      const dark = Math.min(relativeLuminance(first), relativeLuminance(second));
+      return (light + 0.05) / (dark + 0.05);
+    }
+    function ensureReadableBrandColor(color) {
+      let normalized = normalizeHexColor(color);
+      let { r, g, b } = hexToRgb(normalized);
+      let hsl = rgbToHsl(r, g, b);
+      let attempts = 0;
+      while (contrastRatio(normalized, '#ffffff') < 4.5 && attempts < 8) {
+        hsl = { ...hsl, l: Math.max(0.18, hsl.l - 0.045), s: Math.min(0.9, hsl.s + 0.03) };
+        normalized = rgbToHex(...hslToRgb(hsl.h, hsl.s, hsl.l));
+        attempts += 1;
+      }
+      return normalized;
+    }
+    function ensureAccentContrast(primary, accent) {
+      let normalized = normalizeHexColor(accent);
+      let { r, g, b } = hexToRgb(normalized);
+      let hsl = rgbToHsl(r, g, b);
+      let attempts = 0;
+      while (contrastRatio(primary, normalized) < 3.2 && attempts < 8) {
+        hsl = { ...hsl, l: hsl.l > 0.5 ? Math.min(0.78, hsl.l + 0.045) : Math.max(0.22, hsl.l - 0.045), s: Math.min(0.9, hsl.s + 0.02) };
+        normalized = rgbToHex(...hslToRgb(hsl.h, hsl.s, hsl.l));
+        attempts += 1;
+      }
+      return normalized;
+    }
     function smartAccentFromPrimary(primary) {
       const { r, g, b } = hexToRgb(primary);
       const hsl = rgbToHsl(r, g, b);
-      return rgbToHex(...hslToRgb(hsl.h + 42, 0.78, 0.58));
+      return ensureAccentContrast(primary, rgbToHex(...hslToRgb(hsl.h + 42, 0.78, 0.62)));
     }
     function defaultPalette() {
       return { primary: '#061a30', accent: '#149ee8', colors: ['#061a30', '#149ee8'] };
@@ -274,8 +322,8 @@ const state = { token: '', org: null, rules: null, orgRegistrationFields: {}, ca
             }
             resolve({
               primary,
-              accent: picked[1] || smartAccentFromPrimary(primary),
-              colors: picked.length > 1 ? picked : [primary, smartAccentFromPrimary(primary)]
+              accent: picked[1] ? ensureAccentContrast(primary, picked[1]) : smartAccentFromPrimary(primary),
+              colors: picked.length > 1 ? picked.map((color) => ensureReadableBrandColor(color)) : [primary, smartAccentFromPrimary(primary)]
             });
           } catch {
             resolve(defaultPalette());

@@ -39,18 +39,29 @@ function ensureDeviceId() {
 
 function currentLocation() {
   if (!navigator.geolocation) return Promise.resolve({});
-  return new Promise((resolve) => {
+  const capture = (options) => new Promise((resolve) => {
     navigator.geolocation.getCurrentPosition(
-      (position) => resolve({
+      (position) => {
+        const coords = position.coords || {};
+        resolve({
         latitude: position.coords.latitude,
         longitude: position.coords.longitude,
         locationAccuracy: position.coords.accuracy,
+        locationSpeed: Number.isFinite(coords.speed) ? coords.speed : null,
+        locationHeading: Number.isFinite(coords.heading) ? coords.heading : null,
         locationCapturedAt: new Date(position.timestamp || Date.now()).toISOString()
-      }),
+      });
+      },
       () => resolve({}),
-      { enableHighAccuracy: true, timeout: 10000, maximumAge: 0 }
+      options
     );
   });
+  return Promise.all([
+    capture({ enableHighAccuracy: false, timeout: 3500, maximumAge: 15000 }),
+    capture({ enableHighAccuracy: true, timeout: 10000, maximumAge: 0 })
+  ]).then((locations) => locations
+    .filter((location) => location.latitude !== undefined)
+    .sort((a, b) => Number(a.locationAccuracy || Infinity) - Number(b.locationAccuracy || Infinity))[0] || {});
 }
 
 async function scannerMeta() {
@@ -86,7 +97,9 @@ async function api(path, options = {}) {
 function locationHint() {
   if (!state.lastLocation?.latitude) return 'GPS not available yet';
   const accuracy = Number(state.lastLocation.locationAccuracy || 0);
-  return accuracy ? `GPS accuracy ${Math.round(accuracy)}m` : 'GPS captured';
+  const speed = Number(state.lastLocation.locationSpeed);
+  const speedText = Number.isFinite(speed) && speed > 0 ? `, speed ${Math.round(speed * 3.6)}km/h` : '';
+  return accuracy ? `GPS accuracy ${Math.round(accuracy)}m${speedText}` : 'GPS captured';
 }
 
 function showDuty(session, organization) {

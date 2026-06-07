@@ -15,6 +15,7 @@ const {
   normalizeIdentifier,
   normalizePhone,
   readToken,
+  securityConfidence,
   signToken,
   validatePassword,
   validateRuntimeConfig,
@@ -112,7 +113,26 @@ test('gateConfigFor prefers named gate settings and falls back to organization g
 test('GPS security thresholds are strict enough for gate scanning', () => {
   assert.equal(gpsSecurity.maxAccuracyMeters, 100);
   assert.equal(gpsSecurity.maxLocationAgeMs, 120000);
+  assert.ok(gpsSecurity.maxScannerSpeedMetersPerSecond > 0);
   assert.ok(gpsSecurity.maxJumpSpeedMetersPerSecond > 0);
+});
+
+test('GPS confidence drops for stale, unsigned, or fast-moving scanner metadata', () => {
+  const strong = securityConfidence({
+    locationAccuracy: 12,
+    locationCapturedAt: new Date().toISOString(),
+    signature: 'signed',
+    locationSpeed: 0
+  }, 'allowed');
+  const weak = securityConfidence({
+    locationAccuracy: 95,
+    locationCapturedAt: new Date(Date.now() - 90 * 1000).toISOString(),
+    locationSpeed: gpsSecurity.maxScannerSpeedMetersPerSecond + 10
+  }, 'allowed');
+
+  assert.equal(strong.alertLevel, 'none');
+  assert.ok(strong.confidenceScore > weak.confidenceScore);
+  assert.ok(weak.alertLevel === 'low' || weak.alertLevel === 'medium');
 });
 
 test('QR endpoint returns a PNG and rejects empty data', async () => {

@@ -796,7 +796,14 @@ function toSecurityLog(row) {
 function securityConfidence(meta = {}, result = 'denied') {
   let score = result === 'allowed' ? 100 : 35;
   if (meta.locationAccuracy !== null && meta.locationAccuracy !== undefined) score -= Math.min(35, Math.max(0, Number(meta.locationAccuracy) - 25) / 3);
-  if (!meta.locationCapturedAt) score -= 15;
+  if (!meta.locationCapturedAt) {
+    score -= 15;
+  } else {
+    const ageMs = Date.now() - Date.parse(meta.locationCapturedAt);
+    if (!Number.isFinite(ageMs) || ageMs < -30000) score -= 20;
+    else if (ageMs > 60 * 1000) score -= Math.min(20, (ageMs - 60 * 1000) / 6000);
+  }
+  if (Number.isFinite(meta.locationSpeed) && meta.locationSpeed > gpsSecurity.maxScannerSpeedMetersPerSecond) score -= 20;
   if (!meta.signature) score -= 20;
   score = Math.max(0, Math.min(100, Math.round(score)));
   const alertLevel = result === 'denied' ? 'high' : score < 60 ? 'medium' : score < 85 ? 'low' : 'none';
@@ -850,6 +857,8 @@ function scanMeta(req, source = 'gate-app') {
   const latitude = Number(req.body.latitude);
   const longitude = Number(req.body.longitude);
   const locationAccuracy = Number(req.body.locationAccuracy);
+  const locationSpeed = Number(req.body.locationSpeed);
+  const locationHeading = Number(req.body.locationHeading);
   const capturedAtMs = Date.parse(req.body.locationCapturedAt || '');
   return {
     deviceId: normalizeText(req.body.deviceId),
@@ -858,6 +867,8 @@ function scanMeta(req, source = 'gate-app') {
     latitude: Number.isFinite(latitude) ? latitude : null,
     longitude: Number.isFinite(longitude) ? longitude : null,
     locationAccuracy: Number.isFinite(locationAccuracy) ? locationAccuracy : null,
+    locationSpeed: Number.isFinite(locationSpeed) ? locationSpeed : null,
+    locationHeading: Number.isFinite(locationHeading) ? locationHeading : null,
     locationCapturedAt: Number.isFinite(capturedAtMs) ? new Date(capturedAtMs).toISOString() : '',
     ipAddress: req.headers['x-forwarded-for']?.split(',')[0]?.trim() || req.socket?.remoteAddress || '',
     userAgent: normalizeText(req.body.userAgent) || req.get('user-agent') || '',
@@ -904,6 +915,7 @@ function distanceMeters(aLat, aLng, bLat, bLng) {
 const gpsSecurity = {
   maxAccuracyMeters: 100,
   maxLocationAgeMs: 2 * 60 * 1000,
+  maxScannerSpeedMetersPerSecond: 45,
   maxJumpSpeedMetersPerSecond: 80,
   lookbackMinutes: 20
 };
@@ -957,8 +969,12 @@ async function gpsDecision(org, gateName, meta) {
   if (meta.latitude === null || meta.longitude === null) return { allowed: false, reason: 'Scanner GPS location is required for this gate.' };
   if (!validCoordinate(meta.latitude, meta.longitude)) return { allowed: false, reason: 'Scanner GPS coordinates are invalid.' };
   if (meta.locationAccuracy === null) return { allowed: false, reason: 'Scanner GPS accuracy is required.' };
+  if (meta.locationAccuracy < 0) return { allowed: false, reason: 'Scanner GPS accuracy is invalid.' };
   if (meta.locationAccuracy > gpsSecurity.maxAccuracyMeters) {
     return { allowed: false, reason: `Scanner GPS accuracy is too low (${Math.round(meta.locationAccuracy)}m). Move outside or enable high-accuracy location.` };
+  }
+  if (Number.isFinite(meta.locationSpeed) && meta.locationAccuracy <= 50 && meta.locationSpeed > gpsSecurity.maxScannerSpeedMetersPerSecond) {
+    return { allowed: false, reason: `Scanner appears to be moving too fast (${Math.round(meta.locationSpeed * 3.6)}km/h). Stop at the gate and scan again.` };
   }
   if (!meta.locationCapturedAt) return { allowed: false, reason: 'Scanner GPS timestamp is missing.' };
   const locationAge = Date.now() - Date.parse(meta.locationCapturedAt);
@@ -966,7 +982,8 @@ async function gpsDecision(org, gateName, meta) {
     return { allowed: false, reason: 'Scanner GPS location is stale. Refresh location and scan again.' };
   }
   const distance = distanceMeters(config.latitude, config.longitude, meta.latitude, meta.longitude);
-  const effectiveRadius = config.radiusMeters + Math.min(meta.locationAccuracy, 25);
+  const accuracyBuffer = Math.min(Math.max(meta.locationAccuracy * 0.5, 10), 35);
+  const effectiveRadius = config.radiusMeters + accuracyBuffer;
   if (distance > effectiveRadius) {
     return { allowed: false, reason: `Scanner is outside the approved gate radius (${Math.round(distance)}m away, accuracy ${Math.round(meta.locationAccuracy)}m).` };
   }
@@ -2388,6 +2405,7 @@ export {
   extractVerificationToken,
   gateConfigFor,
   gpsSecurity,
+  securityConfidence,
   hashPassword,
   normalizeEmail,
   normalizeIdentifier,

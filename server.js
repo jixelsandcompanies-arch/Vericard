@@ -271,36 +271,36 @@ const organizationTypes = {
     guardian: role('Parent/Guardian', ['name', 'nationalId', 'phone', 'relationshipToStudent', 'studentName', 'studentMatricNumber', 'photo'], ['email'])
   } },
   company: { label: 'Company', roles: {
-    employee: role('Employee', ['name', 'nationalId', 'employeeId', 'department', 'position', 'phone', 'email', 'photo']),
-    contractor: role('Contractor', ['name', 'nationalId', 'contractorId', 'vendorName', 'site', 'phone', 'email', 'expiryDate', 'photo']),
-    intern: role('Intern', ['name', 'nationalId', 'internId', 'department', 'supervisorName', 'phone', 'email', 'photo']),
-    visitor: role('Visitor', ['name', 'nationalId', 'phone', 'visitingFrom', 'visitTo', 'visitDate'], ['photo'])
+    employee: role('Employee', ['name', 'nationalId', 'employeeId', 'department', 'position', 'phone', 'email', 'photo'], ['accessZone', 'validFrom', 'validUntil', 'offboardingDate']),
+    contractor: role('Contractor', ['name', 'nationalId', 'contractorId', 'vendorName', 'site', 'phone', 'email', 'expiryDate', 'photo'], ['accessZone', 'hostName', 'hostPhone', 'supervisorApprovalStatus']),
+    intern: role('Intern', ['name', 'nationalId', 'internId', 'department', 'supervisorName', 'phone', 'email', 'photo'], ['accessZone', 'validFrom', 'validUntil']),
+    visitor: role('Visitor', ['name', 'nationalId', 'phone', 'visitingFrom', 'visitTo', 'visitDate'], ['photo', 'accessZone', 'hostName', 'hostPhone', 'hostApprovalStatus', 'validUntilAt'])
   } },
   hospital: { label: 'Hospital', roles: {
-    doctor: role('Doctor', ['name', 'nationalId', 'staffId', 'department', 'specialty', 'licenseNumber', 'phone', 'email', 'photo']),
-    nurse: role('Nurse', ['name', 'nationalId', 'staffId', 'department', 'licenseNumber', 'phone', 'email', 'photo'], ['ward']),
-    staff: role('Staff', ['name', 'nationalId', 'staffId', 'department', 'position', 'phone', 'email', 'photo']),
-    visitor: role('Visitor', ['name', 'nationalId', 'phone', 'visitTo', 'visitDate'], ['photo'])
+    doctor: role('Doctor', ['name', 'nationalId', 'staffId', 'department', 'specialty', 'licenseNumber', 'phone', 'email', 'photo'], ['accessZone', 'credentialExpiryDate']),
+    nurse: role('Nurse', ['name', 'nationalId', 'staffId', 'department', 'licenseNumber', 'phone', 'email', 'photo'], ['ward', 'accessZone', 'credentialExpiryDate']),
+    staff: role('Staff', ['name', 'nationalId', 'staffId', 'department', 'position', 'phone', 'email', 'photo'], ['accessZone']),
+    visitor: role('Visitor', ['name', 'nationalId', 'phone', 'visitTo', 'visitDate'], ['photo', 'accessZone', 'hostName', 'hostPhone', 'hostApprovalStatus', 'validUntilAt', 'emergencyOverrideReason'])
   } },
   ngo: { label: 'NGO/Church', roles: {
-    member: role('Member', ['name', 'nationalId', 'membershipId', 'department', 'phone', 'photo'], ['email']),
-    volunteer: role('Worker/Volunteer', ['name', 'nationalId', 'workerId', 'role', 'department', 'phone', 'email', 'photo']),
-    leader: role('Leader', ['name', 'nationalId', 'leaderId', 'position', 'department', 'phone', 'email', 'photo'])
+    member: role('Member', ['name', 'nationalId', 'membershipId', 'department', 'phone', 'photo'], ['email', 'accessZone', 'validUntil']),
+    volunteer: role('Worker/Volunteer', ['name', 'nationalId', 'workerId', 'role', 'department', 'phone', 'email', 'photo'], ['accessZone', 'volunteerAssignment', 'screeningStatus', 'childYouthScreeningStatus', 'eventName', 'donationReference', 'validUntil']),
+    leader: role('Leader', ['name', 'nationalId', 'leaderId', 'position', 'department', 'phone', 'email', 'photo'], ['accessZone'])
   } },
   security: { label: 'Security Agency', roles: {
-    guard: role('Guard', ['name', 'nationalId', 'guardId', 'rank', 'assignedSite', 'phone', 'photo'], ['email']),
-    supervisor: role('Supervisor', ['name', 'nationalId', 'supervisorId', 'rank', 'site', 'phone', 'email', 'photo']),
-    operations: role('Operations Staff', ['name', 'nationalId', 'staffId', 'department', 'position', 'phone', 'email', 'photo'])
+    guard: role('Guard', ['name', 'nationalId', 'guardId', 'rank', 'assignedSite', 'phone', 'photo'], ['email', 'accessZone', 'licenseExpiryDate', 'shiftName', 'deploymentSite', 'supervisorApprovalStatus', 'incidentReportReference']),
+    supervisor: role('Supervisor', ['name', 'nationalId', 'supervisorId', 'rank', 'site', 'phone', 'email', 'photo'], ['accessZone', 'licenseExpiryDate', 'deploymentSite']),
+    operations: role('Operations Staff', ['name', 'nationalId', 'staffId', 'department', 'position', 'phone', 'email', 'photo'], ['accessZone', 'incidentReportReference'])
   } },
   government: { label: 'Government Office', roles: {
-    officer: role('Officer', ['name', 'nationalId', 'officerId', 'department', 'position', 'officeBranch', 'phone', 'email', 'photo']),
-    contract: role('Contract Staff', ['name', 'nationalId', 'contractId', 'department', 'role', 'phone', 'email', 'expiryDate', 'photo']),
-    visitor: role('Visitor', ['name', 'nationalId', 'phone', 'visitTo', 'visitDate'], ['photo'])
+    officer: role('Officer', ['name', 'nationalId', 'officerId', 'department', 'position', 'officeBranch', 'phone', 'email', 'photo'], ['accessZone', 'credentialExpiryDate']),
+    contract: role('Contract Staff', ['name', 'nationalId', 'contractId', 'department', 'role', 'phone', 'email', 'expiryDate', 'photo'], ['accessZone', 'supervisorName']),
+    visitor: role('Visitor', ['name', 'nationalId', 'phone', 'visitTo', 'visitDate'], ['photo', 'accessZone', 'appointmentReference', 'queueNumber', 'visitPurpose', 'hostName', 'hostPhone', 'hostApprovalStatus', 'validUntilAt'])
   } },
   custom: { label: 'Custom Organization', roles: {
-    member: role('Member', ['name', 'nationalId', 'memberId', 'role', 'department', 'phone', 'email', 'photo']),
-    staff: role('Staff', ['name', 'nationalId', 'staffId', 'position', 'department', 'phone', 'email', 'photo']),
-    visitor: role('Visitor', ['name', 'nationalId', 'phone', 'purposeOfVisit', 'visitDate'], ['photo'])
+    member: role('Member', ['name', 'nationalId', 'memberId', 'role', 'department', 'phone', 'email', 'photo'], ['accessZone', 'customAccessRule', 'validUntil']),
+    staff: role('Staff', ['name', 'nationalId', 'staffId', 'position', 'department', 'phone', 'email', 'photo'], ['accessZone', 'customAccessRule', 'validUntil']),
+    visitor: role('Visitor', ['name', 'nationalId', 'phone', 'purposeOfVisit', 'visitDate'], ['photo', 'accessZone', 'hostName', 'hostPhone', 'hostApprovalStatus', 'customAccessRule', 'validUntilAt'])
   } }
 };
 
@@ -525,6 +525,54 @@ function displayNumberFor(fields, roleType, orgType) {
     if (fields[field]) return fields[field];
   }
   return '';
+}
+
+function nonAcademicOrg(org) {
+  return org && !['school', 'university'].includes(org.type);
+}
+
+function endOfDate(value) {
+  const text = normalizeText(value);
+  if (!text) return null;
+  const date = /^\d{4}-\d{2}-\d{2}$/.test(text) ? new Date(`${text}T23:59:59.999Z`) : new Date(text);
+  return Number.isFinite(date.getTime()) ? date : null;
+}
+
+function startOfDate(value) {
+  const text = normalizeText(value);
+  if (!text) return null;
+  const date = /^\d{4}-\d{2}-\d{2}$/.test(text) ? new Date(`${text}T00:00:00.000Z`) : new Date(text);
+  return Number.isFinite(date.getTime()) ? date : null;
+}
+
+function cardAccessDecision(card, org, gateName = '') {
+  if (!nonAcademicOrg(org)) return { allowed: true };
+  const fields = card?.fields || {};
+  const now = Date.now();
+  const offboarding = endOfDate(fields.offboardingDate);
+  if (offboarding && offboarding.getTime() <= now) return { allowed: false, reason: 'Cardholder has been offboarded. Badge and QR access are disabled.' };
+  const hostApproval = normalizeText(fields.hostApprovalStatus).toLowerCase();
+  if (card?.role_type === 'visitor' && hostApproval && !['approved', 'accepted', 'cleared'].includes(hostApproval)) {
+    return { allowed: false, reason: `Visitor host approval is ${fields.hostApprovalStatus}. Approve the visit before scanning.` };
+  }
+  const supervisorApproval = normalizeText(fields.supervisorApprovalStatus).toLowerCase();
+  if (supervisorApproval && !['approved', 'accepted', 'cleared'].includes(supervisorApproval)) {
+    return { allowed: false, reason: `Supervisor approval is ${fields.supervisorApprovalStatus}. Approval is required before access.` };
+  }
+  const screening = normalizeText(fields.screeningStatus || fields.childYouthScreeningStatus).toLowerCase();
+  if (screening && ['blocked', 'failed', 'rejected', 'not cleared'].includes(screening)) {
+    return { allowed: false, reason: 'Screening status is not cleared for access.' };
+  }
+  const validFrom = startOfDate(fields.validFrom);
+  if (validFrom && validFrom.getTime() > now) return { allowed: false, reason: `Card access starts on ${validFrom.toISOString().slice(0, 10)}.` };
+  const expiry = endOfDate(fields.validUntilAt || fields.validUntil || fields.expiryDate || fields.credentialExpiryDate || fields.licenseExpiryDate || (card.role_type === 'visitor' ? fields.visitDate : ''));
+  if (expiry && expiry.getTime() < now) return { allowed: false, reason: 'Card access has expired. Renew or approve a new QR card.' };
+  const explicitZones = [fields.accessZone, fields.allowedGate].map(normalizeText).filter(Boolean);
+  const currentGate = normalizeText(gateName).toLowerCase();
+  if (explicitZones.length && currentGate && !explicitZones.some((zone) => zone.toLowerCase() === currentGate)) {
+    return { allowed: false, reason: `Card is approved for ${explicitZones.join(' / ')}, not ${gateName || 'this gate'}.` };
+  }
+  return { allowed: true };
 }
 
 function extractVerificationToken(value) {
@@ -1228,6 +1276,8 @@ function cardValidity(card, org) {
   if (!org) return { valid: false, reason: 'Organization not found.' };
   if (!hasActiveSubscription(org)) return { valid: false, reason: 'Organization subscription is not active.' };
   if ((card.status || 'Pending') !== 'Approved') return { valid: false, reason: 'Card has not been approved.' };
+  const access = cardAccessDecision(card, org);
+  if (!access.allowed) return { valid: false, reason: access.reason };
   return { valid: true, reason: 'Organization subscription active and card approved.' };
 }
 
@@ -1515,6 +1565,7 @@ app.patch('/api/cards/:id/status', requireAdmin, async (req, res) => {
     patch.approved_by = req.admin.user;
     patch.approved_at = new Date().toISOString();
   }
+  if (['Inactive', 'Suspended', 'Revoked'].includes(req.body.status)) patch.verification_token = crypto.randomBytes(24).toString('hex');
   const { data, error } = await db.from('cards').update(patch).eq('id', req.params.id).select('*').single();
   if (error) return res.status(400).json({ error: error.message });
   await audit(`Status changed to ${req.body.status}`, req.params.id, req.admin.user);
@@ -1782,8 +1833,29 @@ app.get('/api/org/dashboard-summary', requireOrg, async (req, res) => {
   if (cards.error) return res.status(500).json({ error: cards.error.message });
   const cardRows = cards.data || [];
   const feeRows = fees.data || [];
+  const expiringSoon = cardRows.filter((card) => {
+    const fields = card.fields || {};
+    const expiry = endOfDate(fields.validUntilAt || fields.validUntil || fields.expiryDate || fields.credentialExpiryDate || fields.licenseExpiryDate || (card.role_type === 'visitor' ? fields.visitDate : ''));
+    return expiry && expiry.getTime() >= Date.now() && expiry.getTime() <= Date.now() + 30 * 24 * 60 * 60 * 1000;
+  }).length;
+  const pendingApprovals = cardRows.filter((card) => {
+    const fields = card.fields || {};
+    return ['hostApprovalStatus', 'supervisorApprovalStatus'].some((field) => {
+      const value = normalizeText(fields[field]).toLowerCase();
+      return value && !['approved', 'accepted', 'cleared'].includes(value);
+    });
+  }).length;
+  const accessZones = new Set(cardRows.map((card) => normalizeText(card.fields?.accessZone || card.fields?.allowedGate)).filter(Boolean));
+  const recentRows = attendance.data || [];
+  const branchCounts = new Map();
+  for (const card of cardRows) {
+    const key = normalizeText(card.branch || card.fields?.department || card.fields?.site || card.fields?.assignedSite || card.fields?.officeBranch || card.fields?.accessZone || card.role_type || 'General');
+    branchCounts.set(key, (branchCounts.get(key) || 0) + 1);
+  }
+  const branchReports = [...branchCounts.entries()].sort((a, b) => b[1] - a[1]).slice(0, 5).map(([label, count]) => ({ label, count }));
+  const academic = ['school', 'university'].includes(org.type);
   res.json({
-    summary: {
+    summary: academic ? {
       totalStudents: cardRows.filter((card) => card.role_type === 'student').length,
       activeCards: cardRows.filter((card) => card.status === 'Approved').length,
       suspendedStudents: cardRows.filter((card) => card.role_type === 'student' && ['Suspended', 'Inactive'].includes(card.status)).length,
@@ -1791,8 +1863,17 @@ app.get('/api/org/dashboard-summary', requireOrg, async (req, res) => {
       clearedStudents: feeRows.filter((fee) => fee.fee_status === 'Cleared').length,
       partialBalance: feeRows.filter((fee) => fee.fee_status === 'Partial Balance').length,
       feeBalanceTotal: feeRows.reduce((sum, fee) => sum + Number(fee.balance || 0), 0)
+    } : {
+      totalCards: cardRows.length,
+      activeCards: cardRows.filter((card) => card.status === 'Approved').length,
+      visitors: cardRows.filter((card) => card.role_type === 'visitor').length,
+      expiringSoon,
+      pendingApprovals,
+      accessZones: accessZones.size,
+      insideNow: recentRows.filter((row) => row.status === 'Inside').length,
+      branchReports
     },
-    recentScans: (attendance.data || []).map(toAttendance)
+    recentScans: recentRows.map(toAttendance)
   });
 });
 
@@ -2069,6 +2150,8 @@ app.post('/api/gate/preview', gateRateLimit, async (req, res) => {
   if (card.organization_id !== org.id) return denyScan(res, 403, 'This card does not belong to this organization.', context);
   const validity = cardValidity(card, org);
   if (!validity.valid) return denyScan(res, 403, validity.reason, context);
+  const access = cardAccessDecision(card, org, session.gate_name);
+  if (!access.allowed) return denyScan(res, 403, access.reason, context);
   const closed = movementClosedFor(card, org, action);
   if (closed) return denyScan(res, 403, closed, context);
   const openRecord = await currentOpenMovement(org.id, card.id);
@@ -2085,7 +2168,10 @@ app.post('/api/gate/preview', gateRateLimit, async (req, res) => {
       photo: card.photo,
       number: fields.displayNumber || fields.admissionNumber || fields.matricNumber || fields.staffId || fields.employeeId || fields.nationalId || '',
       classGrade: fields.classGrade || fields.level || fields.department || fields.position || '',
-      parentPhone: card.role_type === 'student' ? fields.parentGuardianPhone || '' : ''
+      parentPhone: card.role_type === 'student' ? fields.parentGuardianPhone || '' : '',
+      accessZone: fields.accessZone || fields.allowedGate || '',
+      hostName: fields.hostName || fields.supervisorName || fields.visitTo || '',
+      expiresAt: fields.validUntilAt || fields.validUntil || fields.expiryDate || fields.credentialExpiryDate || fields.licenseExpiryDate || (card.role_type === 'visitor' ? fields.visitDate : '')
     },
     organization: { id: org.id, name: org.name, type: org.type, typeLabel: organizationTypes[org.type]?.label || org.type },
     action,
@@ -2117,6 +2203,8 @@ app.post('/api/gate/confirm', gateRateLimit, async (req, res) => {
   if (card.organization_id !== org.id) return denyScan(res, 403, 'This card does not belong to this organization.', context);
   const validity = cardValidity(card, org);
   if (!validity.valid) return denyScan(res, 403, validity.reason, context);
+  const access = cardAccessDecision(card, org, session.gate_name);
+  if (!access.allowed) return denyScan(res, 403, access.reason, context);
   const closed = movementClosedFor(card, org, action);
   if (closed) return denyScan(res, 403, closed, context);
   const fields = card.fields || {};
@@ -2196,6 +2284,8 @@ app.post('/api/org/gate-scan', requireOrg, gateRateLimit, async (req, res) => {
   if (card.organization_id !== req.orgId) return denyScan(res, 403, 'This card does not belong to your organization.', context);
   const validity = cardValidity(card, org);
   if (!validity.valid) return denyScan(res, 403, validity.reason, context);
+  const access = cardAccessDecision(card, org, gateName);
+  if (!access.allowed) return denyScan(res, 403, access.reason, context);
   const closed = movementClosedFor(card, org, action);
   if (closed) return denyScan(res, 403, closed, context);
   const fields = card.fields || {};
@@ -2259,6 +2349,7 @@ app.patch('/api/org/cards/:id/status', requireOrg, async (req, res) => {
   if (!org || !hasActiveSubscription(org)) return res.status(403).json({ error: 'Subscription must be active before approving ID cards.' });
   const patch = { status: req.body.status, updated_at: new Date().toISOString() };
   if (req.body.status === 'Approved') patch.approved_at = new Date().toISOString();
+  if (['Inactive', 'Suspended', 'Revoked'].includes(req.body.status)) patch.verification_token = crypto.randomBytes(24).toString('hex');
   const { data, error } = await db.from('cards').update(patch).eq('id', req.params.id).eq('organization_id', req.orgId).select('*').single();
   if (error) return res.status(400).json({ error: error.message });
   res.json({ card: toCard(data) });
@@ -2404,6 +2495,7 @@ export {
   createRateLimit,
   distanceMeters,
   extractVerificationToken,
+  cardAccessDecision,
   gateConfigFor,
   gpsSecurity,
   securityConfidence,

@@ -794,7 +794,7 @@ const state = { token: '', org: null, rules: null, orgRegistrationFields: {}, ca
       els.dynamicFields.innerHTML = fields.map((field) => {
         if (field === 'studentCategory') return '<label>Student category<select name="studentCategory" required><option value="">Choose student category</option><option value="day">Day student</option><option value="boarding">Boarding student</option></select></label>';
         if (field === 'photo') return `<label>${niceLabel(field)}<input name="photo" type="file" accept="image/png,image/jpeg,image/webp" ${role.required.includes(field) ? 'required' : ''}><small>Choose a real photo from the device gallery.</small></label>`;
-        const type = field === 'email' ? 'email' : (field === 'dateOfBirth' ? 'date' : 'text');
+        const type = field === 'email' ? 'email' : (/At$/i.test(field) ? 'datetime-local' : (/date|until|from|expiry/i.test(field) ? 'date' : 'text'));
         return `<label>${niceLabel(field)}<input name="${field}" type="${type}" ${role.required.includes(field) ? 'required' : ''}></label>`;
       }).join('') + teacherFields;
       const category = els.dynamicFields.querySelector('[name="studentCategory"]');
@@ -1072,19 +1072,25 @@ const state = { token: '', org: null, rules: null, orgRegistrationFields: {}, ca
     async function loadOrgSummary() {
       const data = await api('/api/org/dashboard-summary', { headers: headers() });
       const summary = data.summary || {};
-      const cards = isSchoolType(state.org?.type) ? [
-        ['Total students', summary.totalStudents || 0],
-        ['Active cards', summary.activeCards || 0],
-        ['Cleared students', summary.clearedStudents || 0],
-        ['Suspended students', summary.suspendedStudents || 0]
-      ] : [
-        ['Total records', summary.totalStudents || 0],
-        ['Active cards', summary.activeCards || 0],
-        ['Ready records', summary.clearedStudents || 0],
-        ['Suspended records', summary.suspendedStudents || 0]
-      ];
+      const cards = isSchoolType(state.org?.type)
+        ? [
+            ['Total students', summary.totalStudents || 0],
+            ['Active cards', summary.activeCards || 0],
+            ['Cleared students', summary.clearedStudents || 0],
+            ['Suspended students', summary.suspendedStudents || 0]
+          ]
+        : [
+            ['Total cards', summary.totalCards || 0],
+            ['Active cards', summary.activeCards || 0],
+            ['Visitors', summary.visitors || 0],
+            ['Expiring soon', summary.expiringSoon || 0],
+            ['Pending approvals', summary.pendingApprovals || 0],
+            ['Access zones', summary.accessZones || 0],
+            ['Inside now', summary.insideNow || 0]
+          ];
       els.orgDashboardSummary.innerHTML = cards.map(([label, value]) => `<div class="dash-card"><strong>${escapeHtml(value)}</strong>${escapeHtml(label)}</div>`).join('');
-      els.reportsSummary.innerHTML = cards.map(([label, value]) => `<div class="dash-card"><strong>${escapeHtml(value)}</strong>${escapeHtml(label)}</div>`).join('');
+      const branchCards = Array.isArray(summary.branchReports) ? summary.branchReports.map((item) => [`${item.label}`, item.count]) : [];
+      els.reportsSummary.innerHTML = cards.concat(branchCards).map(([label, value]) => `<div class="dash-card"><strong>${escapeHtml(value)}</strong>${escapeHtml(label)}</div>`).join('');
       const scans = data.recentScans || [];
       els.recentScansBody.innerHTML = scans.length ? scans.map((scan) => `
         <tr><td>${escapeHtml(scan.studentName)}</td><td>${formatDate(scan.attendanceDate)}</td><td>${formatTime(scan.entryAt)}</td><td>${formatTime(scan.exitAt)}</td><td>${escapeHtml(scan.status)}</td></tr>

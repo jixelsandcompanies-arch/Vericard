@@ -128,7 +128,8 @@ function renderPreview(data, payload) {
   els.personMeta.textContent = `${card.roleLabel || card.roleType || ''} | ${card.number || ''} | ${card.classGrade || ''}`;
   els.personOrg.textContent = `${data.organization.name} (${data.organization.typeLabel})`;
   els.personState.textContent = `Current state: ${data.state}. Action: ${data.action === 'leave' ? 'Leaving' : 'Entering'}`;
-  els.feeStatus.textContent = data.fee ? `Fee status: ${data.fee.feeStatus} | Balance: KES ${Number(data.fee.balance || 0).toLocaleString()}` : '';
+  const access = [card.accessZone ? `Access: ${card.accessZone}` : '', card.hostName ? `Host: ${card.hostName}` : '', card.expiresAt ? `Expires: ${card.expiresAt}` : ''].filter(Boolean).join(' | ');
+  els.feeStatus.textContent = data.fee ? `Fee status: ${data.fee.feeStatus} | Balance: KES ${Number(data.fee.balance || 0).toLocaleString()}` : access;
   if (card.photo) {
     els.personPhoto.src = card.photo;
     els.personPhoto.classList.remove('hidden');

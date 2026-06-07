@@ -6,6 +6,7 @@ process.env.NODE_ENV = 'test';
 
 const {
   app,
+  cardAccessDecision,
   distanceMeters,
   extractVerificationToken,
   gateConfigFor,
@@ -133,6 +134,23 @@ test('GPS confidence drops for stale, unsigned, or fast-moving scanner metadata'
   assert.equal(strong.alertLevel, 'none');
   assert.ok(strong.confidenceScore > weak.confidenceScore);
   assert.ok(weak.alertLevel === 'low' || weak.alertLevel === 'medium');
+});
+
+test('non-school card access respects expiry and explicit gate zones', () => {
+  const org = { id: 'ORG-1', type: 'company' };
+  const active = { role_type: 'employee', fields: { accessZone: 'North Gate', validUntil: '2999-01-01' } };
+  const expired = { role_type: 'contractor', fields: { expiryDate: '2000-01-01' } };
+  const pendingVisitor = { role_type: 'visitor', fields: { hostApprovalStatus: 'pending', visitDate: '2999-01-01' } };
+  const offboarded = { role_type: 'employee', fields: { offboardingDate: '2000-01-01' } };
+  const blockedVolunteer = { role_type: 'volunteer', fields: { screeningStatus: 'failed' } };
+
+  assert.equal(cardAccessDecision(active, org, 'North Gate').allowed, true);
+  assert.equal(cardAccessDecision(active, org, 'South Gate').allowed, false);
+  assert.equal(cardAccessDecision(expired, org, 'Main Gate').allowed, false);
+  assert.equal(cardAccessDecision(pendingVisitor, org, 'Main Gate').allowed, false);
+  assert.equal(cardAccessDecision(offboarded, org, 'Main Gate').allowed, false);
+  assert.equal(cardAccessDecision(blockedVolunteer, { type: 'ngo' }, 'Main Gate').allowed, false);
+  assert.equal(cardAccessDecision(active, { type: 'school' }, 'South Gate').allowed, true);
 });
 
 test('QR endpoint returns a PNG and rejects empty data', async () => {

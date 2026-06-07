@@ -172,7 +172,6 @@ For all organization types:
 Do not show these on the card back:
 
 - Address line 1
-- Address line 2
 - Return department/person
 - Extra cardholder responsibilities paragraph
 

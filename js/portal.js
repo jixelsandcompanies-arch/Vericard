@@ -659,6 +659,28 @@ const state = { token: '', org: null, rules: null, orgRegistrationFields: {}, ca
       });
     }
 
+    function readPersonPhotoFile(file) {
+      return new Promise((resolve, reject) => {
+        if (!file || !file.size) {
+          resolve('');
+          return;
+        }
+        const allowed = ['image/png', 'image/jpeg', 'image/webp'];
+        if (!allowed.includes(file.type)) {
+          reject(new Error('Photo must be PNG, JPG, or WEBP.'));
+          return;
+        }
+        if (file.size > 3_000_000) {
+          reject(new Error('Photo is too large. Use an image under 3MB.'));
+          return;
+        }
+        const reader = new FileReader();
+        reader.onload = () => resolve(String(reader.result || ''));
+        reader.onerror = () => reject(new Error('Unable to read this photo file.'));
+        reader.readAsDataURL(file);
+      });
+    }
+
     async function handleLogoFile(scope, file) {
       const box = document.querySelector(`[data-logo-drop="${scope}"]`);
       box?.classList.add('processing');
@@ -754,7 +776,8 @@ const state = { token: '', org: null, rules: null, orgRegistrationFields: {}, ca
       }
       els.dynamicFields.innerHTML = fields.map((field) => {
         if (field === 'studentCategory') return '<label>Student category<select name="studentCategory" required><option value="">Choose student category</option><option value="day">Day student</option><option value="boarding">Boarding student</option></select></label>';
-        const type = field === 'photo' ? 'url' : (field === 'email' ? 'email' : (field === 'dateOfBirth' ? 'date' : 'text'));
+        if (field === 'photo') return `<label>${niceLabel(field)}<input name="photo" type="file" accept="image/png,image/jpeg,image/webp" ${role.required.includes(field) ? 'required' : ''}><small>Choose a real photo from the device gallery.</small></label>`;
+        const type = field === 'email' ? 'email' : (field === 'dateOfBirth' ? 'date' : 'text');
         return `<label>${niceLabel(field)}<input name="${field}" type="${type}" ${role.required.includes(field) ? 'required' : ''}></label>`;
       }).join('') + teacherFields;
       const category = els.dynamicFields.querySelector('[name="studentCategory"]');
@@ -1394,9 +1417,12 @@ const state = { token: '', org: null, rules: null, orgRegistrationFields: {}, ca
 
     els.applyForm.addEventListener('submit', async (event) => {
       event.preventDefault();
-      const fields = Object.fromEntries(new FormData(els.applyForm).entries());
-      delete fields.roleType;
       try {
+        const formData = new FormData(els.applyForm);
+        const fields = Object.fromEntries(formData.entries());
+        const photoFile = formData.get('photo');
+        if (photoFile instanceof File) fields.photo = await readPersonPhotoFile(photoFile);
+        delete fields.roleType;
         await api('/api/org/apply', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ masterToken: state.masterToken, roleType: els.roleType.value, fields }) });
         alert('Registration submitted. Organization admin must approve it.');
         els.applyForm.reset();

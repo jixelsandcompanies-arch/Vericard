@@ -433,6 +433,12 @@ function normalizeText(value) {
   return String(value || '').trim();
 }
 
+function oneMonthFromNow() {
+  const date = new Date();
+  date.setMonth(date.getMonth() + 1);
+  return date.toISOString();
+}
+
 function isMissingColumnError(error, column) {
   const text = `${error?.message || ''} ${error?.details || ''} ${error?.hint || ''}`;
   return text.toLowerCase().includes(`'${column.toLowerCase()}' column`) || text.toLowerCase().includes(`${column.toLowerCase()} column`);
@@ -823,7 +829,7 @@ async function readGateSession(token) {
   const { data: session } = await db.from('gate_sessions').select('*').eq('session_token', token || '').eq('status', 'On Duty').gt('expires_at', new Date().toISOString()).maybeSingle();
   if (!session) return {};
   const org = await getOrg(session.organization_id);
-  if (!org || org.subscription_status !== 'Active') return {};
+  if (!org || !hasActiveSubscription(org)) return {};
   return { session, org };
 }
 
@@ -1130,6 +1136,7 @@ function toCard(row) {
 }
 
 function toOrg(row) {
+  const trialEndsAt = row.back_settings?.subscriptionTrialEndsAt || '';
   return {
     id: row.id,
     name: row.name,
@@ -1147,6 +1154,8 @@ function toOrg(row) {
     authoritySignature: row.back_settings?.authoritySignature || '',
     status: row.status,
     subscriptionStatus: row.subscription_status,
+    subscriptionTrialEndsAt: trialEndsAt,
+    subscriptionActive: hasActiveSubscription(row),
     backSettings: row.back_settings || {},
     masterCard: row.master_card || {},
     createdAt: row.created_at,
@@ -1154,9 +1163,39 @@ function toOrg(row) {
   };
 }
 
+function hasActiveSubscription(org) {
+  if (!org || org.subscription_status !== 'Active') return false;
+  const trialEndsAt = org.back_settings?.subscriptionTrialEndsAt;
+  if (!trialEndsAt) return true;
+  const end = Date.parse(trialEndsAt);
+  return Number.isNaN(end) || end >= Date.now();
+}
+
+async function ensureFreeTrial(org) {
+  if (!org || org.back_settings?.subscriptionTrialEndsAt || org.subscription_status === 'Active') return org;
+  const currentMaster = normalizeMasterCard(org);
+  const backSettings = {
+    ...(org.back_settings || {}),
+    subscriptionPlan: 'One month free trial',
+    subscriptionTrialEndsAt: oneMonthFromNow()
+  };
+  const masterCard = {
+    ...currentMaster,
+    status: 'Active',
+    issuedAt: currentMaster.issuedAt || new Date().toISOString()
+  };
+  const { data } = await db
+    .from('organizations')
+    .update({ status: 'Active', subscription_status: 'Active', back_settings: backSettings, master_card: masterCard, updated_at: new Date().toISOString() })
+    .eq('id', org.id)
+    .select('*')
+    .single();
+  return data || org;
+}
+
 function cardValidity(card, org) {
   if (!org) return { valid: false, reason: 'Organization not found.' };
-  if (org.subscription_status !== 'Active') return { valid: false, reason: 'Organization subscription is not active.' };
+  if (!hasActiveSubscription(org)) return { valid: false, reason: 'Organization subscription is not active.' };
   if ((card.status || 'Pending') !== 'Approved') return { valid: false, reason: 'Card has not been approved.' };
   return { valid: true, reason: 'Organization subscription active and card approved.' };
 }
@@ -1239,7 +1278,7 @@ function isCurrentActiveMasterCard(org, token = '') {
   const card = normalizeMasterCard(org);
   return Boolean(
     org &&
-    org.subscription_status === 'Active' &&
+    hasActiveSubscription(org) &&
     org.template_id &&
     org.template_id !== 'sample' &&
     card.status === 'Active' &&
@@ -1599,21 +1638,23 @@ app.post('/api/reset-password', authRateLimit, async (req, res) => {
 });
 
 app.post('/api/organizations/register', async (req, res) => {
-  const result = await createOrganization(req.body, 'Pending', 'Pending');
+  const result = await createOrganization(req.body, 'Active', 'Active', { freeTrial: true });
   if (result.error) return res.status(400).json({ error: result.error });
   res.json({ organization: toOrg(result.data) });
 });
 
 app.post('/api/org-login', authRateLimit, async (req, res) => {
-  const { data: org, error } = await db.from('organizations').select('*').ilike('email', req.body.email).maybeSingle();
+  let { data: org, error } = await db.from('organizations').select('*').ilike('email', req.body.email).maybeSingle();
   if (error || !org || !(await verifyOrgPassword(org, req.body.password || ''))) return res.status(401).json({ error: 'Invalid organization login.' });
-  res.json({ token: signToken({ scope: 'org', orgId: org.id }), organization: toOrg(org), templates, locked: org.subscription_status !== 'Active' });
+  org = await ensureFreeTrial(org);
+  res.json({ token: signToken({ scope: 'org', orgId: org.id }), organization: toOrg(org), templates, locked: !hasActiveSubscription(org) });
 });
 
 app.get('/api/org/master-card', requireOrg, async (req, res) => {
-  const org = await getOrg(req.orgId);
+  let org = await getOrg(req.orgId);
+  org = await ensureFreeTrial(org);
   if (!org) return res.status(404).json({ error: 'Organization not found.' });
-  if (org.subscription_status !== 'Active') return res.status(403).json({ error: 'Subscription must be active before downloading the master card.' });
+  if (!hasActiveSubscription(org)) return res.status(403).json({ error: 'Subscription must be active before downloading the master card.' });
   if (!org.template_id || org.template_id === 'sample') return res.status(400).json({ error: 'Choose and save an ID template before downloading the master card.' });
   const masterCard = normalizeMasterCard(org);
   if (!isCurrentActiveMasterCard(org, masterCard.token)) return res.status(409).json({ error: 'No active master card is available for this organization.' });
@@ -1653,7 +1694,7 @@ app.post('/api/org/apply', async (req, res) => {
 
 app.get('/api/org/cards', requireOrg, async (req, res) => {
   const org = await getOrg(req.orgId);
-  if (!org || org.subscription_status !== 'Active') return res.status(403).json({ error: 'Subscription must be active before managing registrations.' });
+  if (!org || !hasActiveSubscription(org)) return res.status(403).json({ error: 'Subscription must be active before managing registrations.' });
   const { data, error } = await db.from('cards').select('*').eq('organization_id', req.orgId).order('created_at', { ascending: false });
   if (error) return res.status(500).json({ error: error.message });
   res.json({ cards: data.map(toCard) });
@@ -1661,7 +1702,7 @@ app.get('/api/org/cards', requireOrg, async (req, res) => {
 
 app.get('/api/org/attendance', requireOrg, async (req, res) => {
   const org = await getOrg(req.orgId);
-  if (!org || org.subscription_status !== 'Active') return res.status(403).json({ error: 'Subscription must be active before viewing attendance.' });
+  if (!org || !hasActiveSubscription(org)) return res.status(403).json({ error: 'Subscription must be active before viewing attendance.' });
   const { data, error } = await db.from('attendance_records').select('*').eq('organization_id', req.orgId).order('created_at', { ascending: false }).limit(500);
   if (error) return res.status(500).json({ error: error.message });
   res.json({ attendance: (data || []).map(toAttendance) });
@@ -1700,7 +1741,7 @@ app.get('/api/org/fees', requireOrg, async (req, res) => {
 
 app.post('/api/org/fees/upload', requireOrg, async (req, res) => {
   const org = await getOrg(req.orgId);
-  if (!org || org.subscription_status !== 'Active') return res.status(403).json({ error: 'Subscription must be active before managing fees.' });
+  if (!org || !hasActiveSubscription(org)) return res.status(403).json({ error: 'Subscription must be active before managing fees.' });
   if (!['school', 'university'].includes(org.type)) return res.status(400).json({ error: 'Fee management is available for schools and universities.' });
   const rows = Array.isArray(req.body.rows) ? req.body.rows : [];
   if (!rows.length) return res.status(400).json({ error: 'Upload at least one fee row.' });
@@ -1862,7 +1903,7 @@ app.post('/api/gate/login', authRateLimit, async (req, res) => {
   const { data: staff } = await db.from('gate_staff').select('*').eq('organization_id', organizationId).eq('staff_code', staffCode).maybeSingle();
   if (!staff || staff.status !== 'Active' || !verifyPassword(pin, staff.salt, staff.pin_hash)) return res.status(401).json({ error: 'Invalid or inactive gate staff login.' });
   const org = await getOrg(staff.organization_id);
-  if (!org || org.subscription_status !== 'Active') return res.status(403).json({ error: 'Organization subscription must be active before scanning.' });
+  if (!org || !hasActiveSubscription(org)) return res.status(403).json({ error: 'Organization subscription must be active before scanning.' });
   const gateName = normalizeText(req.body.gateName) || staff.gate_name || 'Main Gate';
   const device = await gateDeviceDecision(org, staff, meta, gateName);
   if (!device.allowed) {
@@ -2023,7 +2064,7 @@ app.post('/api/gate/confirm', gateRateLimit, async (req, res) => {
 
 app.post('/api/org/gate-scan', requireOrg, gateRateLimit, async (req, res) => {
   const org = await getOrg(req.orgId);
-  if (!org || org.subscription_status !== 'Active') return res.status(403).json({ error: 'Subscription must be active before gate scanning.' });
+  if (!org || !hasActiveSubscription(org)) return res.status(403).json({ error: 'Subscription must be active before gate scanning.' });
   const action = req.body.action === 'leave' ? 'leave' : 'enter';
   const token = extractVerificationToken(req.body.token);
   const gateName = normalizeText(req.body.gateName) || 'Main Gate';
@@ -2103,7 +2144,7 @@ app.post('/api/org/gate-scan', requireOrg, gateRateLimit, async (req, res) => {
 
 app.patch('/api/org/cards/:id/status', requireOrg, async (req, res) => {
   const org = await getOrg(req.orgId);
-  if (!org || org.subscription_status !== 'Active') return res.status(403).json({ error: 'Subscription must be active before approving ID cards.' });
+  if (!org || !hasActiveSubscription(org)) return res.status(403).json({ error: 'Subscription must be active before approving ID cards.' });
   const patch = { status: req.body.status, updated_at: new Date().toISOString() };
   if (req.body.status === 'Approved') patch.approved_at = new Date().toISOString();
   const { data, error } = await db.from('cards').update(patch).eq('id', req.params.id).eq('organization_id', req.orgId).select('*').single();
@@ -2156,7 +2197,7 @@ function cardRow(input, includeGenerated = true) {
   };
 }
 
-async function createOrganization(body, status, subscriptionStatus) {
+async function createOrganization(body, status, subscriptionStatus, options = {}) {
   const type = body.type || 'custom';
   const registrationRule = orgRegistrationFields[type] || orgRegistrationFields.custom;
   if (!body.name || !body.email || !body.password || !body.businessNumber) return { error: `${registrationRule.nameLabel}, admin email, password, and ${registrationRule.registrationLabel} are required.` };
@@ -2172,7 +2213,8 @@ async function createOrganization(body, status, subscriptionStatus) {
   } catch (error) {
     return { error: `Supabase Auth user could not be created: ${error.message}` };
   }
-  const masterCard = { number: `${id}/MASTER`, token: crypto.randomBytes(24).toString('hex'), status: 'Inactive', issuedAt: new Date().toISOString(), replacedAt: '' };
+  const trialEndsAt = options.freeTrial ? oneMonthFromNow() : '';
+  const masterCard = { number: `${id}/MASTER`, token: crypto.randomBytes(24).toString('hex'), status: subscriptionStatus === 'Active' ? 'Active' : 'Inactive', issuedAt: new Date().toISOString(), replacedAt: '' };
   const backSettings = sanitizeBackSettings({
     returnName: body.name,
     poBox: body.poBox,
@@ -2202,7 +2244,11 @@ async function createOrganization(body, status, subscriptionStatus) {
     password_hash: passwordHash,
     status,
     subscription_status: subscriptionStatus,
-    back_settings: { ...orgDefaults(body.name.trim()), ...backSettings },
+    back_settings: {
+      ...orgDefaults(body.name.trim()),
+      ...backSettings,
+      ...(trialEndsAt ? { subscriptionPlan: 'One month free trial', subscriptionTrialEndsAt: trialEndsAt } : {})
+    },
     master_card: masterCard
   };
   let { data, error } = await db.from('organizations').insert(row).select('*').single();

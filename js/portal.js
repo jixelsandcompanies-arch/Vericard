@@ -855,7 +855,7 @@ const state = { token: '', org: null, rules: null, orgRegistrationFields: {}, ca
       });
       state.org = data.organization;
       state.templates = data.templates || state.templates;
-      state.locked = state.org.subscriptionStatus !== 'Active';
+      state.locked = state.org.subscriptionActive === false || state.org.subscriptionStatus !== 'Active';
       setLogoValue('dashboard', state.org.logo || '');
       setBrandColorValue('dashboard', state.org.brandColor || '#061a30');
       openDashboard(state.locked);
@@ -1165,7 +1165,7 @@ const state = { token: '', org: null, rules: null, orgRegistrationFields: {}, ca
       try {
         const data = await api('/api/organizations/register', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(payload) });
         rememberRegisteredOrganization();
-        alert(`${data.organization.name} registered. Log in to choose and save the ID template before payment.`);
+        alert(`${data.organization.name} registered with a one-month free trial. Log in to choose and save the ID template, then download the master card.`);
         showLogin();
       } catch (error) { alert(friendlyError(error)); }
     });

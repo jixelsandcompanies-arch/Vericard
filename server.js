@@ -259,7 +259,7 @@ const orgRegistrationFields = {
 
 const organizationTypes = {
   school: { label: 'School', roles: {
-    student: role('Student', ['name', 'admissionNumber', 'classGrade', 'parentGuardianName', 'parentGuardianPhone', 'photo'], ['studentCategory', 'stream', 'email', 'parentGuardianEmail', 'parentGuardianNationalId']),
+    student: role('Student', ['name', 'admissionNumber', 'classGrade', 'parentGuardianName', 'parentGuardianPhone', 'photo'], ['studentCategory', 'stream', 'parentGuardianEmail', 'parentGuardianNationalId']),
     teacher: role('Teacher', ['name', 'nationalId', 'staffId', 'department', 'phone', 'email', 'photo'], ['subject', 'classTeacherStatus', 'assignedClass']),
     staff: role('Staff', ['name', 'nationalId', 'staffId', 'position', 'department', 'phone', 'email', 'photo']),
     guardian: role('Parent/Guardian', ['name', 'nationalId', 'phone', 'relationshipToStudent', 'studentName', 'studentAdmissionNumber', 'photo'], ['email'])

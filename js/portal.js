@@ -129,7 +129,7 @@ const state = { token: '', org: null, rules: null, orgRegistrationFields: {}, ca
         ? '<label>Mission<textarea name="mission"></textarea></label><label>Vision<textarea name="vision"></textarea></label>'
         : '';
       els.schoolHourFields.innerHTML = type === 'school'
-        ? '<label>School type<select name="schoolType"><option value="day">Day school</option><option value="boarding">Boarding school</option><option value="mixed">Mixed day/boarding school</option></select></label><label>Official/exeat release periods<textarea name="releasePeriods" placeholder="2026-08-01 to 2026-08-03, or one range per line"></textarea></label><label>Holiday/release notes<textarea name="holidayNotes" placeholder="Holiday/release reason notes"></textarea></label>'
+        ? '<label>School type<select name="schoolType"><option value="day">Day school</option><option value="boarding">Boarding school</option><option value="mixed">Mixed day/boarding school</option></select></label>'
         : '';
     }
     function normalizeHexColor(color) {

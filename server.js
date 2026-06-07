@@ -813,24 +813,7 @@ function movementClosedFor(card, org, action) {
     const settings = org.back_settings || {};
     const schoolType = settings.schoolType || 'day';
     const category = card.fields?.studentCategory || (schoolType === 'boarding' ? 'boarding' : 'day');
-    if (category === 'boarding') {
-      const day = now.getDay();
-      const today = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}-${String(now.getDate()).padStart(2, '0')}`;
-      const holidays = String(settings.holidayDates || '').split(/[\n,]+/).map((item) => item.trim()).filter(Boolean);
-      const releases = String(settings.releasePeriods || '').split(/[\n,]+/).map((item) => item.trim()).filter(Boolean);
-      const weekendAllowed = settings.weekendReleaseAllowed === 'yes';
-      const isWeekend = day === 0 || day === 6;
-      const isHoliday = holidays.includes(today);
-      const isReleased = releases.some((period) => {
-        const match = normalizeText(period).match(/^(\d{4}-\d{2}-\d{2})(?:\s*(?:to|\.\.)\s*(\d{4}-\d{2}-\d{2}))?$/i);
-        if (!match) return false;
-        const start = match[1];
-        const end = match[2] || match[1];
-        return start && end && today >= start && today <= end;
-      });
-      if (!isHoliday && !isReleased && !(weekendAllowed && isWeekend)) return 'Boarding student exit is allowed only during approved weekends, holidays, or official release periods.';
-      return '';
-    }
+    if (category === 'boarding') return '';
     const start = String(settings.schoolStartTime || '08:00').split(':').map(Number);
     const end = String(settings.schoolEndTime || '16:00').split(':').map(Number);
     const startMinutes = (start[0] || 8) * 60 + (start[1] || 0);
@@ -1276,10 +1259,6 @@ function sanitizeBackSettings(settings, org = {}) {
     authoritySignature: normalizeText(settings.authoritySignature),
     cardExpiryDate: normalizeText(settings.cardExpiryDate),
     schoolType: orgType === 'school' ? normalizeText(settings.schoolType) || 'day' : '',
-    weekendReleaseAllowed: orgType === 'school' ? normalizeText(settings.weekendReleaseAllowed) || 'no' : '',
-    holidayDates: orgType === 'school' ? normalizeText(settings.holidayDates) : '',
-    holidayNotes: orgType === 'school' ? normalizeText(settings.holidayNotes) : '',
-    releasePeriods: orgType === 'school' ? normalizeText(settings.releasePeriods) : '',
     schoolStartTime: orgType === 'school' ? normalizeText(settings.schoolStartTime) || '08:00' : '',
     schoolEndTime: orgType === 'school' ? normalizeText(settings.schoolEndTime) || '16:00' : '',
     gateLatitude: normalizeText(settings.gateLatitude),

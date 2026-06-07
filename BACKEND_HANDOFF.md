@@ -262,9 +262,7 @@ Day students:
 Boarding students:
 
 - Entry always captured.
-- Exit only allowed during approved release periods.
-- Allowed release periods are weekends if enabled, holidays, or future official/exeat releases.
-- If not an approved period, exit is denied and not saved.
+- Exit is captured without release-period setup.
 
 Mixed schools:
 

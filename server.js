@@ -259,7 +259,7 @@ const orgRegistrationFields = {
 
 const organizationTypes = {
   school: { label: 'School', roles: {
-    student: role('Student', ['name', 'admissionNumber', 'classGrade', 'parentGuardianName', 'parentGuardianPhone', 'photo'], ['studentCategory', 'stream', 'phone', 'email', 'parentGuardianEmail', 'parentGuardianNationalId']),
+    student: role('Student', ['name', 'admissionNumber', 'classGrade', 'parentGuardianName', 'parentGuardianPhone', 'photo'], ['studentCategory', 'stream', 'email', 'parentGuardianEmail', 'parentGuardianNationalId']),
     teacher: role('Teacher', ['name', 'nationalId', 'staffId', 'department', 'phone', 'email', 'photo'], ['subject', 'classTeacherStatus', 'assignedClass']),
     staff: role('Staff', ['name', 'nationalId', 'staffId', 'position', 'department', 'phone', 'email', 'photo']),
     guardian: role('Parent/Guardian', ['name', 'nationalId', 'phone', 'relationshipToStudent', 'studentName', 'studentAdmissionNumber', 'photo'], ['email'])
@@ -556,7 +556,8 @@ function validateRoleFields(org, roleType, fields) {
     if (schoolStudentCategory(org, fields) === 'boarding') {
       fields.registrationSource = 'class-teacher';
       if (!normalizeText(fields.classTeacherName)) return { error: 'Class teacher name is required for boarding student registration.' };
-      if (!normalizeText(fields.classTeacherStaffId)) return { error: 'Class teacher staff ID is required for boarding student registration.' };
+      fields.classTeacherPhone = normalizePhone(fields.classTeacherPhone);
+      if (!fields.classTeacherPhone) return { error: 'Class teacher phone is required for boarding student registration.' };
     } else {
       fields.registrationSource = 'home-master-qr';
     }

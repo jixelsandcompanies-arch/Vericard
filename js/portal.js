@@ -765,9 +765,9 @@ const state = { token: '', org: null, rules: null, orgRegistrationFields: {}, ca
         const schoolType = state.org?.backSettings?.schoolType || 'day';
         if (schoolType !== 'mixed') fields = fields.filter((field) => field !== 'studentCategory');
         if (schoolType === 'boarding') {
-          teacherFields = '<label>Class teacher name<input name="classTeacherName" required></label><label>Class teacher staff ID<input name="classTeacherStaffId" required></label>';
+          teacherFields = '<label>Class teacher name<input name="classTeacherName" required></label><label>Class teacher phone<input name="classTeacherPhone" type="tel" required></label>';
         } else if (schoolType === 'mixed') {
-          teacherFields = '<label>Class teacher name<input name="classTeacherName" data-boarding-teacher></label><label>Class teacher staff ID<input name="classTeacherStaffId" data-boarding-teacher></label>';
+          teacherFields = '<label>Class teacher name<input name="classTeacherName" data-boarding-teacher></label><label>Class teacher phone<input name="classTeacherPhone" type="tel" data-boarding-teacher></label>';
         }
       }
       if (state.org?.type === 'school' && els.roleType.value === 'teacher') {

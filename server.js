@@ -819,7 +819,7 @@ function toGateStaff(row) {
     fullName: row.full_name,
     phone: row.phone,
     staffCode: row.staff_code,
-    staffRole: row.staff_role || 'Gate Staff',
+    staffRole: row.staff_role || 'Scanner Staff',
     gateName: row.gate_name,
     status: row.status,
     createdAt: row.created_at,
@@ -1067,7 +1067,7 @@ async function gateDeviceDecision(org, staff, meta, gateName) {
   }).eq('id', existing.id);
   if (existing.status === 'Blocked') return { allowed: false, reason: 'Scanner device is blocked.' };
   if (existing.status !== 'Approved') return { allowed: false, reason: 'Scanner device is pending admin approval.' };
-  if (existing.gate_staff_id && existing.gate_staff_id !== staff.id) return { allowed: false, reason: 'Scanner device is approved for a different gate staff member.' };
+  if (existing.gate_staff_id && existing.gate_staff_id !== staff.id) return { allowed: false, reason: 'Scanner device is approved for a different scanner staff member.' };
   const approvedGate = normalizeText(existing.gate_name);
   if (approvedGate && normalizeText(gateName) && approvedGate.toLowerCase() !== normalizeText(gateName).toLowerCase()) {
     return { allowed: false, reason: 'Scanner device is approved for a different gate.' };
@@ -1143,7 +1143,7 @@ async function sessionDeviceDecision(org, session, meta) {
   if (!device) return { allowed: false, reason: 'Scanner device is not registered.' };
   if (device.status === 'Blocked') return { allowed: false, reason: 'Scanner device is blocked.' };
   if (device.status !== 'Approved') return { allowed: false, reason: 'Scanner device is pending admin approval.' };
-  if (device.gate_staff_id && device.gate_staff_id !== session.gate_staff_id) return { allowed: false, reason: 'Scanner device is approved for a different gate staff member.' };
+  if (device.gate_staff_id && device.gate_staff_id !== session.gate_staff_id) return { allowed: false, reason: 'Scanner device is approved for a different scanner staff member.' };
   if (!validDeviceSignature(device, meta)) return { allowed: false, reason: 'Scanner device signature is missing or invalid.' };
   return { allowed: true, device };
 }
@@ -1256,8 +1256,8 @@ function teamsAiFallbackAnswer(org, question = '') {
   if (/master|qr|register/.test(q)) return 'Open Master Card, load the master card, then share or print its QR. Scanning that QR opens the registration form for the roles used by this organization.';
   if (/print|download|bulk|card/.test(q)) return 'Open Records, tick approved cards, then use Download Selected Approved or Request Admin Print. Printing requests are priced at KES 100 per card for super admin handling.';
   if (/fee|balance/.test(q)) return schoolPortal ? 'Open Fees to upload a CSV from Excel. Parent notifications can be queued from fee balances.' : 'Fees are hidden for this portal because they are school/university features.';
-  if (/gate|scan|attendance|work|job/.test(q)) return schoolPortal ? 'Open Gate to register gate staff and scan entry/exit. Entry and exit times are saved by the system timestamp.' : 'Open Gate to register supervisors, agent leaders, sales leaders, or gate staff. When employees scan in, the admin dashboard shows who is at work today.';
-  if (/report|daily|weekly|monthly|year/.test(q)) return schoolPortal ? 'Open Reports, choose daily, weekly, monthly, or yearly, then download the report file.' : 'Reports are currently focused on school attendance, fees, notifications, and security logs.';
+  if (/gate|scan|attendance|work|job|location|area/.test(q)) return schoolPortal ? 'Open Gate to register scanner staff and scan entry, report/update location, or exit. Entry and exit times are saved by the system timestamp.' : 'Open Gate to register scanner staff and scan entry, report/update location, or exit. The dashboard shows active inside people and their last scan area.';
+  if (/report|daily|weekly|monthly|year/.test(q)) return schoolPortal ? 'Open Reports, choose daily, weekly, monthly, or yearly, then download the report file.' : 'Open Reports to download card, movement, active-location, area breakdown, and security-log history.';
   return 'Start from Dashboard for status, Records for approvals, Master Card for QR registration, Set Front/Back for card design, Gate for scanning, and Teams AI whenever you need the next step.';
 }
 
@@ -2358,7 +2358,7 @@ app.post('/api/gate/login', authRateLimit, async (req, res) => {
   const pin = normalizeText(req.body.pin);
   const meta = scanMeta(req, 'gate-app');
   const { data: staff } = await db.from('gate_staff').select('*').eq('organization_id', organizationId).eq('staff_code', staffCode).maybeSingle();
-  if (!staff || staff.status !== 'Active' || !verifyPassword(pin, staff.salt, staff.pin_hash)) return res.status(401).json({ error: 'Invalid or inactive gate staff login.' });
+  if (!staff || staff.status !== 'Active' || !verifyPassword(pin, staff.salt, staff.pin_hash)) return res.status(401).json({ error: 'Invalid or inactive scanner staff login.' });
   const org = await getOrg(staff.organization_id);
   if (!org || !hasActiveSubscription(org)) return res.status(403).json({ error: 'Organization subscription must be active before scanning.' });
   const gateName = normalizeText(req.body.gateName) || staff.gate_name || 'Main Gate';

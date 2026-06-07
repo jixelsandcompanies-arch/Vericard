@@ -493,7 +493,8 @@ const state = { token: '', org: null, rules: null, orgRegistrationFields: {}, ca
     function availableDashboardViews() {
       const schoolPortal = isSchoolType(state.org?.type);
       const views = ['dashboard', 'front', 'back', 'master', 'records', 'assistant', 'gate'];
-      if (schoolPortal) views.push('fees', 'reports');
+      if (schoolPortal) views.push('fees');
+      views.push('reports');
       return views;
     }
     function updateDashboardNavigation() {
@@ -547,7 +548,7 @@ const state = { token: '', org: null, rules: null, orgRegistrationFields: {}, ca
       if (/master|qr|register/.test(q)) return 'Open Master Card, load the master card, then share or print its QR. Scanning that QR opens the registration form for students, teachers, staff, employees, or the roles for this organization.';
       if (/print|download|bulk|card/.test(q)) return 'Open Records, tick approved cards, then use Download Selected Approved or Request Admin Print. Printing requests are priced at KES 100 per card for super admin handling.';
       if (/fee|balance/.test(q)) return schoolPortal ? 'Open Fees to upload a CSV from Excel. Parent notifications can be queued from fee balances.' : 'Fees are hidden for this portal because they are school/university features.';
-      if (/gate|scan|attendance|work|job|location|area/.test(q)) return schoolPortal ? 'Open Gate to register gate staff and scan entry, report/update location, or exit. Entry and exit times are saved by the system timestamp.' : profile.assistantScan;
+      if (/gate|scan|attendance|work|job|location|area/.test(q)) return schoolPortal ? 'Open Gate to register scanner staff and scan entry, report/update location, or exit. Entry and exit times are saved by the system timestamp.' : profile.assistantScan;
       if (/report|daily|weekly|monthly|year/.test(q)) return schoolPortal ? 'Open Reports, choose daily, weekly, monthly, or yearly, then download the report file.' : `Open Reports to download ${profile.reportPrefix.toLowerCase()} movement, active-location, and security-log history.`;
       return 'Start from Dashboard for status, Records for approvals, Master Card for QR registration, Set Front/Back for card design, and Teams AI whenever you need the next step.';
     }
@@ -1016,7 +1017,7 @@ const state = { token: '', org: null, rules: null, orgRegistrationFields: {}, ca
         els.masterCard.classList.add('hidden');
         els.cardsBody.innerHTML = '<tr><td colspan="7">Subscription is inactive. Payment unlocks approvals and ID card records.</td></tr>';
         els.attendanceBody.innerHTML = '<tr><td colspan="7">Subscription is inactive. Payment unlocks gate attendance.</td></tr>';
-        els.gateStaffBody.innerHTML = '<tr><td colspan="5">Subscription is inactive. Payment unlocks gate staff management.</td></tr>';
+        els.gateStaffBody.innerHTML = '<tr><td colspan="5">Subscription is inactive. Payment unlocks scanner staff management.</td></tr>';
         els.gateDevicesBody.innerHTML = '<tr><td colspan="5">Subscription is inactive. Payment unlocks scanner device approval.</td></tr>';
         els.feesBody.innerHTML = '<tr><td colspan="7">Subscription is inactive. Payment unlocks fee management.</td></tr>';
         els.reportsSummary.innerHTML = '<div class="dash-card"><strong>Locked</strong>Subscription inactive</div>';
@@ -1169,10 +1170,10 @@ const state = { token: '', org: null, rules: null, orgRegistrationFields: {}, ca
         <tr>
           <td>${escapeHtml(staff.fullName)}<br>${escapeHtml(staff.phone || '')}</td>
           <td>${escapeHtml(staff.staffCode)}</td>
-          <td>${escapeHtml(staff.staffRole || 'Gate Staff')}<br>${escapeHtml(staff.gateName)}</td>
+          <td>${escapeHtml(staff.staffRole || 'Scanner Staff')}<br>${escapeHtml(staff.gateName)}</td>
           <td>${escapeHtml(staff.status)}</td>
           <td><button type="button" data-gate-staff="${escapeAttr(staff.id)}" data-status="${staff.status === 'Active' ? 'Suspended' : 'Active'}">${staff.status === 'Active' ? 'Suspend' : 'Activate'}</button></td>
-        </tr>`).join('') : '<tr><td colspan="5">No gate staff registered yet.</td></tr>';
+        </tr>`).join('') : '<tr><td colspan="5">No scanner staff registered yet.</td></tr>';
       const devices = data.devices || [];
       els.gateDevicesBody.innerHTML = devices.length ? devices.map((device) => `
         <tr>

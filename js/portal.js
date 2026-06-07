@@ -31,7 +31,7 @@ const state = { token: '', org: null, rules: null, orgRegistrationFields: {}, ca
       idCardRoleLabel: document.getElementById('idCardRoleLabel'), idCardRole: document.getElementById('idCardRole'), idCardQr: document.getElementById('idCardQr'), backReturnTitle: document.getElementById('backReturnTitle'),
       frontAuthorityName: document.getElementById('frontAuthorityName'),
       backMission: document.getElementById('backMission'), backVision: document.getElementById('backVision'), backIdentityNumber: document.getElementById('backIdentityNumber'),
-      backReturnName: document.getElementById('backReturnName'), backPoBox: document.getElementById('backPoBox'), backAddress1: document.getElementById('backAddress1'), backAddress2: document.getElementById('backAddress2'),
+      backReturnName: document.getElementById('backReturnName'), backPoBox: document.getElementById('backPoBox'), backAddress1: document.getElementById('backAddress1'),
       backPhone: document.getElementById('backPhone'), backDesk: document.getElementById('backDesk'), backResponsibilityTitle: document.getElementById('backResponsibilityTitle'),
       backLostInstruction: document.getElementById('backLostInstruction'), backResponsibilities: document.getElementById('backResponsibilities')
     };
@@ -725,7 +725,6 @@ const state = { token: '', org: null, rules: null, orgRegistrationFields: {}, ca
       els.backPhone.textContent = settings.phone ? `Phone: ${settings.phone}` : '';
       els.backLostInstruction.textContent = settings.lostInstruction || '';
       els.backAddress1.textContent = '';
-      els.backAddress2.textContent = '';
       els.backDesk.textContent = '';
       els.backResponsibilityTitle.textContent = settings.responsibilityTitle || '';
       els.backResponsibilities.textContent = '';

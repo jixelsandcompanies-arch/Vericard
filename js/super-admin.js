@@ -422,7 +422,12 @@ const state = {
     }
 
     async function backupJson() {
-      const response = await fetch('/api/backup', { headers: headers() });
+      const adminPassword = promptAdminPassword('export backup data');
+      const response = await fetch('/api/backup', {
+        method: 'POST',
+        headers: { ...headers(), 'Content-Type': 'application/json' },
+        body: JSON.stringify({ adminPassword })
+      });
       const data = await readJson(response);
       if (!response.ok) throw new Error(data.error || 'Unable to create backup.');
       const link = document.createElement('a');

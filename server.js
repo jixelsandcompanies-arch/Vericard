@@ -127,6 +127,12 @@ const gateRateLimit = createRateLimit({
   key: (req) => `${req.ip}:${normalizeText(req.body?.sessionToken || req.body?.staffCode || '')}`,
   message: 'Too many gate scan requests. Please slow down and try again.'
 });
+const qrRateLimit = createRateLimit({
+  windowMs: 60 * 1000,
+  max: 120,
+  key: (req) => req.ip,
+  message: 'Too many QR requests. Please slow down and try again.'
+});
 
 function staticFilePath(filePath) {
   const cleanPath = normalize(String(filePath || '').replace(/^[/\\]+/, ''));
@@ -170,7 +176,7 @@ app.get('/api/health', (req, res) => {
   });
 });
 
-app.get('/api/qr', async (req, res) => {
+app.get('/api/qr', qrRateLimit, async (req, res) => {
   const data = normalizeText(req.query.data);
   if (!data || data.length > 2048) return res.status(400).send('Invalid QR data');
   try {
@@ -394,6 +400,19 @@ async function requireFreshAdminPassword(req, res) {
     return null;
   }
   return settings;
+}
+
+async function requireFreshOrgPassword(req, res, org) {
+  const adminPassword = normalizeText(req.body.adminPassword);
+  if (!adminPassword) {
+    res.status(403).json({ error: 'Organization admin password is required for this action.' });
+    return false;
+  }
+  if (!await verifyOrgPassword(org, adminPassword)) {
+    res.status(403).json({ error: 'Organization admin password is invalid.' });
+    return false;
+  }
+  return true;
 }
 
 function orgDefaults(name) {
@@ -1428,7 +1447,14 @@ app.get('/api/notifications', requireAdmin, async (req, res) => {
 });
 
 app.get('/api/security-logs', requireAdmin, async (req, res) => {
-  const { data, error } = await db.from('scan_security_logs').select('*').order('created_at', { ascending: false }).limit(1000);
+  const result = normalizeText(req.query.result).toLowerCase();
+  const alertLevel = normalizeText(req.query.alertLevel).toLowerCase();
+  let query = db.from('scan_security_logs').select('*').order('created_at', { ascending: false }).limit(1000);
+  if (['allowed', 'denied'].includes(result)) query = query.eq('result', result);
+  if (['none', 'low', 'medium', 'high', 'critical'].includes(alertLevel)) query = query.eq('alert_level', alertLevel);
+  if (normalizeText(req.query.gateName)) query = query.ilike('gate_name', `%${normalizeText(req.query.gateName)}%`);
+  if (normalizeText(req.query.deviceId)) query = query.ilike('device_id', `%${normalizeText(req.query.deviceId)}%`);
+  const { data, error } = await query;
   if (error) return res.status(500).json({ error: error.message });
   res.json({ logs: (data || []).map(toSecurityLog) });
 });
@@ -1479,7 +1505,7 @@ app.post('/api/cards/:id/rotate-token', requireAdmin, async (req, res) => {
   res.json({ card: toCard(data) });
 });
 
-app.get('/api/backup', requireAdmin, async (req, res) => {
+async function buildAdminBackup() {
   const [cards, organizations, log, attendance, fees, notifications, securityLogs, gateStaff, gateSessions, gateDevices] = await Promise.all([
     db.from('cards').select('*'),
     db.from('organizations').select('*'),
@@ -1492,7 +1518,8 @@ app.get('/api/backup', requireAdmin, async (req, res) => {
     db.from('gate_sessions').select('*'),
     db.from('gate_devices').select('*')
   ]);
-  res.json({
+  return {
+    exportedAt: new Date().toISOString(),
     cards: cards.data || [],
     organizations: organizations.data || [],
     auditLog: log.data || [],
@@ -1503,7 +1530,19 @@ app.get('/api/backup', requireAdmin, async (req, res) => {
     gateStaff: gateStaff.data || [],
     gateSessions: gateSessions.data || [],
     gateDevices: gateDevices.data || []
-  });
+  };
+}
+
+app.get('/api/backup', requireAdmin, async (req, res) => {
+  res.status(405).json({ error: 'Use POST /api/backup with the current admin password to export backups.' });
+});
+
+app.post('/api/backup', requireAdmin, async (req, res) => {
+  const settings = await requireFreshAdminPassword(req, res);
+  if (!settings) return;
+  const backup = await buildAdminBackup();
+  await audit('Exported admin backup JSON', '', req.admin.user);
+  res.json(backup);
 });
 
 app.post('/api/restore', requireAdmin, async (req, res) => {
@@ -1798,28 +1837,30 @@ app.get('/api/org/notifications', requireOrg, async (req, res) => {
 });
 
 app.get('/api/org/security-logs', requireOrg, async (req, res) => {
-  const result = normalizeText(req.query.result);
+  const result = normalizeText(req.query.result).toLowerCase();
+  const alertLevel = normalizeText(req.query.alertLevel).toLowerCase();
   let query = db.from('scan_security_logs').select('*').eq('organization_id', req.orgId).order('created_at', { ascending: false }).limit(500);
   if (['allowed', 'denied'].includes(result)) query = query.eq('result', result);
+  if (['none', 'low', 'medium', 'high', 'critical'].includes(alertLevel)) query = query.eq('alert_level', alertLevel);
+  if (normalizeText(req.query.gateName)) query = query.ilike('gate_name', `%${normalizeText(req.query.gateName)}%`);
+  if (normalizeText(req.query.deviceId)) query = query.ilike('device_id', `%${normalizeText(req.query.deviceId)}%`);
   const { data, error } = await query;
   if (error) return res.status(500).json({ error: error.message });
   res.json({ logs: (data || []).map(toSecurityLog) });
 });
 
-app.get('/api/org/backup', requireOrg, async (req, res) => {
-  const org = await getOrg(req.orgId);
-  if (!org) return res.status(404).json({ error: 'Organization not found.' });
+async function buildOrgBackup(org, orgId) {
   const [cards, attendance, fees, notifications, securityLogs, gateStaff, gateSessions, gateDevices] = await Promise.all([
-    db.from('cards').select('*').eq('organization_id', req.orgId),
-    db.from('attendance_records').select('*').eq('organization_id', req.orgId),
-    db.from('fee_records').select('*').eq('organization_id', req.orgId),
-    db.from('parent_notifications').select('*').eq('organization_id', req.orgId),
-    db.from('scan_security_logs').select('*').eq('organization_id', req.orgId),
-    db.from('gate_staff').select('*').eq('organization_id', req.orgId),
-    db.from('gate_sessions').select('*').eq('organization_id', req.orgId),
-    db.from('gate_devices').select('*').eq('organization_id', req.orgId)
+    db.from('cards').select('*').eq('organization_id', orgId),
+    db.from('attendance_records').select('*').eq('organization_id', orgId),
+    db.from('fee_records').select('*').eq('organization_id', orgId),
+    db.from('parent_notifications').select('*').eq('organization_id', orgId),
+    db.from('scan_security_logs').select('*').eq('organization_id', orgId),
+    db.from('gate_staff').select('*').eq('organization_id', orgId),
+    db.from('gate_sessions').select('*').eq('organization_id', orgId),
+    db.from('gate_devices').select('*').eq('organization_id', orgId)
   ]);
-  res.json({
+  return {
     exportedAt: new Date().toISOString(),
     organization: toOrg(org),
     cards: cards.data || [],
@@ -1830,7 +1871,20 @@ app.get('/api/org/backup', requireOrg, async (req, res) => {
     gateStaff: gateStaff.data || [],
     gateSessions: gateSessions.data || [],
     gateDevices: gateDevices.data || []
-  });
+  };
+}
+
+app.get('/api/org/backup', requireOrg, async (req, res) => {
+  res.status(405).json({ error: 'Use POST /api/org/backup with the organization admin password to export backups.' });
+});
+
+app.post('/api/org/backup', requireOrg, async (req, res) => {
+  const org = await getOrg(req.orgId);
+  if (!org) return res.status(404).json({ error: 'Organization not found.' });
+  if (!await requireFreshOrgPassword(req, res, org)) return;
+  const backup = await buildOrgBackup(org, req.orgId);
+  await audit('Exported organization backup JSON', req.orgId, org.name);
+  res.json(backup);
 });
 
 app.get('/api/org/gate-staff', requireOrg, async (req, res) => {

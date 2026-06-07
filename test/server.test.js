@@ -1,9 +1,11 @@
 import assert from 'node:assert/strict';
+import http from 'node:http';
 import test from 'node:test';
 
 process.env.NODE_ENV = 'test';
 
 const {
+  app,
   distanceMeters,
   extractVerificationToken,
   gateConfigFor,
@@ -19,6 +21,17 @@ const {
   validCoordinate,
   verifyPassword
 } = await import('../server.js');
+
+async function withServer(fn) {
+  const server = http.createServer(app);
+  await new Promise((resolve) => server.listen(0, '127.0.0.1', resolve));
+  const { port } = server.address();
+  try {
+    await fn(`http://127.0.0.1:${port}`);
+  } finally {
+    await new Promise((resolve, reject) => server.close((error) => error ? reject(error) : resolve()));
+  }
+}
 
 test('password hashing verifies the original password only', () => {
   const { salt, passwordHash } = hashPassword('correct horse battery staple');
@@ -100,4 +113,37 @@ test('GPS security thresholds are strict enough for gate scanning', () => {
   assert.equal(gpsSecurity.maxAccuracyMeters, 100);
   assert.equal(gpsSecurity.maxLocationAgeMs, 120000);
   assert.ok(gpsSecurity.maxJumpSpeedMetersPerSecond > 0);
+});
+
+test('QR endpoint returns a PNG and rejects empty data', async () => {
+  await withServer(async (baseUrl) => {
+    const ok = await fetch(`${baseUrl}/api/qr?data=${encodeURIComponent('verify-me')}`);
+    assert.equal(ok.status, 200);
+    assert.equal(ok.headers.get('content-type'), 'image/png');
+    assert.ok((await ok.arrayBuffer()).byteLength > 100);
+
+    const missing = await fetch(`${baseUrl}/api/qr`);
+    assert.equal(missing.status, 400);
+    assert.match(await missing.text(), /invalid qr data/i);
+  });
+});
+
+test('backup exports require password-confirmed POST requests', async () => {
+  await withServer(async (baseUrl) => {
+    const adminBackup = await fetch(`${baseUrl}/api/backup`);
+    assert.equal(adminBackup.status, 401);
+
+    const orgBackup = await fetch(`${baseUrl}/api/org/backup`);
+    assert.equal(orgBackup.status, 401);
+
+    const authenticatedAdminBackup = await fetch(`${baseUrl}/api/backup`, {
+      headers: { Authorization: `Bearer ${signToken({ scope: 'admin', user: 'tester' })}` }
+    });
+    assert.equal(authenticatedAdminBackup.status, 405);
+
+    const authenticatedOrgBackup = await fetch(`${baseUrl}/api/org/backup`, {
+      headers: { Authorization: `Bearer ${signToken({ scope: 'org', orgId: 'ORG-1' })}` }
+    });
+    assert.equal(authenticatedOrgBackup.status, 405);
+  });
 });

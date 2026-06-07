@@ -335,6 +335,25 @@
           </table>
         </div>
         <h3>Gate Security Logs</h3>
+        <div class="row">
+          <label>Result
+            <select id="securityLogResult">
+              <option value="">All results</option>
+              <option value="denied">Denied</option>
+              <option value="allowed">Allowed</option>
+            </select>
+          </label>
+          <label>Alert
+            <select id="securityLogAlert">
+              <option value="">All alerts</option>
+              <option value="critical">Critical</option>
+              <option value="high">High</option>
+              <option value="medium">Medium</option>
+              <option value="low">Low</option>
+              <option value="none">None</option>
+            </select>
+          </label>
+        </div>
         <div class="table-wrap">
           <table>
             <thead><tr><th>Alert</th><th>Score</th><th>Result</th><th>Action</th><th>Person</th><th>Reason</th><th>Gate</th><th>Device</th><th>GPS</th><th>Date</th></tr></thead>

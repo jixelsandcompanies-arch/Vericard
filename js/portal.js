@@ -23,7 +23,7 @@ const state = { token: '', org: null, rules: null, orgRegistrationFields: {}, ca
       gateScanPanel: document.getElementById('gateScanPanel'), gateScanForm: document.getElementById('gateScanForm'), gateScanNotice: document.getElementById('gateScanNotice'), attendanceBody: document.getElementById('attendanceBody'),
       gateStaffForm: document.getElementById('gateStaffForm'), gateStaffBody: document.getElementById('gateStaffBody'), gateDevicesBody: document.getElementById('gateDevicesBody'),
       feePanel: document.getElementById('feePanel'), feeUploadFile: document.getElementById('feeUploadFile'), uploadFeesBtn: document.getElementById('uploadFeesBtn'), refreshFeesBtn: document.getElementById('refreshFeesBtn'), feeNotice: document.getElementById('feeNotice'), feesBody: document.getElementById('feesBody'),
-      reportsPanel: document.getElementById('reportsPanel'), reportsSummary: document.getElementById('reportsSummary'), reportPeriod: document.getElementById('reportPeriod'), downloadReportBtn: document.getElementById('downloadReportBtn'), notificationsBody: document.getElementById('notificationsBody'), securityLogsBody: document.getElementById('securityLogsBody'),
+      reportsPanel: document.getElementById('reportsPanel'), reportsSummary: document.getElementById('reportsSummary'), reportPeriod: document.getElementById('reportPeriod'), downloadReportBtn: document.getElementById('downloadReportBtn'), securityLogResult: document.getElementById('securityLogResult'), securityLogAlert: document.getElementById('securityLogAlert'), notificationsBody: document.getElementById('notificationsBody'), securityLogsBody: document.getElementById('securityLogsBody'),
       backSettingsForm: document.getElementById('backSettingsForm'), previewEmpty: document.getElementById('previewEmpty'), idCardStage: document.getElementById('idCardStage'),
       schoolBackFields: document.getElementById('schoolBackFields'), schoolHourFields: document.getElementById('schoolHourFields'),
       idFrontLogo: document.getElementById('idFrontLogo'), idBackLogo: document.getElementById('idBackLogo'), idPhoto: document.getElementById('idPhoto'),
@@ -38,6 +38,11 @@ const state = { token: '', org: null, rules: null, orgRegistrationFields: {}, ca
 
     function headers() { return { Authorization: `Bearer ${state.token}`, 'Content-Type': 'application/json' }; }
     function qrUrl(value) { return `/api/qr?data=${encodeURIComponent(value)}`; }
+    function promptOrgPassword(action) {
+      const password = prompt(`Enter organization admin password to ${action}:`);
+      if (!password) throw new Error('Organization admin password is required.');
+      return password;
+    }
     function niceLabel(key) { return key.replace(/([A-Z])/g, ' $1').replace(/^./, (c) => c.toUpperCase()); }
     function escapeHtml(value) {
       return String(value ?? '').replace(/[&<>"']/g, (char) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[char]));
@@ -1011,7 +1016,11 @@ const state = { token: '', org: null, rules: null, orgRegistrationFields: {}, ca
     }
 
     async function loadSecurityLogs() {
-      const data = await api('/api/org/security-logs', { headers: headers() });
+      const params = new URLSearchParams();
+      if (els.securityLogResult?.value) params.set('result', els.securityLogResult.value);
+      if (els.securityLogAlert?.value) params.set('alertLevel', els.securityLogAlert.value);
+      const path = `/api/org/security-logs${params.toString() ? `?${params}` : ''}`;
+      const data = await api(path, { headers: headers() });
       const logs = data.logs || [];
       els.securityLogsBody.innerHTML = logs.length ? logs.map((log) => `
         <tr>
@@ -1111,7 +1120,12 @@ const state = { token: '', org: null, rules: null, orgRegistrationFields: {}, ca
     }
 
     async function downloadOrgBackup() {
-      const data = await api('/api/org/backup', { headers: headers() });
+      const adminPassword = promptOrgPassword('export backup data');
+      const data = await api('/api/org/backup', {
+        method: 'POST',
+        headers: headers(),
+        body: JSON.stringify({ adminPassword })
+      });
       const name = (state.org?.name || 'vericard').replace(/[^a-z0-9]+/gi, '-').replace(/^-|-$/g, '').toLowerCase() || 'vericard';
       downloadJson(`${name}-backup-${new Date().toISOString().slice(0, 10)}.json`, data);
     }
@@ -1119,7 +1133,12 @@ const state = { token: '', org: null, rules: null, orgRegistrationFields: {}, ca
     async function downloadPeriodReport() {
       const period = els.reportPeriod.value || 'daily';
       const { start, end } = reportDateRange(period);
-      const data = await api('/api/org/backup', { headers: headers() });
+      const adminPassword = promptOrgPassword('download this report');
+      const data = await api('/api/org/backup', {
+        method: 'POST',
+        headers: headers(),
+        body: JSON.stringify({ adminPassword })
+      });
       const cards = data.cards || [];
       const attendance = data.attendanceRecords || [];
       const fees = data.feeRecords || [];
@@ -1323,6 +1342,8 @@ const state = { token: '', org: null, rules: null, orgRegistrationFields: {}, ca
     document.getElementById('loadMasterBtn').addEventListener('click', () => loadMasterCard().catch((error) => alert(friendlyError(error))));
     document.getElementById('printMasterBtn').addEventListener('click', () => window.print());
     document.getElementById('orgBackupBtn').addEventListener('click', () => downloadOrgBackup().catch((error) => alert(friendlyError(error))));
+    els.securityLogResult?.addEventListener('change', () => loadSecurityLogs().catch((error) => alert(friendlyError(error))));
+    els.securityLogAlert?.addEventListener('change', () => loadSecurityLogs().catch((error) => alert(friendlyError(error))));
     document.getElementById('refreshCardsBtn').addEventListener('click', () => loadCards().catch((error) => alert(friendlyError(error))));
     els.drawerToggle.addEventListener('click', () => toggleDrawer());
     els.drawerScrim.addEventListener('click', () => toggleDrawer(false));

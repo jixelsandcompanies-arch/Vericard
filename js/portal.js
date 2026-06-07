@@ -381,6 +381,7 @@ const state = { token: '', org: null, rules: null, orgRegistrationFields: {}, ca
       els.loginPanel.classList.add('hidden');
       els.templateSetup.classList.add('hidden');
       els.drawerToggle.classList.remove('hidden');
+      els.drawerToggle.setAttribute('aria-expanded', 'false');
       updateDashboardNavigation();
       setDashboardView('dashboard');
     }
@@ -431,12 +432,13 @@ const state = { token: '', org: null, rules: null, orgRegistrationFields: {}, ca
       document.querySelectorAll('[data-drawer-view]').forEach((button) => {
         button.classList.toggle('active', button.dataset.drawerView === nextView);
       });
-      els.dashboardDrawer?.classList.remove('open');
-      els.drawerScrim?.classList.add('hidden');
+      toggleDrawer(false);
     }
     function toggleDrawer(open = !els.dashboardDrawer?.classList.contains('open')) {
       els.dashboardDrawer?.classList.toggle('open', open);
       els.drawerScrim?.classList.toggle('hidden', !open);
+      els.drawerToggle?.setAttribute('aria-expanded', String(Boolean(open)));
+      document.body.classList.toggle('drawer-open', Boolean(open));
     }
     function downloadJson(filename, data) {
       const blob = new Blob([JSON.stringify(data, null, 2)], { type: 'application/json' });
@@ -1561,6 +1563,9 @@ const state = { token: '', org: null, rules: null, orgRegistrationFields: {}, ca
     });
     els.drawerToggle.addEventListener('click', () => toggleDrawer());
     els.drawerScrim.addEventListener('click', () => toggleDrawer(false));
+    document.addEventListener('keydown', (event) => {
+      if (event.key === 'Escape') toggleDrawer(false);
+    });
     els.dashboardDrawer.addEventListener('click', (event) => {
       const button = event.target.closest('[data-drawer-view]');
       if (!button) return;

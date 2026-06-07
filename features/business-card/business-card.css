@@ -1,7 +1,7 @@
 .business-card-flow { display: grid; gap: 14px; }
 .business-card-flow .bc-step { display: grid; gap: 14px; }
 .bc-type-grid, .bc-template-grid { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 8px; }
-.bc-type, .bc-template-choice { border: 1px solid var(--line); border-radius: 8px; background: #fff; color: var(--ink); text-align: left; display: grid; gap: 4px; min-height: 74px; }
+.bc-type, .bc-template-choice { border: 1px solid var(--line); border-radius: 8px; background: #fff; color: var(--ink); text-align: left; display: grid; gap: 7px; min-height: 74px; }
 .bc-type strong, .bc-template-choice strong { color: var(--ink); font-size: 13px; }
 .bc-type span, .bc-template-choice span { color: var(--muted); font-size: 11px; line-height: 1.3; }
 .bc-template-choice.active, .bc-type.active { border-color: var(--blue); box-shadow: 0 0 0 3px color-mix(in srgb, var(--blue) 16%, transparent); }
@@ -43,6 +43,32 @@
 .bc-template-premium .bc-brand, .bc-template-premium .bc-contact strong { color: var(--bc-accent); }
 .bc-template-premium .bc-tagline, .bc-template-premium .bc-contact span { color: #fff; }
 .bc-template-premium .bc-card::before { background: var(--bc-accent); height: 6px; top: 0; bottom: auto; }
+.bc-template-preview { aspect-ratio: 7 / 4; border: 1px solid var(--line); border-radius: 8px; background: #fff; position: relative; overflow: hidden; display: block; box-shadow: inset 0 0 0 1px rgba(255,255,255,.72); color: var(--ink); }
+.bc-template-preview::before { content: ""; position: absolute; inset: auto 0 0 0; height: 6px; background: var(--bc-accent); }
+.bc-mini-logo, .bc-mini-logo-text { position: absolute; left: 50%; top: 10px; transform: translateX(-50%); width: 68px; height: 30px; object-fit: contain; display: grid; place-items: center; color: var(--bc-primary); font-size: 10px; font-weight: 900; z-index: 1; }
+.bc-mini-brand { position: absolute; left: 12px; right: 12px; top: 44px; color: var(--bc-primary); font-size: 10px; font-weight: 900; text-align: center; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.bc-mini-tagline { position: absolute; left: 14px; right: 70px; top: 70px; color: var(--muted); font-size: 8px; font-weight: 800; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.bc-mini-lines { position: absolute; left: 14px; right: 70px; bottom: 15px; display: grid; gap: 4px; }
+.bc-mini-lines i { display: block; height: 3px; border-radius: 999px; background: color-mix(in srgb, var(--bc-primary) 72%, #fff); }
+.bc-mini-lines i:nth-child(2) { width: 76%; }
+.bc-mini-lines i:nth-child(3) { width: 58%; }
+.bc-mini-qr { position: absolute; right: 13px; bottom: 14px; width: 42px; height: 42px; display: grid; place-items: center; border: 2px solid #fff; box-shadow: 0 0 0 1px var(--line); background: repeating-linear-gradient(45deg, #111 0 4px, #fff 4px 7px); color: #111; font-size: 9px; font-weight: 900; }
+.bc-mini-qr::after { content: ""; position: absolute; inset: 11px; background: #fff; }
+.bc-mini-qr { isolation: isolate; }
+.bc-mini-qr::before { content: "QR"; position: relative; z-index: 1; background: #fff; padding: 1px 2px; }
+.bc-mini-qr { font-size: 0; }
+.bc-mini-luxe { background: linear-gradient(135deg, color-mix(in srgb, var(--bc-primary) 10%, #fff), #fff 54%); }
+.bc-mini-luxe::before { height: 100%; width: 12px; inset: 0 auto 0 0; }
+.bc-mini-modern { background: color-mix(in srgb, var(--bc-accent) 10%, #fff); }
+.bc-mini-modern .bc-mini-logo, .bc-mini-modern .bc-mini-logo-text { left: 16px; transform: none; }
+.bc-mini-modern .bc-mini-brand { left: 16px; right: 70px; top: 43px; text-align: left; }
+.bc-mini-modern .bc-mini-tagline { top: 63px; }
+.bc-mini-modern .bc-mini-lines { bottom: 18px; }
+.bc-mini-premium { background: var(--bc-primary); }
+.bc-mini-premium::before { height: 5px; top: 0; bottom: auto; }
+.bc-mini-premium .bc-mini-brand, .bc-mini-premium .bc-mini-logo-text { color: var(--bc-accent); }
+.bc-mini-premium .bc-mini-tagline { color: #fff; }
+.bc-mini-premium .bc-mini-lines i { background: rgba(255,255,255,.78); }
 button:disabled { opacity: .45; cursor: not-allowed; }
 @media (max-width: 880px) {
   .bc-type-grid, .bc-template-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }

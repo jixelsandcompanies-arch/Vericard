@@ -15,6 +15,7 @@ window.VeriCardFeatures = window.VeriCardFeatures || {};
     type: '',
     templateId: '',
     logo: '',
+    continued: false,
     submitted: false,
     colors: { primary: '#061a30', accent: '#149ee8' }
   };
@@ -26,6 +27,7 @@ window.VeriCardFeatures = window.VeriCardFeatures || {};
   function escapeHtml(value) {
     return String(value ?? '').replace(/[&<>"']/g, (char) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[char]));
   }
+  function escapeAttr(value) { return escapeHtml(value).replace(/`/g, '&#96;'); }
   function normalizeHex(color) {
     const value = String(color || '').trim();
     return /^#[0-9a-f]{6}$/i.test(value) ? value.toLowerCase() : '#061a30';
@@ -103,6 +105,11 @@ window.VeriCardFeatures = window.VeriCardFeatures || {};
   }
   function updatePreview() {
     const formValues = values();
+    const readyForTemplates = formReadyForTemplates(formValues);
+    if (!readyForTemplates) {
+      state.continued = false;
+      state.templateId = '';
+    }
     $('bcBusinessType').value = formValues.businessType;
     $('bcLogoValue').value = formValues.logo;
     $('bcPreviewBusiness').textContent = formValues.businessName || 'Business Name';
@@ -124,19 +131,22 @@ window.VeriCardFeatures = window.VeriCardFeatures || {};
         image.classList.add('hidden');
       }
     });
-    const readyForTemplates = formReadyForTemplates(formValues);
     const designStep = $('bcDesignStep');
     const quantityStep = $('bcQuantityStep');
     const submitActions = $('bcSubmitActions');
-    if (designStep) designStep.classList.toggle('hidden', !readyForTemplates);
+    const continueBtn = $('bcContinueBtn');
+    if (continueBtn) continueBtn.disabled = !readyForTemplates;
+    if (designStep) designStep.classList.toggle('hidden', !state.continued);
     if (quantityStep) quantityStep.classList.toggle('hidden', !state.templateId);
     if (submitActions) submitActions.classList.toggle('hidden', !state.templateId);
-    if (readyForTemplates && !$('bcTemplateGrid')?.children.length) renderTemplates();
-    if (!readyForTemplates) state.templateId = '';
+    if (state.continued && !$('bcTemplateGrid')?.children.length) renderTemplates();
+    if (!state.continued) $('bcTemplateGrid').innerHTML = '';
     $('bcTemplateId').value = state.templateId;
     if ($('bcNotice') && !state.submitted) {
       $('bcNotice').textContent = !readyForTemplates
-        ? 'Fill the business card details and upload a logo. Templates will show after the form is ready.'
+        ? 'Fill the business card details and upload a logo, then continue.'
+        : !state.continued
+          ? 'Click Continue to see the card templates.'
         : state.templateId
           ? 'Enter the quantity needed, then submit the business card order.'
           : 'Choose the template you want before entering the quantity.';
@@ -165,14 +175,22 @@ window.VeriCardFeatures = window.VeriCardFeatures || {};
   function renderTemplates() {
     const grid = $('bcTemplateGrid');
     if (!grid) return;
-    if (!formReadyForTemplates()) {
+    if (!state.continued || !formReadyForTemplates()) {
       grid.innerHTML = '';
       return;
     }
+    const formValues = values();
     const list = templatesFor(state.type);
     if (state.templateId && !list.some((template) => template.id === state.templateId)) state.templateId = '';
     grid.innerHTML = list.map((template) => `
-      <button type="button" class="bc-template-choice ${template.id === state.templateId ? 'active' : ''}" data-bc-template="${escapeHtml(template.id)}">
+      <button type="button" class="bc-template-choice ${template.id === state.templateId ? 'active' : ''}" data-bc-template="${escapeHtml(template.id)}" style="--bc-primary:${state.colors.primary};--bc-accent:${state.colors.accent};">
+        <span class="bc-template-preview bc-mini-${escapeHtml(template.layout)}">
+          ${formValues.logo ? `<img class="bc-mini-logo" src="${escapeAttr(formValues.logo)}" alt="">` : '<span class="bc-mini-logo-text">LOGO</span>'}
+          <span class="bc-mini-brand">${escapeHtml(formValues.businessName || template.name)}</span>
+          <span class="bc-mini-tagline">${escapeHtml(formValues.tagline || template.description)}</span>
+          <span class="bc-mini-lines"><i></i><i></i><i></i></span>
+          <span class="bc-mini-qr">QR</span>
+        </span>
         <strong>${escapeHtml(template.name)}</strong>
         <span>${escapeHtml(template.description)}</span>
       </button>
@@ -181,6 +199,7 @@ window.VeriCardFeatures = window.VeriCardFeatures || {};
   function chooseType(type) {
     state.type = type;
     state.templateId = '';
+    state.continued = false;
     $('bcTypeStep')?.classList.add('hidden');
     $('bcOrderForm')?.classList.remove('hidden');
     renderTypes();
@@ -195,6 +214,7 @@ window.VeriCardFeatures = window.VeriCardFeatures || {};
     $('bcOrderForm')?.reset();
     state.logo = '';
     state.templateId = '';
+    state.continued = false;
     $('bcLogoValue').value = '';
     $('bcTemplateGrid').innerHTML = '';
     $('bcDesignStep')?.classList.add('hidden');
@@ -295,6 +315,7 @@ window.VeriCardFeatures = window.VeriCardFeatures || {};
       $('bcLogoRemove')?.addEventListener('click', () => {
         state.logo = '';
         state.templateId = '';
+        state.continued = false;
         $('bcLogoFile').value = '';
         $('bcTemplateGrid').innerHTML = '';
         $('bcQuantityStep')?.classList.add('hidden');
@@ -303,8 +324,16 @@ window.VeriCardFeatures = window.VeriCardFeatures || {};
         updatePreview();
       });
       $('bcLogoFile')?.addEventListener('change', (event) => handleLogo(event.target.files?.[0]));
+      $('bcContinueBtn')?.addEventListener('click', () => {
+        if (!formReadyForTemplates()) return;
+        state.continued = true;
+        renderTemplates();
+        updatePreview();
+      });
       $('bcOrderForm')?.addEventListener('input', () => {
         state.submitted = false;
+        if (!formReadyForTemplates()) state.continued = false;
+        if (state.continued) renderTemplates();
         updatePreview();
       });
       updatePreview();

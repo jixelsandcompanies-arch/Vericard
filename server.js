@@ -814,11 +814,6 @@ function movementClosedFor(card, org, action) {
     const schoolType = settings.schoolType || 'day';
     const category = card.fields?.studentCategory || (schoolType === 'boarding' ? 'boarding' : 'day');
     if (category === 'boarding') return '';
-    const start = String(settings.schoolStartTime || '08:00').split(':').map(Number);
-    const end = String(settings.schoolEndTime || '16:00').split(':').map(Number);
-    const startMinutes = (start[0] || 8) * 60 + (start[1] || 0);
-    const endMinutes = (end[0] || 16) * 60 + (end[1] || 0);
-    if (minutes >= startMinutes && minutes < endMinutes) return 'School student exit is closed during school hours.';
   }
   return '';
 }
@@ -1259,8 +1254,6 @@ function sanitizeBackSettings(settings, org = {}) {
     authoritySignature: normalizeText(settings.authoritySignature),
     cardExpiryDate: normalizeText(settings.cardExpiryDate),
     schoolType: orgType === 'school' ? normalizeText(settings.schoolType) || 'day' : '',
-    schoolStartTime: orgType === 'school' ? normalizeText(settings.schoolStartTime) || '08:00' : '',
-    schoolEndTime: orgType === 'school' ? normalizeText(settings.schoolEndTime) || '16:00' : '',
     gateLatitude: normalizeText(settings.gateLatitude),
     gateLongitude: normalizeText(settings.gateLongitude),
     gateRadiusMeters: normalizeText(settings.gateRadiusMeters),

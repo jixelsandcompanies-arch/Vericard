@@ -255,9 +255,7 @@ Entry is always captured for school students.
 Day students:
 
 - Entry always captured.
-- Exit during school hours is denied.
-- Exit after school hours is allowed.
-- School admin sets school start and end time.
+- Exit is captured without school-hour setup.
 
 Boarding students:
 

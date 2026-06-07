@@ -18,7 +18,7 @@ const state = { token: '', org: null, rules: null, orgRegistrationFields: {}, ca
       masterLogo: document.getElementById('masterLogo'), masterOrgName: document.getElementById('masterOrgName'), masterOrgType: document.getElementById('masterOrgType'),
       masterNumber: document.getElementById('masterNumber'), masterBusiness: document.getElementById('masterBusiness'), masterAuthority: document.getElementById('masterAuthority'), masterQr: document.getElementById('masterQr'), masterBackLogo: document.getElementById('masterBackLogo'),
       masterBackMission: document.getElementById('masterBackMission'), masterBackVision: document.getElementById('masterBackVision'), masterBackReturnTitle: document.getElementById('masterBackReturnTitle'), masterBackReturnName: document.getElementById('masterBackReturnName'), masterBackPoBox: document.getElementById('masterBackPoBox'), masterBackPhone: document.getElementById('masterBackPhone'), masterBackResponsibilityTitle: document.getElementById('masterBackResponsibilityTitle'), masterBackLostInstruction: document.getElementById('masterBackLostInstruction'),
-      cardsBody: document.getElementById('cardsBody'), scanPanel: document.getElementById('scanPanel'), scanNotice: document.getElementById('scanNotice'),
+      cardsBody: document.getElementById('cardsBody'), selectApprovedCards: document.getElementById('selectApprovedCards'), downloadSelectedCardsBtn: document.getElementById('downloadSelectedCardsBtn'), requestPrintCardsBtn: document.getElementById('requestPrintCardsBtn'), scanPanel: document.getElementById('scanPanel'), scanNotice: document.getElementById('scanNotice'),
       applyForm: document.getElementById('applyForm'), roleType: document.getElementById('roleType'), dynamicFields: document.getElementById('dynamicFields'),
       gateScanPanel: document.getElementById('gateScanPanel'), gateScanForm: document.getElementById('gateScanForm'), gateScanNotice: document.getElementById('gateScanNotice'), attendanceBody: document.getElementById('attendanceBody'),
       gateStaffForm: document.getElementById('gateStaffForm'), gateStaffBody: document.getElementById('gateStaffBody'), gateDevicesBody: document.getElementById('gateDevicesBody'),
@@ -380,6 +380,10 @@ const state = { token: '', org: null, rules: null, orgRegistrationFields: {}, ca
       link.download = filename;
       link.click();
       URL.revokeObjectURL(url);
+    }
+    function selectedApprovedCards() {
+      const ids = Array.from(document.querySelectorAll('[data-card-select]:checked')).map((input) => input.value);
+      return state.cards.filter((card) => ids.includes(card.id) && (card.status || 'Pending') === 'Approved');
     }
     function reportDateRange(period) {
       const now = new Date();
@@ -893,11 +897,13 @@ const state = { token: '', org: null, rules: null, orgRegistrationFields: {}, ca
       const data = await api('/api/org/cards', { headers: headers() });
       state.cards = data.cards || [];
       if (!data.cards.length) {
-        els.cardsBody.innerHTML = '<tr><td colspan="7">No registrations yet.</td></tr>';
+        els.cardsBody.innerHTML = '<tr><td colspan="8">No registrations yet.</td></tr>';
+        els.selectApprovedCards.checked = false;
         return;
       }
       els.cardsBody.innerHTML = data.cards.map((card) => `
         <tr>
+          <td>${(card.status || 'Pending') === 'Approved' ? `<input type="checkbox" data-card-select value="${escapeAttr(card.id)}" aria-label="Select ${escapeAttr(card.name)}">` : ''}</td>
           <td>${escapeHtml(card.id)}</td><td>${escapeHtml(card.name)}</td><td>${escapeHtml(card.roleType || card.position)}</td>
           <td>${escapeHtml(card.phone || '')}</td><td>${escapeHtml(card.email || '')}</td><td>${escapeHtml(card.status || 'Pending')}</td>
           <td class="row">
@@ -908,6 +914,7 @@ const state = { token: '', org: null, rules: null, orgRegistrationFields: {}, ca
             <button data-id="${escapeAttr(card.id)}" data-status="Inactive" class="secondary">Inactive</button>
           </td>
         </tr>`).join('');
+      els.selectApprovedCards.checked = false;
     }
 
     async function loadAttendance() {
@@ -1172,6 +1179,37 @@ const state = { token: '', org: null, rules: null, orgRegistrationFields: {}, ca
       downloadJson(`${name}-${period}-report-${new Date().toISOString().slice(0, 10)}.json`, report);
     }
 
+    function approvedCardExportPayload(cards) {
+      return {
+        exportedAt: new Date().toISOString(),
+        organization: state.org,
+        pricePerCard: 100,
+        count: cards.length,
+        totalPrintCost: cards.length * 100,
+        cards
+      };
+    }
+
+    function downloadSelectedApprovedCards() {
+      const cards = selectedApprovedCards();
+      if (!cards.length) throw new Error('Select at least one approved card.');
+      const name = (state.org?.name || 'vericard').replace(/[^a-z0-9]+/gi, '-').replace(/^-|-$/g, '').toLowerCase() || 'vericard';
+      downloadJson(`${name}-approved-cards-${new Date().toISOString().slice(0, 10)}.json`, approvedCardExportPayload(cards));
+    }
+
+    async function requestSelectedCardPrint() {
+      const cards = selectedApprovedCards();
+      if (!cards.length) throw new Error('Select at least one approved card.');
+      const total = cards.length * 100;
+      if (!confirm(`Request super admin printing for ${cards.length} card(s)? Estimated charge: KES ${total.toLocaleString()} at KES 100 per card.`)) return;
+      const data = await api('/api/org/print-requests', {
+        method: 'POST',
+        headers: headers(),
+        body: JSON.stringify({ cardIds: cards.map((card) => card.id) })
+      });
+      alert(`Print request sent to super admin. ${data.request.cardCount} card(s), KES ${Number(data.request.totalAmount || 0).toLocaleString()}.`);
+    }
+
     els.orgRegisterForm.addEventListener('submit', async (event) => {
       event.preventDefault();
       const payload = Object.fromEntries(new FormData(els.orgRegisterForm).entries());
@@ -1343,6 +1381,14 @@ const state = { token: '', org: null, rules: null, orgRegistrationFields: {}, ca
     els.securityLogResult?.addEventListener('change', () => loadSecurityLogs().catch((error) => alert(friendlyError(error))));
     els.securityLogAlert?.addEventListener('change', () => loadSecurityLogs().catch((error) => alert(friendlyError(error))));
     document.getElementById('refreshCardsBtn').addEventListener('click', () => loadCards().catch((error) => alert(friendlyError(error))));
+    els.downloadSelectedCardsBtn.addEventListener('click', () => {
+      try { downloadSelectedApprovedCards(); }
+      catch (error) { alert(friendlyError(error)); }
+    });
+    els.requestPrintCardsBtn.addEventListener('click', () => requestSelectedCardPrint().catch((error) => alert(friendlyError(error))));
+    els.selectApprovedCards.addEventListener('change', () => {
+      document.querySelectorAll('[data-card-select]').forEach((input) => { input.checked = els.selectApprovedCards.checked; });
+    });
     els.drawerToggle.addEventListener('click', () => toggleDrawer());
     els.drawerScrim.addEventListener('click', () => toggleDrawer(false));
     els.dashboardDrawer.addEventListener('click', (event) => {

@@ -191,6 +191,21 @@ create table if not exists scan_security_logs (
   created_at timestamptz not null default now()
 );
 
+create table if not exists print_requests (
+  id bigint generated always as identity primary key,
+  organization_id text not null,
+  organization_name text not null,
+  requested_by text not null default '',
+  card_count integer not null default 0,
+  price_per_card numeric not null default 100,
+  total_amount numeric not null default 0,
+  status text not null default 'Requested',
+  cards_file jsonb not null default '{}'::jsonb,
+  notes text not null default '',
+  created_at timestamptz not null default now(),
+  updated_at timestamptz
+);
+
 create index if not exists cards_branch_idx on cards (branch);
 create index if not exists cards_status_idx on cards (status);
 create index if not exists cards_position_idx on cards (position);
@@ -215,6 +230,8 @@ create unique index if not exists gate_devices_org_device_unique_idx on gate_dev
 create index if not exists scan_security_logs_org_idx on scan_security_logs (organization_id);
 create index if not exists scan_security_logs_card_idx on scan_security_logs (card_id);
 create index if not exists scan_security_logs_result_idx on scan_security_logs (result);
+create index if not exists print_requests_org_idx on print_requests (organization_id);
+create index if not exists print_requests_status_idx on print_requests (status);
 alter table cards add column if not exists email text not null default '';
 alter table cards add column if not exists organization_id text;
 alter table cards add column if not exists organization_name text;
@@ -326,6 +343,7 @@ alter table gate_staff enable row level security;
 alter table gate_sessions enable row level security;
 alter table gate_devices enable row level security;
 alter table scan_security_logs enable row level security;
+alter table print_requests enable row level security;
 
 -- Use Supabase service-role key on the server for admin operations.
 -- Public verification should be exposed through a server endpoint, not direct anon table reads.

@@ -9,6 +9,7 @@ const state = {
       attendance: [],
       fees: [],
       notifications: [],
+      printRequests: [],
       expandedOrgId: '',
       refreshTimer: null
     };
@@ -102,7 +103,8 @@ const state = {
       ,
       loadReportsBtn: document.getElementById('loadReportsBtn'),
       feeReportRows: document.getElementById('feeReportRows'),
-      notificationReportRows: document.getElementById('notificationReportRows')
+      notificationReportRows: document.getElementById('notificationReportRows'),
+      printRequestRows: document.getElementById('printRequestRows')
     };
 
     function headers() { return { Authorization: `Bearer ${state.token}` }; }
@@ -184,16 +186,20 @@ const state = {
     }
 
     async function loadReports() {
-      const [feesResponse, notificationsResponse] = await Promise.all([
+      const [feesResponse, notificationsResponse, printRequestsResponse] = await Promise.all([
         fetch('/api/fees', { headers: headers() }),
-        fetch('/api/notifications', { headers: headers() })
+        fetch('/api/notifications', { headers: headers() }),
+        fetch('/api/print-requests', { headers: headers() })
       ]);
       const feesData = await readJson(feesResponse);
       const notificationsData = await readJson(notificationsResponse);
+      const printRequestsData = await readJson(printRequestsResponse);
       if (!feesResponse.ok) throw new Error(feesData.error || 'Unable to load fee reports.');
       if (!notificationsResponse.ok) throw new Error(notificationsData.error || 'Unable to load notification reports.');
+      if (!printRequestsResponse.ok) throw new Error(printRequestsData.error || 'Unable to load print requests.');
       state.fees = feesData.fees || [];
       state.notifications = notificationsData.notifications || [];
+      state.printRequests = printRequestsData.requests || [];
       renderReports();
     }
 
@@ -421,6 +427,18 @@ const state = {
       URL.revokeObjectURL(link.href);
     }
 
+    function downloadJson(filename, data) {
+      const link = document.createElement('a');
+      link.href = URL.createObjectURL(new Blob([JSON.stringify(data, null, 2)], { type: 'application/json' }));
+      link.download = filename;
+      link.click();
+      URL.revokeObjectURL(link.href);
+    }
+
+    function slug(value) {
+      return String(value || 'vericard').replace(/[^a-z0-9]+/gi, '-').replace(/^-|-$/g, '').toLowerCase() || 'vericard';
+    }
+
     async function backupJson() {
       const adminPassword = promptAdminPassword('export backup data');
       const response = await fetch('/api/backup', {
@@ -430,11 +448,28 @@ const state = {
       });
       const data = await readJson(response);
       if (!response.ok) throw new Error(data.error || 'Unable to create backup.');
-      const link = document.createElement('a');
-      link.href = URL.createObjectURL(new Blob([JSON.stringify(data, null, 2)], { type: 'application/json' }));
-      link.download = `vericard-backup-${new Date().toISOString().slice(0, 10)}.json`;
-      link.click();
-      URL.revokeObjectURL(link.href);
+      downloadJson(`vericard-backup-${new Date().toISOString().slice(0, 10)}.json`, data);
+    }
+
+    function downloadPrintRequest(id) {
+      const request = state.printRequests.find((item) => String(item.id) === String(id));
+      if (!request) throw new Error('Print request not found.');
+      const payload = request.cardsFile || {};
+      const filename = `${slug(request.organizationName)}-print-request-${String(request.id).slice(0, 8)}.json`;
+      downloadJson(filename, { ...payload, printRequest: request });
+    }
+
+    async function updatePrintRequestStatus(id, status) {
+      const response = await fetch(`/api/print-requests/${encodeURIComponent(id)}`, {
+        method: 'PATCH',
+        headers: { ...headers(), 'Content-Type': 'application/json' },
+        body: JSON.stringify({ status })
+      });
+      const data = await readJson(response);
+      if (!response.ok) throw new Error(data.error || 'Unable to update print request.');
+      const index = state.printRequests.findIndex((item) => String(item.id) === String(id));
+      if (index !== -1) state.printRequests[index] = data.request;
+      renderReports();
     }
 
     async function restoreJson(file) {
@@ -526,6 +561,23 @@ const state = {
           <td>${escapeHtml(log.message)}</td>
           <td>${new Date(log.createdAt).toLocaleString()}</td>
         </tr>`).join('') : '<tr><td colspan="6">No parent communication logs found.</td></tr>';
+      els.printRequestRows.innerHTML = state.printRequests.length ? state.printRequests.map((request) => `
+        <tr>
+          <td>${escapeHtml(request.organizationName)}</td>
+          <td>${escapeHtml(request.requestedBy || '')}</td>
+          <td>${Number(request.cardCount || 0).toLocaleString()}</td>
+          <td>KES ${Number(request.pricePerCard || 100).toLocaleString()}</td>
+          <td>KES ${Number(request.totalAmount || 0).toLocaleString()}</td>
+          <td>${escapeHtml(request.status)}</td>
+          <td>${request.createdAt ? new Date(request.createdAt).toLocaleString() : ''}</td>
+          <td><button type="button" class="secondary" data-print-download="${escapeAttr(request.id)}">Download</button></td>
+          <td>
+            <button type="button" data-print-status="Printing" data-id="${escapeAttr(request.id)}">Printing</button>
+            <button type="button" data-print-status="Ready" data-id="${escapeAttr(request.id)}">Ready</button>
+            <button type="button" data-print-status="Delivered" data-id="${escapeAttr(request.id)}">Delivered</button>
+            <button type="button" class="secondary" data-print-status="Cancelled" data-id="${escapeAttr(request.id)}">Cancel</button>
+          </td>
+        </tr>`).join('') : '<tr><td colspan="9">No bulk print requests found.</td></tr>';
     }
 
     async function loadOrganizations() {
@@ -750,6 +802,17 @@ const state = {
     els.loadOrganizationsBtn.addEventListener('click', () => loadOrganizations().catch((error) => alert(friendlyError(error))));
     els.loadAttendanceBtn.addEventListener('click', () => loadAttendance().catch((error) => alert(friendlyError(error))));
     els.loadReportsBtn.addEventListener('click', () => loadReports().catch((error) => alert(friendlyError(error))));
+    els.printRequestRows.addEventListener('click', (event) => {
+      const downloadButton = event.target.closest('button[data-print-download]');
+      const statusButton = event.target.closest('button[data-print-status]');
+      if (downloadButton) {
+        try { downloadPrintRequest(downloadButton.dataset.printDownload); } catch (error) { alert(friendlyError(error)); }
+        return;
+      }
+      if (statusButton) {
+        updatePrintRequestStatus(statusButton.dataset.id, statusButton.dataset.printStatus).catch((error) => alert(friendlyError(error)));
+      }
+    });
     els.createSampleClientBtn.addEventListener('click', () => createSampleClient().catch((error) => alert(friendlyError(error))));
     els.deleteOrganizationsBtn.addEventListener('click', () => deleteAllOrganizations().catch((error) => alert(friendlyError(error))));
     els.organizationsRows.addEventListener('click', async (event) => {

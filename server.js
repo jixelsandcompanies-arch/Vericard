@@ -703,6 +703,23 @@ function toNotification(row) {
   };
 }
 
+function toPrintRequest(row) {
+  return {
+    id: row.id,
+    organizationId: row.organization_id,
+    organizationName: row.organization_name,
+    requestedBy: row.requested_by,
+    cardCount: row.card_count,
+    pricePerCard: Number(row.price_per_card || 100),
+    totalAmount: Number(row.total_amount || 0),
+    status: row.status,
+    cardsFile: row.cards_file || {},
+    notes: row.notes || '',
+    createdAt: row.created_at,
+    updatedAt: row.updated_at
+  };
+}
+
 function toGateStaff(row) {
   return {
     id: row.id,
@@ -1446,6 +1463,25 @@ app.get('/api/notifications', requireAdmin, async (req, res) => {
   res.json({ notifications: (data || []).map(toNotification) });
 });
 
+app.get('/api/print-requests', requireAdmin, async (req, res) => {
+  const { data, error } = await db.from('print_requests').select('*').order('created_at', { ascending: false }).limit(1000);
+  if (error) return res.status(500).json({ error: error.message });
+  res.json({ requests: (data || []).map(toPrintRequest) });
+});
+
+app.patch('/api/print-requests/:id', requireAdmin, async (req, res) => {
+  const status = ['Requested', 'Quoted', 'Paid', 'Printing', 'Ready', 'Delivered', 'Cancelled'].includes(req.body.status) ? req.body.status : 'Requested';
+  const { data, error } = await db
+    .from('print_requests')
+    .update({ status, notes: normalizeText(req.body.notes), updated_at: new Date().toISOString() })
+    .eq('id', req.params.id)
+    .select('*')
+    .single();
+  if (error) return res.status(400).json({ error: error.message });
+  await audit('Updated print request', req.params.id, req.admin.user);
+  res.json({ request: toPrintRequest(data) });
+});
+
 app.get('/api/security-logs', requireAdmin, async (req, res) => {
   const result = normalizeText(req.query.result).toLowerCase();
   const alertLevel = normalizeText(req.query.alertLevel).toLowerCase();
@@ -1885,6 +1921,40 @@ app.post('/api/org/backup', requireOrg, async (req, res) => {
   const backup = await buildOrgBackup(org, req.orgId);
   await audit('Exported organization backup JSON', req.orgId, org.name);
   res.json(backup);
+});
+
+app.post('/api/org/print-requests', requireOrg, async (req, res) => {
+  const org = await getOrg(req.orgId);
+  if (!org || !hasActiveSubscription(org)) return res.status(403).json({ error: 'Subscription must be active before requesting printed cards.' });
+  const cardIds = Array.isArray(req.body.cardIds) ? req.body.cardIds.map(normalizeText).filter(Boolean) : [];
+  if (!cardIds.length) return res.status(400).json({ error: 'Select at least one approved card.' });
+  const { data: cards, error: cardsError } = await db.from('cards').select('*').eq('organization_id', req.orgId).in('id', cardIds);
+  if (cardsError) return res.status(500).json({ error: cardsError.message });
+  const approvedCards = (cards || []).filter((card) => card.status === 'Approved');
+  if (!approvedCards.length) return res.status(400).json({ error: 'Only approved cards can be sent for printing.' });
+  if (approvedCards.length !== cardIds.length) return res.status(400).json({ error: 'Some selected cards are not approved or do not belong to this organization.' });
+  const pricePerCard = 100;
+  const mappedCards = approvedCards.map(toCard);
+  const row = {
+    organization_id: org.id,
+    organization_name: org.name,
+    requested_by: org.email || org.owner_name || org.name,
+    card_count: mappedCards.length,
+    price_per_card: pricePerCard,
+    total_amount: mappedCards.length * pricePerCard,
+    status: 'Requested',
+    cards_file: {
+      exportedAt: new Date().toISOString(),
+      organization: toOrg(org),
+      pricePerCard,
+      cards: mappedCards
+    },
+    notes: normalizeText(req.body.notes)
+  };
+  const { data, error } = await db.from('print_requests').insert(row).select('*').single();
+  if (error) return res.status(400).json({ error: error.message });
+  await audit('Organization requested card printing', String(data.id), org.name);
+  res.json({ request: toPrintRequest(data) });
 });
 
 app.get('/api/org/gate-staff', requireOrg, async (req, res) => {

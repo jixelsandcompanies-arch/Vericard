@@ -235,11 +235,13 @@
         <div class="notice danger hidden" data-lock-notice>Subscription is inactive. Payment unlocks approvals and ID card records.</div>
         <div class="row">
           <button type="button" id="refreshCardsBtn">Refresh</button>
+          <button type="button" class="secondary" id="downloadSelectedCardsBtn">Download Selected Approved</button>
+          <button type="button" id="requestPrintCardsBtn">Request Admin Print</button>
         </div>
         <div class="table-wrap">
           <table>
-            <thead><tr><th>ID</th><th>Name</th><th>Role</th><th>Phone</th><th>Email</th><th>Status</th><th>Actions</th></tr></thead>
-            <tbody id="cardsBody"><tr><td colspan="7">Login to view records.</td></tr></tbody>
+            <thead><tr><th><input id="selectApprovedCards" type="checkbox" aria-label="Select all approved cards"></th><th>ID</th><th>Name</th><th>Role</th><th>Phone</th><th>Email</th><th>Status</th><th>Actions</th></tr></thead>
+            <tbody id="cardsBody"><tr><td colspan="8">Login to view records.</td></tr></tbody>
           </table>
         </div>
       </div>

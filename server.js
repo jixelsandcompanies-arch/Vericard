@@ -159,7 +159,7 @@ app.get(['/index.html', '/portal.html', '/gate.html', '/super-admin.html'], (req
 app.get(['/portal', '/app'], (req, res) => sendStaticFile(res, 'portal.html'));
 app.get('/gate', (req, res) => sendStaticFile(res, 'gate.html'));
 app.get(['/super-admin', '/admin'], (req, res) => sendStaticFile(res, 'super-admin.html'));
-app.get(['/manifest.webmanifest', '/sw.js'], (req, res) => sendStaticFile(res, req.path));
+app.get(['/manifest.webmanifest', '/sw.js', '/OneSignalSDKWorker.js', '/OneSignalSDKUpdaterWorker.js'], (req, res) => sendStaticFile(res, req.path));
 app.get(['/favicon.ico', '/favicon.png'], (req, res) => sendStaticFile(res, req.path, 'assets/vericard-logo.jpeg'));
 app.use('/css', express.static(staticFilePath('css') || join(appRoot, 'css')));
 app.use('/js', express.static(staticFilePath('js') || join(appRoot, 'js')));

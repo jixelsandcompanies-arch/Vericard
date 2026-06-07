@@ -2,6 +2,7 @@ const state = {
   sessionToken: sessionStorage.getItem('mapphexGateSession') || '',
   deviceId: localStorage.getItem('vericardGateDeviceId') || '',
   deviceSecret: localStorage.getItem('vericardGateDeviceSecret') || '',
+  setupToken: new URLSearchParams(location.search).get('setup') || '',
   preview: null,
   lastPayload: null,
   lastLocation: null
@@ -10,6 +11,10 @@ const els = {
   gateTitle: document.getElementById('gateTitle'),
   gateStatus: document.getElementById('gateStatus'),
   endDutyBtn: document.getElementById('endDutyBtn'),
+  scannerSetupPanel: document.getElementById('scannerSetupPanel'),
+  scannerSetupForm: document.getElementById('scannerSetupForm'),
+  setupIntro: document.getElementById('setupIntro'),
+  setupNotice: document.getElementById('setupNotice'),
   gateLoginPanel: document.getElementById('gateLoginPanel'),
   gateLoginForm: document.getElementById('gateLoginForm'),
   deviceIdLabel: document.getElementById('deviceIdLabel'),
@@ -112,6 +117,22 @@ function showDuty(session, organization) {
   els.endDutyBtn.classList.remove('hidden');
 }
 
+async function loadScannerSetup() {
+  if (!state.setupToken) return;
+  els.gateLoginPanel.classList.add('hidden');
+  els.scannerSetupPanel.classList.remove('hidden');
+  try {
+    const data = await api(`/api/scanner-setup/${encodeURIComponent(state.setupToken)}`);
+    const scanner = data.scanner || {};
+    const org = data.organization || {};
+    els.setupIntro.textContent = `${scanner.ownerName || 'Scanner'} is being set up for ${org.name || 'this organization'} at ${scanner.devicePlace || 'the assigned place'}. Enter the registered phone number and choose your own scanner password.`;
+  } catch (error) {
+    els.setupIntro.textContent = error.message;
+    els.setupIntro.classList.add('danger');
+    els.scannerSetupForm.classList.add('hidden');
+  }
+}
+
 function clearPreview() {
   state.preview = null;
   state.lastPayload = null;
@@ -128,6 +149,7 @@ function renderPreview(data, payload) {
   els.personMeta.textContent = `${card.roleLabel || card.roleType || ''} | ${card.number || ''} | ${card.classGrade || ''}`;
   els.personOrg.textContent = `${data.organization.name} (${data.organization.typeLabel})`;
   els.personState.textContent = `Current state: ${data.state}. Action: ${data.actionLabel || (data.action === 'leave' ? 'Leaving' : 'Entering')}`;
+  els.confirmBtn.textContent = data.action === 'leave' ? 'Confirm Sign Out' : (data.action === 'report' ? 'Confirm Update' : 'Confirm Sign In');
   const access = [card.accessZone ? `Access: ${card.accessZone}` : '', card.hostName ? `Host: ${card.hostName}` : '', card.expiresAt ? `Expires: ${card.expiresAt}` : ''].filter(Boolean).join(' | ');
   els.feeStatus.textContent = data.fee ? `Fee status: ${data.fee.feeStatus} | Balance: KES ${Number(data.fee.balance || 0).toLocaleString()}` : access;
   if (card.photo) {
@@ -139,6 +161,24 @@ function renderPreview(data, payload) {
   }
   els.confirmPanel.classList.remove('hidden');
 }
+
+els.scannerSetupForm?.addEventListener('submit', async (event) => {
+  event.preventDefault();
+  try {
+    const payload = Object.fromEntries(new FormData(els.scannerSetupForm).entries());
+    const data = await api(`/api/scanner-setup/${encodeURIComponent(state.setupToken)}`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(payload) });
+    els.setupNotice.textContent = `${data.message} Organization ID: ${data.organizationId}.`;
+    els.setupNotice.classList.remove('hidden', 'danger');
+    els.scannerSetupForm.classList.add('hidden');
+    setTimeout(() => {
+      location.href = '/gate.html';
+    }, 2500);
+  } catch (error) {
+    els.setupNotice.textContent = error.message;
+    els.setupNotice.classList.add('danger');
+    els.setupNotice.classList.remove('hidden');
+  }
+});
 
 els.gateLoginForm.addEventListener('submit', async (event) => {
   event.preventDefault();
@@ -203,3 +243,4 @@ els.endDutyBtn.addEventListener('click', async () => {
 });
 
 ensureDeviceId();
+loadScannerSetup();

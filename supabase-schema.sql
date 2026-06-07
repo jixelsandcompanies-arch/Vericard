@@ -249,6 +249,9 @@ alter table parent_notifications add column if not exists delivery_status text n
 alter table parent_notifications alter column status set default 'Queued';
 alter table password_resets add column if not exists used_at timestamptz;
 alter table gate_staff add column if not exists staff_role text not null default 'Gate Staff';
+alter table gate_staff add column if not exists setup_token_hash text not null default '';
+alter table gate_staff add column if not exists setup_expires_at timestamptz;
+alter table gate_staff add column if not exists setup_used_at timestamptz;
 alter table gate_devices add column if not exists device_secret text not null default '';
 alter table gate_sessions add column if not exists device_id text not null default '';
 alter table gate_sessions add column if not exists user_agent text not null default '';

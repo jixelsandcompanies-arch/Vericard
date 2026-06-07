@@ -463,6 +463,15 @@ function normalizePhone(value) {
   return digits;
 }
 
+function setupTokenHash(token) {
+  return crypto.createHash('sha256').update(String(token || '')).digest('hex');
+}
+
+function setupLinkFor(req, token) {
+  const origin = process.env.PUBLIC_APP_URL || `${req.protocol}://${req.get('host')}`;
+  return `${origin}/gate.html?setup=${encodeURIComponent(token)}`;
+}
+
 function normalizeEmail(value) {
   return String(value || '').trim().toLowerCase();
 }
@@ -744,12 +753,16 @@ function toAttendance(row) {
     studentName: row.student_name,
     studentNumber: row.student_number,
     classGrade: row.class_grade,
+    branch: row.branch || row.gate_name || '',
+    position: row.position || row.class_grade || '',
     parentPhone: row.parent_phone,
     attendanceDate: row.attendance_date,
     entryAt: row.entry_at,
     exitAt: row.exit_at,
     entryBy: row.entry_by,
     exitBy: row.exit_by,
+    scannedByName: row.scanned_by_name || '',
+    gateStaffName: row.gate_staff_name || '',
     gateName: row.gate_name,
     deviceId: row.device_id || '',
     scanSource: row.scan_source || '',
@@ -842,6 +855,12 @@ function toGateStaff(row) {
     staffRole: row.staff_role || 'Scanner Staff',
     gateName: row.gate_name,
     status: row.status,
+    setupStatus: row.setup_used_at ? 'Used' : (row.setup_expires_at && Date.parse(row.setup_expires_at) < Date.now() ? 'Expired' : (row.setup_token_hash ? 'Pending' : 'Ready')),
+    setupExpiresAt: row.setup_expires_at || '',
+    setupUsedAt: row.setup_used_at || '',
+    setupLink: row.setup_link || '',
+    lastScanAt: row.last_scan_at || '',
+    todayScanCount: row.today_scan_count || 0,
     createdAt: row.created_at,
     updatedAt: row.updated_at
   };
@@ -954,7 +973,7 @@ function scanAction(value) {
 }
 
 function actionLabel(action) {
-  return action === 'leave' ? 'Leaving' : action === 'report' ? 'Reporting location' : 'Entering';
+  return action === 'leave' ? 'Sign Out' : action === 'report' ? 'Reporting location' : 'Sign In';
 }
 
 async function currentOpenMovement(orgId, cardId) {
@@ -2109,7 +2128,16 @@ app.get('/api/org/attendance', requireOrg, async (req, res) => {
   if (!org || !hasActiveSubscription(org)) return res.status(403).json({ error: 'Subscription must be active before viewing attendance.' });
   const { data, error } = await db.from('attendance_records').select('*').eq('organization_id', req.orgId).order('created_at', { ascending: false }).limit(500);
   if (error) return res.status(500).json({ error: error.message });
-  res.json({ attendance: (data || []).map(toAttendance) });
+  const staffIds = [...new Set((data || []).flatMap((row) => [row.entry_by, row.exit_by]).filter(Boolean))];
+  const staffMap = new Map();
+  if (staffIds.length) {
+    const staffRows = await db.from('gate_staff').select('id,full_name').eq('organization_id', req.orgId).in('id', staffIds);
+    for (const staff of staffRows.data || []) staffMap.set(staff.id, staff.full_name);
+  }
+  res.json({ attendance: (data || []).map((row) => toAttendance({
+    ...row,
+    scanned_by_name: staffMap.get(row.exit_by) || staffMap.get(row.entry_by) || (row.scan_source === 'admin-dashboard' ? 'Admin Dashboard' : '')
+  })) });
 });
 
 app.get('/api/org/dashboard-summary', requireOrg, async (req, res) => {
@@ -2369,29 +2397,48 @@ app.get('/api/org/gate-staff', requireOrg, async (req, res) => {
   const { data, error } = await db.from('gate_staff').select('*').eq('organization_id', req.orgId).order('created_at', { ascending: false });
   if (error) return res.status(500).json({ error: error.message });
   const devices = await db.from('gate_devices').select('*').eq('organization_id', req.orgId).order('created_at', { ascending: false });
-  res.json({ staff: (data || []).map(toGateStaff), devices: (devices.data || []).map(toGateDevice) });
+  const today = new Date().toISOString().slice(0, 10);
+  const attendance = await db.from('attendance_records').select('entry_by,exit_by,entry_at,exit_at,updated_at,created_at').eq('organization_id', req.orgId);
+  const stats = new Map();
+  for (const row of attendance.data || []) {
+    for (const [staffId, scanAt] of [[row.entry_by, row.entry_at || row.created_at], [row.exit_by, row.exit_at || row.updated_at]]) {
+      if (!staffId) continue;
+      const current = stats.get(staffId) || { lastScanAt: '', todayScanCount: 0 };
+      if (scanAt && (!current.lastScanAt || Date.parse(scanAt) > Date.parse(current.lastScanAt))) current.lastScanAt = scanAt;
+      if (scanAt && String(scanAt).slice(0, 10) === today) current.todayScanCount += 1;
+      stats.set(staffId, current);
+    }
+  }
+  const staff = (data || []).map((row) => {
+    const stat = stats.get(row.id) || {};
+    return toGateStaff({ ...row, last_scan_at: stat.lastScanAt || '', today_scan_count: stat.todayScanCount || 0 });
+  });
+  res.json({ staff, devices: (devices.data || []).map(toGateDevice) });
 });
 
 app.post('/api/org/gate-staff', requireOrg, async (req, res) => {
   const org = await getOrg(req.orgId);
   if (!org) return res.status(404).json({ error: 'Organization not found.' });
   const fullName = normalizeText(req.body.fullName);
-  const staffCode = normalizeIdentifier(req.body.staffCode);
-  const pin = normalizeText(req.body.pin);
-  if (!fullName || !staffCode || !pin) return res.status(400).json({ error: 'Full name, staff code, and PIN are required.' });
-  const { salt, passwordHash } = hashPassword(pin);
+  const phone = normalizePhone(req.body.phone);
+  const staffCode = normalizeIdentifier(req.body.staffCode || phone);
+  if (!fullName || !phone || !staffCode) return res.status(400).json({ error: 'Scanner owner name and scanner phone number are required.' });
+  const token = crypto.randomBytes(24).toString('hex');
+  const { salt, passwordHash } = hashPassword(crypto.randomBytes(24).toString('hex'));
   const row = {
     id: `GATE-${Date.now()}`,
     organization_id: org.id,
     organization_name: org.name,
     full_name: fullName,
-    phone: normalizePhone(req.body.phone),
+    phone,
     staff_code: staffCode,
     staff_role: normalizeText(req.body.staffRole) || 'Gate Staff',
     gate_name: normalizeText(req.body.gateName) || 'Main Gate',
     pin_hash: passwordHash,
     salt,
-    status: req.body.status || 'Active'
+    status: 'Pending Setup',
+    setup_token_hash: setupTokenHash(token),
+    setup_expires_at: new Date(Date.now() + 7 * 24 * 60 * 60 * 1000).toISOString()
   };
   let { data, error } = await db.from('gate_staff').insert(row).select('*').single();
   if (error && isMissingColumnError(error, 'staff_role')) {
@@ -2402,16 +2449,33 @@ app.post('/api/org/gate-staff', requireOrg, async (req, res) => {
     error = fallback.error;
   }
   if (error) return res.status(400).json({ error: error.message });
-  await audit('Gate staff registered', data.id, org.name);
-  res.json({ staff: toGateStaff(data) });
+  await audit('Scanner setup link created', data.id, org.name);
+  res.json({ staff: toGateStaff({ ...data, setup_link: setupLinkFor(req, token) }) });
+});
+
+app.post('/api/org/gate-staff/:id/setup-link', requireOrg, async (req, res) => {
+  const { data: staff } = await db.from('gate_staff').select('*').eq('id', req.params.id).eq('organization_id', req.orgId).maybeSingle();
+  if (!staff) return res.status(404).json({ error: 'Scanner phone was not found.' });
+  const token = crypto.randomBytes(24).toString('hex');
+  const patch = {
+    setup_token_hash: setupTokenHash(token),
+    setup_expires_at: new Date(Date.now() + 7 * 24 * 60 * 60 * 1000).toISOString(),
+    setup_used_at: null,
+    status: 'Pending Setup',
+    updated_at: new Date().toISOString()
+  };
+  const { data, error } = await db.from('gate_staff').update(patch).eq('id', staff.id).select('*').single();
+  if (error) return res.status(400).json({ error: error.message });
+  await audit('Scanner setup link resent', data.id, data.organization_name);
+  res.json({ staff: toGateStaff({ ...data, setup_link: setupLinkFor(req, token) }) });
 });
 
 app.patch('/api/org/gate-staff/:id', requireOrg, async (req, res) => {
   const patch = {
     status: req.body.status || 'Active',
-    gate_name: normalizeText(req.body.gateName) || 'Main Gate',
     updated_at: new Date().toISOString()
   };
+  if (normalizeText(req.body.gateName)) patch.gate_name = normalizeText(req.body.gateName);
   const { data, error } = await db.from('gate_staff').update(patch).eq('id', req.params.id).eq('organization_id', req.orgId).select('*').single();
   if (error) return res.status(400).json({ error: error.message });
   res.json({ staff: toGateStaff(data) });
@@ -2435,10 +2499,49 @@ app.patch('/api/org/gate-devices/:id', requireOrg, async (req, res) => {
   res.json({ device: toGateDevice(data) });
 });
 
+app.get('/api/scanner-setup/:token', async (req, res) => {
+  const tokenHash = setupTokenHash(req.params.token);
+  const { data: staff } = await db.from('gate_staff').select('*').eq('setup_token_hash', tokenHash).maybeSingle();
+  if (!staff) return res.status(404).json({ error: 'Scanner setup link is invalid or already used.' });
+  if (staff.setup_used_at) return res.status(410).json({ error: 'Scanner setup link has already been used.' });
+  if (staff.setup_expires_at && Date.parse(staff.setup_expires_at) < Date.now()) return res.status(410).json({ error: 'Scanner setup link has expired.' });
+  const org = await getOrg(staff.organization_id);
+  res.json({
+    scanner: { ownerName: staff.full_name, phone: staff.phone, devicePlace: staff.gate_name, expiresAt: staff.setup_expires_at },
+    organization: org ? { id: org.id, name: org.name, type: org.type } : null
+  });
+});
+
+app.post('/api/scanner-setup/:token', async (req, res) => {
+  const tokenHash = setupTokenHash(req.params.token);
+  const phone = normalizePhone(req.body.phone);
+  const password = normalizeText(req.body.password);
+  if (!phone || !password) return res.status(400).json({ error: 'Registered phone number and scanner password are required.' });
+  if (password.length < 6) return res.status(400).json({ error: 'Scanner password must be at least 6 characters.' });
+  const { data: staff } = await db.from('gate_staff').select('*').eq('setup_token_hash', tokenHash).maybeSingle();
+  if (!staff) return res.status(404).json({ error: 'Scanner setup link is invalid or already used.' });
+  if (staff.setup_used_at) return res.status(410).json({ error: 'Scanner setup link has already been used.' });
+  if (staff.setup_expires_at && Date.parse(staff.setup_expires_at) < Date.now()) return res.status(410).json({ error: 'Scanner setup link has expired.' });
+  if (normalizePhone(staff.phone) !== phone) return res.status(403).json({ error: 'Phone number does not match this scanner setup link.' });
+  const { salt, passwordHash } = hashPassword(password);
+  const patch = {
+    pin_hash: passwordHash,
+    salt,
+    status: 'Active',
+    setup_token_hash: '',
+    setup_used_at: new Date().toISOString(),
+    updated_at: new Date().toISOString()
+  };
+  const { data, error } = await db.from('gate_staff').update(patch).eq('id', staff.id).select('*').single();
+  if (error) return res.status(400).json({ error: error.message });
+  await audit('Scanner setup completed', data.id, data.full_name);
+  res.json({ staff: toGateStaff(data), organizationId: data.organization_id, staffCode: data.staff_code, message: 'Scanner password saved. Install or open the Scanner App and log in with this phone number.' });
+});
+
 app.post('/api/gate/login', authRateLimit, async (req, res) => {
   const organizationId = normalizeText(req.body.organizationId);
-  const staffCode = normalizeIdentifier(req.body.staffCode);
-  const pin = normalizeText(req.body.pin);
+  const staffCode = normalizeIdentifier(req.body.staffCode || req.body.phone);
+  const pin = normalizeText(req.body.pin || req.body.password);
   const meta = scanMeta(req, 'gate-app');
   const { data: staff } = await db.from('gate_staff').select('*').eq('organization_id', organizationId).eq('staff_code', staffCode).maybeSingle();
   if (!staff || staff.status !== 'Active' || !verifyPassword(pin, staff.salt, staff.pin_hash)) return res.status(401).json({ error: 'Invalid or inactive scanner staff login.' });

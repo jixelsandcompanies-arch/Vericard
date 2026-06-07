@@ -41,7 +41,7 @@ window.VeriCardFeatures = window.VeriCardFeatures || {};
   }
   function templatesFor(type) {
     const prefix = slug(type);
-    return Array.from({ length: 30 }, (_, index) => ({
+    return Array.from({ length: styleNames.length }, (_, index) => ({
       id: `${prefix}-${index + 1}`,
       name: `${type} ${styleNames[index % styleNames.length]}`,
       layout: layouts[index % layouts.length],
@@ -69,6 +69,15 @@ window.VeriCardFeatures = window.VeriCardFeatures || {};
   function internalQrReady(formValues) {
     return Boolean(formValues.businessType && formValues.templateId && formValues.businessName && formValues.contactName && formValues.phone);
   }
+  function formReadyForTemplates(formValues = values()) {
+    return Boolean(
+      formValues.businessType &&
+      formValues.logo &&
+      formValues.businessName &&
+      formValues.contactName &&
+      formValues.phone
+    );
+  }
   function canSubmit() {
     const formValues = values();
     return Boolean(
@@ -95,7 +104,6 @@ window.VeriCardFeatures = window.VeriCardFeatures || {};
   function updatePreview() {
     const formValues = values();
     $('bcBusinessType').value = formValues.businessType;
-    $('bcTemplateId').value = formValues.templateId;
     $('bcLogoValue').value = formValues.logo;
     $('bcPreviewBusiness').textContent = formValues.businessName || 'Business Name';
     $('bcPreviewName').textContent = formValues.contactName || 'Name';
@@ -116,6 +124,24 @@ window.VeriCardFeatures = window.VeriCardFeatures || {};
         image.classList.add('hidden');
       }
     });
+    const readyForTemplates = formReadyForTemplates(formValues);
+    const designStep = $('bcDesignStep');
+    const quantityStep = $('bcQuantityStep');
+    const submitActions = $('bcSubmitActions');
+    if (designStep) designStep.classList.toggle('hidden', !readyForTemplates);
+    if (quantityStep) quantityStep.classList.toggle('hidden', !state.templateId);
+    if (submitActions) submitActions.classList.toggle('hidden', !state.templateId);
+    if (readyForTemplates && !$('bcTemplateGrid')?.children.length) renderTemplates();
+    if (!readyForTemplates) state.templateId = '';
+    $('bcTemplateId').value = state.templateId;
+    if ($('bcNotice') && !state.submitted) {
+      $('bcNotice').textContent = !readyForTemplates
+        ? 'Fill the business card details and upload a logo. Templates will show after the form is ready.'
+        : state.templateId
+          ? 'Enter the quantity needed, then submit the business card order.'
+          : 'Choose the template you want before entering the quantity.';
+      $('bcNotice').classList.remove('danger');
+    }
     const activeTemplate = templatesFor(state.type).find((template) => template.id === state.templateId);
     const stage = $('bcPreviewStage');
     if (stage) {
@@ -139,8 +165,12 @@ window.VeriCardFeatures = window.VeriCardFeatures || {};
   function renderTemplates() {
     const grid = $('bcTemplateGrid');
     if (!grid) return;
+    if (!formReadyForTemplates()) {
+      grid.innerHTML = '';
+      return;
+    }
     const list = templatesFor(state.type);
-    if (!state.templateId) state.templateId = list[0]?.id || '';
+    if (state.templateId && !list.some((template) => template.id === state.templateId)) state.templateId = '';
     grid.innerHTML = list.map((template) => `
       <button type="button" class="bc-template-choice ${template.id === state.templateId ? 'active' : ''}" data-bc-template="${escapeHtml(template.id)}">
         <strong>${escapeHtml(template.name)}</strong>
@@ -150,11 +180,10 @@ window.VeriCardFeatures = window.VeriCardFeatures || {};
   }
   function chooseType(type) {
     state.type = type;
-    state.templateId = templatesFor(type)[0]?.id || '';
+    state.templateId = '';
     $('bcTypeStep')?.classList.add('hidden');
     $('bcOrderForm')?.classList.remove('hidden');
     renderTypes();
-    renderTemplates();
     updatePreview();
   }
   function showTypes() {
@@ -165,9 +194,14 @@ window.VeriCardFeatures = window.VeriCardFeatures || {};
     state.submitted = false;
     $('bcOrderForm')?.reset();
     state.logo = '';
+    state.templateId = '';
     $('bcLogoValue').value = '';
+    $('bcTemplateGrid').innerHTML = '';
+    $('bcDesignStep')?.classList.add('hidden');
+    $('bcQuantityStep')?.classList.add('hidden');
+    $('bcSubmitActions')?.classList.add('hidden');
     $('bcLogoRemove')?.classList.add('hidden');
-    $('bcNotice').textContent = 'Choose a template, fill the required details, upload a logo, and choose quantity before submitting.';
+    $('bcNotice').textContent = 'Fill the business card details and upload a logo. Choose a template, then enter the quantity.';
     $('bcNotice').classList.remove('danger');
     updatePreview();
   }
@@ -260,7 +294,11 @@ window.VeriCardFeatures = window.VeriCardFeatures || {};
       });
       $('bcLogoRemove')?.addEventListener('click', () => {
         state.logo = '';
+        state.templateId = '';
         $('bcLogoFile').value = '';
+        $('bcTemplateGrid').innerHTML = '';
+        $('bcQuantityStep')?.classList.add('hidden');
+        $('bcSubmitActions')?.classList.add('hidden');
         $('bcLogoRemove')?.classList.add('hidden');
         updatePreview();
       });

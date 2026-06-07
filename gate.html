@@ -19,13 +19,24 @@
     </div>
   </header>
   <main class="wrap">
+    <section class="panel hidden" id="scannerSetupPanel">
+      <h2>Finish Scanner Setup</h2>
+      <div class="notice" id="setupIntro">Loading scanner setup...</div>
+      <form id="scannerSetupForm">
+        <label>Registered phone number<input name="phone" required></label>
+        <label>Your scanner password<input name="password" type="password" minlength="6" required></label>
+        <button type="submit">Save Scanner Password</button>
+      </form>
+      <div class="notice hidden" id="setupNotice"></div>
+    </section>
+
     <section class="panel" id="gateLoginPanel">
       <h2>Scanner Staff Login</h2>
       <form id="gateLoginForm">
         <label>Organization ID<input name="organizationId" required></label>
-        <label>Staff code<input name="staffCode" required></label>
-        <label>Gate PIN<input name="pin" type="password" required></label>
-        <label>Gate name<input name="gateName" value="Main Gate" required></label>
+        <label>Registered phone number<input name="phone" required></label>
+        <label>Scanner password<input name="password" type="password" required></label>
+        <label>Device / place<input name="gateName" value="Reception" required></label>
         <button type="submit">Start Duty</button>
       </form>
       <div class="notice">Scanner device ID: <strong id="deviceIdLabel"></strong></div>
@@ -37,9 +48,9 @@
       <form id="previewForm">
         <label>Scan action
           <select name="action">
-            <option value="enter">Entering</option>
+            <option value="enter">Sign In</option>
             <option value="report">Report / update location</option>
-            <option value="leave">Leaving</option>
+            <option value="leave">Sign Out</option>
           </select>
         </label>
         <label>Card QR token or scanned URL<input name="token" autocomplete="off" required></label>
@@ -59,7 +70,7 @@
           </div>
         </div>
         <div class="row">
-          <button type="button" id="confirmBtn">Confirm</button>
+          <button type="button" id="confirmBtn">Confirm Sign In</button>
           <button type="button" class="secondary" id="cancelBtn">Cancel</button>
         </div>
       </article>

@@ -1,4 +1,4 @@
-const state = { token: '', org: null, rules: null, orgRegistrationFields: {}, cards: [], templates: [], locked: false, assistantMessages: [], palette: { primary: '#061a30', accent: '#149ee8', colors: ['#061a30', '#149ee8'] }, masterToken: new URLSearchParams(location.search).get('master') || '', dashboardDeviceId: localStorage.getItem('vericardDashboardDeviceId') || '' };
+const state = { token: '', org: null, rules: null, orgRegistrationFields: {}, cards: [], attendance: [], scanners: [], templates: [], locked: false, assistantMessages: [], palette: { primary: '#061a30', accent: '#149ee8', colors: ['#061a30', '#149ee8'] }, masterToken: new URLSearchParams(location.search).get('master') || '', dashboardDeviceId: localStorage.getItem('vericardDashboardDeviceId') || '' };
     const els = {
       sessionStatus: document.getElementById('sessionStatus'), logoutBtn: document.getElementById('logoutBtn'), drawerToggle: document.getElementById('drawerToggle'), dashboardDrawer: document.getElementById('dashboardDrawer'), drawerScrim: document.getElementById('drawerScrim'),
       portalTitle: document.getElementById('portalTitle'),
@@ -22,7 +22,8 @@ const state = { token: '', org: null, rules: null, orgRegistrationFields: {}, ca
       cardsBody: document.getElementById('cardsBody'), selectApprovedCards: document.getElementById('selectApprovedCards'), downloadSelectedCardsBtn: document.getElementById('downloadSelectedCardsBtn'), requestPrintCardsBtn: document.getElementById('requestPrintCardsBtn'), scanPanel: document.getElementById('scanPanel'), scanNotice: document.getElementById('scanNotice'),
       applyForm: document.getElementById('applyForm'), roleType: document.getElementById('roleType'), dynamicFields: document.getElementById('dynamicFields'),
       gateScanPanel: document.getElementById('gateScanPanel'), gateScanForm: document.getElementById('gateScanForm'), gateScanNotice: document.getElementById('gateScanNotice'), attendanceBody: document.getElementById('attendanceBody'),
-      gateStaffForm: document.getElementById('gateStaffForm'), gateStaffBody: document.getElementById('gateStaffBody'), gateDevicesBody: document.getElementById('gateDevicesBody'),
+      attendanceSummary: document.getElementById('attendanceSummary'), attendanceFilter: document.getElementById('attendanceFilter'), attendanceFrom: document.getElementById('attendanceFrom'), attendanceTo: document.getElementById('attendanceTo'), attendanceSearch: document.getElementById('attendanceSearch'), exportAttendanceCsvBtn: document.getElementById('exportAttendanceCsvBtn'), activeNowBody: document.getElementById('activeNowBody'),
+      gateStaffForm: document.getElementById('gateStaffForm'), gateStaffBody: document.getElementById('gateStaffBody'), gateDevicesBody: document.getElementById('gateDevicesBody'), scannerSetupNotice: document.getElementById('scannerSetupNotice'),
       feePanel: document.getElementById('feePanel'), feeUploadFile: document.getElementById('feeUploadFile'), uploadFeesBtn: document.getElementById('uploadFeesBtn'), refreshFeesBtn: document.getElementById('refreshFeesBtn'), feeNotice: document.getElementById('feeNotice'), feesBody: document.getElementById('feesBody'),
       reportsPanel: document.getElementById('reportsPanel'), reportsSummary: document.getElementById('reportsSummary'), reportPeriod: document.getElementById('reportPeriod'), downloadReportBtn: document.getElementById('downloadReportBtn'), sendTestPushBtn: document.getElementById('sendTestPushBtn'), communicationLogsTitle: document.getElementById('communicationLogsTitle'), communicationLogsHead: document.getElementById('communicationLogsHead'), securityLogResult: document.getElementById('securityLogResult'), securityLogAlert: document.getElementById('securityLogAlert'), notificationsBody: document.getElementById('notificationsBody'), securityLogsBody: document.getElementById('securityLogsBody'),
       assistantGreeting: document.getElementById('assistantGreeting'), assistantMessages: document.getElementById('assistantMessages'), assistantForm: document.getElementById('assistantForm'), assistantQuestion: document.getElementById('assistantQuestion'),
@@ -561,6 +562,74 @@ const state = { token: '', org: null, rules: null, orgRegistrationFields: {}, ca
       link.click();
       URL.revokeObjectURL(url);
     }
+    function downloadCsv(filename, rows) {
+      const csv = rows.map((row) => row.map((value) => `"${String(value ?? '').replace(/"/g, '""')}"`).join(',')).join('\n');
+      const blob = new Blob([csv], { type: 'text/csv;charset=utf-8' });
+      const url = URL.createObjectURL(blob);
+      const link = document.createElement('a');
+      link.href = url;
+      link.download = filename;
+      link.click();
+      URL.revokeObjectURL(url);
+    }
+    function isoDate(date) {
+      return date.toISOString().slice(0, 10);
+    }
+    function attendanceRange() {
+      const now = new Date();
+      const today = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+      const filter = els.attendanceFilter?.value || 'today';
+      if (filter === 'all') return { start: null, end: null };
+      if (filter === 'yesterday') {
+        const start = new Date(today);
+        start.setDate(start.getDate() - 1);
+        const end = new Date(start);
+        end.setDate(end.getDate() + 1);
+        return { start, end };
+      }
+      if (filter === 'week') {
+        const start = new Date(today);
+        start.setDate(start.getDate() - start.getDay());
+        const end = new Date(today);
+        end.setDate(end.getDate() + 1);
+        return { start, end };
+      }
+      if (filter === 'month') return { start: new Date(today.getFullYear(), today.getMonth(), 1), end: new Date(today.getFullYear(), today.getMonth() + 1, 1) };
+      if (filter === 'custom') {
+        const start = els.attendanceFrom?.value ? new Date(`${els.attendanceFrom.value}T00:00:00`) : null;
+        const end = els.attendanceTo?.value ? new Date(`${els.attendanceTo.value}T00:00:00`) : null;
+        if (end) end.setDate(end.getDate() + 1);
+        return { start, end };
+      }
+      const end = new Date(today);
+      end.setDate(end.getDate() + 1);
+      return { start: today, end };
+    }
+    function attendanceTimestamp(row) {
+      return row.entryAt || row.exitAt || row.createdAt || row.attendanceDate;
+    }
+    function gpsText(row) {
+      if (row.latitude === null || row.latitude === undefined || row.longitude === null || row.longitude === undefined) return '';
+      const accuracy = row.locationAccuracy ? ` (${Math.round(Number(row.locationAccuracy))}m)` : '';
+      return `${Number(row.latitude).toFixed(5)}, ${Number(row.longitude).toFixed(5)}${accuracy}`;
+    }
+    function scannerLabel(row) {
+      return row.scannedByName || row.gateStaffName || row.entryBy || row.exitBy || row.scanSource || '';
+    }
+    function filteredAttendanceRows() {
+      const { start, end } = attendanceRange();
+      const q = (els.attendanceSearch?.value || '').trim().toLowerCase();
+      return state.attendance.filter((row) => {
+        const time = new Date(attendanceTimestamp(row));
+        if (start && time < start) return false;
+        if (end && time >= end) return false;
+        if (!q) return true;
+        return [
+          row.studentName, row.studentNumber, row.branch || row.gateName, row.position || row.classGrade,
+          row.status, row.securityStatus, row.securityReason, scannerLabel(row)
+        ].some((value) => String(value || '').toLowerCase().includes(q));
+      });
+    }
     function selectedApprovedCards() {
       const ids = Array.from(document.querySelectorAll('[data-card-select]:checked')).map((input) => input.value);
       return state.cards.filter((card) => ids.includes(card.id) && (card.status || 'Pending') === 'Approved');
@@ -1090,8 +1159,8 @@ const state = { token: '', org: null, rules: null, orgRegistrationFields: {}, ca
         const schoolPortal = isSchoolType(state.org?.type);
         els.masterCard.classList.add('hidden');
         els.cardsBody.innerHTML = '<tr><td colspan="7">Subscription is inactive. Payment unlocks approvals and ID card records.</td></tr>';
-        els.attendanceBody.innerHTML = '<tr><td colspan="7">Subscription is inactive. Payment unlocks gate attendance.</td></tr>';
-        els.gateStaffBody.innerHTML = '<tr><td colspan="5">Subscription is inactive. Payment unlocks scanner staff management.</td></tr>';
+        els.attendanceBody.innerHTML = '<tr><td colspan="12">Subscription is inactive. Payment unlocks gate attendance.</td></tr>';
+        els.gateStaffBody.innerHTML = '<tr><td colspan="8">Subscription is inactive. Payment unlocks scanner staff management.</td></tr>';
         els.gateDevicesBody.innerHTML = '<tr><td colspan="5">Subscription is inactive. Payment unlocks scanner device approval.</td></tr>';
         els.feesBody.innerHTML = schoolPortal
           ? '<tr><td colspan="7">Subscription is inactive. Payment unlocks fee management.</td></tr>'
@@ -1230,30 +1299,74 @@ const state = { token: '', org: null, rules: null, orgRegistrationFields: {}, ca
 
     async function loadAttendance() {
       const data = await api('/api/org/attendance', { headers: headers() });
-      const rows = data.attendance || [];
-      els.attendanceBody.innerHTML = rows.length ? rows.map((row) => `
+      state.attendance = data.attendance || [];
+      renderAttendance();
+    }
+
+    function renderAttendance() {
+      const rows = filteredAttendanceRows();
+      const signedIn = rows.filter((row) => row.entryAt).length;
+      const signedOut = rows.filter((row) => row.exitAt).length;
+      const noSignOut = rows.filter((row) => row.entryAt && !row.exitAt).length;
+      if (els.attendanceSummary) {
+        els.attendanceSummary.innerHTML = [
+          ['Records', rows.length],
+          ['Signed In', signedIn],
+          ['Signed Out', signedOut],
+          ['No Sign-Out', noSignOut]
+        ].map(([label, value]) => `<div class="dash-card"><strong>${value}</strong>${label}</div>`).join('');
+      }
+      els.attendanceBody.innerHTML = rows.length ? rows.map((row) => {
+        const branch = row.branch || row.gateName || '';
+        const position = row.position || row.classGrade || '';
+        const alert = row.entryAt && !row.exitAt ? 'No Sign-Out' : (row.securityStatus || '');
+        return `
         <tr>
           <td>${escapeHtml(row.studentName)}</td>
           <td>${escapeHtml(row.studentNumber || '')}</td>
-          <td>${escapeHtml(row.classGrade || '')}</td>
+          <td>${escapeHtml(branch)}</td>
+          <td>${escapeHtml(position)}</td>
           <td>${formatDate(row.attendanceDate)}</td>
+          <td>${formatTime(attendanceTimestamp(row))}</td>
           <td>${formatTime(row.entryAt)}</td>
           <td>${formatTime(row.exitAt)}</td>
           <td>${escapeHtml(row.status)}</td>
-        </tr>`).join('') : '<tr><td colspan="7">No attendance scans yet.</td></tr>';
+          <td>${escapeHtml(alert)}</td>
+          <td>${escapeHtml(scannerLabel(row))}</td>
+          <td>${escapeHtml(gpsText(row))}</td>
+        </tr>`;
+      }).join('') : '<tr><td colspan="12">No attendance scans for this filter.</td></tr>';
+      if (els.activeNowBody) {
+        const activeRows = rows.filter((row) => row.entryAt && !row.exitAt);
+        els.activeNowBody.innerHTML = activeRows.length ? activeRows.map((row) => `
+          <tr>
+            <td>${escapeHtml(row.studentName)}</td>
+            <td>${escapeHtml(row.studentNumber || '')}</td>
+            <td>${escapeHtml(row.branch || row.gateName || '')}</td>
+            <td>${formatTime(row.entryAt)}</td>
+            <td>${escapeHtml(scannerLabel(row))}</td>
+          </tr>`).join('') : '<tr><td colspan="5">No active workers in this filter.</td></tr>';
+      }
     }
 
     async function loadGateStaff() {
       const data = await api('/api/org/gate-staff', { headers: headers() });
       const rows = data.staff || [];
+      state.scanners = rows;
       els.gateStaffBody.innerHTML = rows.length ? rows.map((staff) => `
         <tr>
-          <td>${escapeHtml(staff.fullName)}<br>${escapeHtml(staff.phone || '')}</td>
-          <td>${escapeHtml(staff.staffCode)}</td>
-          <td>${escapeHtml(staff.staffRole || 'Scanner Staff')}<br>${escapeHtml(staff.gateName)}</td>
+          <td>${escapeHtml(staff.fullName)}</td>
+          <td>${escapeHtml(staff.phone || '')}</td>
+          <td>${escapeHtml(staff.gateName)}<br>${escapeHtml(staff.staffRole || 'Scanner Staff')}</td>
           <td>${escapeHtml(staff.status)}</td>
-          <td><button type="button" data-gate-staff="${escapeAttr(staff.id)}" data-status="${staff.status === 'Active' ? 'Suspended' : 'Active'}">${staff.status === 'Active' ? 'Suspend' : 'Activate'}</button></td>
-        </tr>`).join('') : '<tr><td colspan="5">No scanner staff registered yet.</td></tr>';
+          <td>${formatTime(staff.lastScanAt)}</td>
+          <td>${Number(staff.todayScanCount || 0).toLocaleString()}</td>
+          <td>${staff.setupLink ? `<button type="button" class="secondary" data-copy-link="${escapeAttr(staff.setupLink)}">Copy</button>` : escapeHtml(staff.setupStatus || 'Used')}</td>
+          <td class="row">
+            ${staff.setupStatus === 'Pending' ? `<button type="button" data-resend-scanner="${escapeAttr(staff.id)}">Resend</button>` : ''}
+            <button type="button" data-gate-staff="${escapeAttr(staff.id)}" data-status="${staff.status === 'Active' ? 'Suspended' : 'Active'}">${staff.status === 'Active' ? 'Disable' : 'Activate'}</button>
+          </td>
+        </tr>`).join('') : '<tr><td colspan="8">No scanner setup links created yet.</td></tr>';
       const devices = data.devices || [];
       els.gateDevicesBody.innerHTML = devices.length ? devices.map((device) => `
         <tr>
@@ -1270,9 +1383,25 @@ const state = { token: '', org: null, rules: null, orgRegistrationFields: {}, ca
 
     async function registerGateStaff() {
       const payload = Object.fromEntries(new FormData(els.gateStaffForm).entries());
-      await api('/api/org/gate-staff', { method: 'POST', headers: headers(), body: JSON.stringify(payload) });
+      const data = await api('/api/org/gate-staff', { method: 'POST', headers: headers(), body: JSON.stringify(payload) });
       els.gateStaffForm.reset();
+      if (els.scannerSetupNotice) {
+        els.scannerSetupNotice.textContent = `Setup link created. Send by WhatsApp: ${data.staff.setupLink || ''}`;
+        els.scannerSetupNotice.classList.remove('hidden', 'danger');
+      }
       await loadGateStaff();
+    }
+
+    function exportAttendanceCsv() {
+      const rows = filteredAttendanceRows();
+      const header = ['Worker name', 'Worker ID', 'Branch', 'Position', 'Date', 'Time', 'Signed In time', 'Signed Out time', 'Status', 'Alert', 'Scanned By', 'GPS'];
+      const body = rows.map((row) => [
+        row.studentName, row.studentNumber, row.branch || row.gateName || '', row.position || row.classGrade || '',
+        row.attendanceDate, formatTime(attendanceTimestamp(row)), formatTime(row.entryAt), formatTime(row.exitAt),
+        row.status, row.entryAt && !row.exitAt ? 'No Sign-Out' : row.securityStatus || '', scannerLabel(row), gpsText(row)
+      ]);
+      const name = (state.org?.name || 'vericard').replace(/[^a-z0-9]+/gi, '-').replace(/^-|-$/g, '').toLowerCase() || 'vericard';
+      downloadCsv(`${name}-attendance-${isoDate(new Date())}.csv`, [header, ...body]);
     }
 
     async function loadOrgSummary() {
@@ -1608,6 +1737,37 @@ const state = { token: '', org: null, rules: null, orgRegistrationFields: {}, ca
     });
 
     els.gateStaffBody.addEventListener('click', async (event) => {
+      const copyButton = event.target.closest('[data-copy-link]');
+      if (copyButton) {
+        try {
+          await navigator.clipboard.writeText(copyButton.dataset.copyLink);
+          if (els.scannerSetupNotice) {
+            els.scannerSetupNotice.textContent = 'Scanner setup link copied. Send it to the scanner person by WhatsApp.';
+            els.scannerSetupNotice.classList.remove('hidden', 'danger');
+          }
+        } catch {
+          prompt('Copy scanner setup link:', copyButton.dataset.copyLink);
+        }
+        return;
+      }
+      const resendButton = event.target.closest('[data-resend-scanner]');
+      if (resendButton) {
+        try {
+          const data = await api(`/api/org/gate-staff/${encodeURIComponent(resendButton.dataset.resendScanner)}/setup-link`, {
+            method: 'POST',
+            headers: headers(),
+            body: '{}'
+          });
+          if (els.scannerSetupNotice) {
+            els.scannerSetupNotice.textContent = `New setup link ready. Send by WhatsApp: ${data.staff.setupLink || ''}`;
+            els.scannerSetupNotice.classList.remove('hidden', 'danger');
+          }
+          await loadGateStaff();
+        } catch (error) {
+          alert(friendlyError(error));
+        }
+        return;
+      }
       const button = event.target.closest('[data-gate-staff]');
       if (!button) return;
       try {
@@ -1621,6 +1781,11 @@ const state = { token: '', org: null, rules: null, orgRegistrationFields: {}, ca
         alert(friendlyError(error));
       }
     });
+
+    [els.attendanceFilter, els.attendanceFrom, els.attendanceTo, els.attendanceSearch].forEach((input) => {
+      input?.addEventListener(input === els.attendanceSearch ? 'input' : 'change', renderAttendance);
+    });
+    els.exportAttendanceCsvBtn?.addEventListener('click', exportAttendanceCsv);
 
     els.gateDevicesBody.addEventListener('click', async (event) => {
       const button = event.target.closest('[data-gate-device]');

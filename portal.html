@@ -141,7 +141,7 @@
           <button type="button" data-drawer-view="master">Master Card</button>
           <button type="button" data-drawer-view="records">Records</button>
           <button type="button" data-drawer-view="assistant">Teams AI</button>
-          <button type="button" data-drawer-view="gate">Access Scan</button>
+          <button type="button" data-drawer-view="gate">Attendance</button>
           <button type="button" data-drawer-view="fees" data-nav-scope="school">Fees</button>
           <button type="button" data-drawer-view="reports">Reports</button>
         </nav>
@@ -272,18 +272,37 @@
       </div>
 
       <div class="panel" id="gateScanPanel" data-requires-subscription data-dashboard-view="gate">
-        <h2>Access / Attendance Scanner</h2>
+        <h2>Attendance</h2>
         <div class="notice danger hidden" data-lock-notice>Subscription is inactive. Payment unlocks access scanning and attendance.</div>
-        <div class="notice">For daily scanning, register scanner staff below and let them use the separate scanner page.</div>
-        <a class="button secondary" href="/gate.html" target="_blank" rel="noopener">Open Scanner App</a>
+        <div class="notice">Daily worker sign-in and sign-out is recorded from the installed Scanner App. Admin dashboard scanning remains available for supervised backup only.</div>
+        <div class="row">
+          <a class="button secondary" href="/gate.html" target="_blank" rel="noopener">Open Scanner App</a>
+          <button type="button" class="secondary" id="exportAttendanceCsvBtn">Export CSV</button>
+        </div>
+        <div class="dashboard-grid" id="attendanceSummary"></div>
+        <div class="row">
+          <label>Filter
+            <select id="attendanceFilter">
+              <option value="today">Today</option>
+              <option value="yesterday">Yesterday</option>
+              <option value="week">This Week</option>
+              <option value="month">This Month</option>
+              <option value="all">All</option>
+              <option value="custom">Custom Calendar Range</option>
+            </select>
+          </label>
+          <label>From<input id="attendanceFrom" type="date"></label>
+          <label>To<input id="attendanceTo" type="date"></label>
+          <label>Search<input id="attendanceSearch" placeholder="Worker, ID, branch, status, scanner"></label>
+        </div>
         <form id="gateScanForm">
           <label>Gate name<input name="gateName" value="Main Gate" required></label>
           <label>Card QR token or scanned URL<input name="token" placeholder="Scan or paste card QR result" required></label>
           <label>Scan action
             <select name="action">
-              <option value="enter">Entering</option>
+              <option value="enter">Sign In</option>
               <option value="report">Report / update location</option>
-              <option value="leave">Leaving</option>
+              <option value="leave">Sign Out</option>
             </select>
           </label>
           <button type="submit">Record Scan</button>
@@ -291,18 +310,25 @@
         <div id="gateScanNotice" class="notice hidden"></div>
         <div class="table-wrap">
           <table>
-            <thead><tr><th>Person</th><th>No.</th><th>Group</th><th>Date</th><th>Entered</th><th>Left</th><th>Status</th></tr></thead>
-            <tbody id="attendanceBody"><tr><td colspan="7">No attendance scans loaded.</td></tr></tbody>
+            <thead><tr><th>Worker name</th><th>Worker ID</th><th>Branch</th><th>Position</th><th>Date</th><th>Time</th><th>Signed In time</th><th>Signed Out time</th><th>Status</th><th>Alert</th><th>Scanned By</th><th>GPS</th></tr></thead>
+            <tbody id="attendanceBody"><tr><td colspan="12">No attendance scans loaded.</td></tr></tbody>
+          </table>
+        </div>
+        <h3>Active Now</h3>
+        <div class="table-wrap">
+          <table>
+            <thead><tr><th>Worker</th><th>ID</th><th>Branch</th><th>Signed In</th><th>Scanned By</th></tr></thead>
+            <tbody id="activeNowBody"><tr><td colspan="5">No active workers loaded.</td></tr></tbody>
           </table>
         </div>
       </div>
 
       <div class="panel" id="gateStaffPanel" data-requires-subscription data-dashboard-view="gate">
-        <h2>Scanner Staff</h2>
+        <h2>Set Scanner</h2>
         <form id="gateStaffForm">
-          <label>Full name<input name="fullName" required></label>
-          <label>Phone<input name="phone"></label>
-          <label>Staff code<input name="staffCode" required></label>
+          <label>Scanner owner name<input name="fullName" required></label>
+          <label>Scanner phone number<input name="phone" required></label>
+          <label>Device / place<input name="gateName" value="Reception" placeholder="Reception, Gate, Supervisor phone" required></label>
           <label>Scanner role
             <select name="staffRole">
               <option value="Gate Staff">Scanner Staff</option>
@@ -313,14 +339,13 @@
               <option value="Security Lead">Security Lead</option>
             </select>
           </label>
-          <label>Gate / area name<input name="gateName" value="Main Gate" required></label>
-          <label>Scanner PIN<input name="pin" type="password" required></label>
-          <button type="submit">Register Scanner Staff</button>
+          <button type="submit">Create Scanner Setup Link</button>
         </form>
+        <div id="scannerSetupNotice" class="notice hidden"></div>
         <div class="table-wrap">
           <table>
-            <thead><tr><th>Name</th><th>Staff Code</th><th>Role / Gate</th><th>Status</th><th>Action</th></tr></thead>
-            <tbody id="gateStaffBody"><tr><td colspan="5">No scanner staff loaded.</td></tr></tbody>
+            <thead><tr><th>Scanner owner</th><th>Scanner phone number</th><th>Device / place</th><th>Status</th><th>Last scan</th><th>Today scans</th><th>Setup link</th><th>Action</th></tr></thead>
+            <tbody id="gateStaffBody"><tr><td colspan="8">No scanner staff loaded.</td></tr></tbody>
           </table>
         </div>
         <h3>Scanner Devices</h3>

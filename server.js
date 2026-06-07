@@ -1221,6 +1221,74 @@ async function logParentNotification(org, card, type, balance = 0, eventAt = new
   return toNotification(await deliverParentNotification(data));
 }
 
+function teamsAiFallbackAnswer(org, question = '') {
+  const q = normalizeText(question).toLowerCase();
+  const schoolPortal = ['school', 'university'].includes(org?.type);
+  if (/notif|parent|arriv|enter|leave|left|time|morning|evening/.test(q)) {
+    return schoolPortal
+      ? 'Parent notifications are queued when a student is scanned in or out. VeriCard uses the scan timestamp in the background, so the message includes morning, afternoon, or evening with the exact time. Set SMS_WEBHOOK_URL or EMAIL_WEBHOOK_URL in Vercel for real delivery.'
+      : 'Notifications are mainly for school and university portals. This organization can still approve cards, print cards, scan attendance, and verify QR codes.';
+  }
+  if (/approve|reject|inactive|record/.test(q)) return 'Open Records, review each submitted person, then approve, reject, or mark inactive. Approved cards can be viewed, downloaded in bulk, or sent to super admin for printing.';
+  if (/master|qr|register/.test(q)) return 'Open Master Card, load the master card, then share or print its QR. Scanning that QR opens the registration form for the roles used by this organization.';
+  if (/print|download|bulk|card/.test(q)) return 'Open Records, tick approved cards, then use Download Selected Approved or Request Admin Print. Printing requests are priced at KES 100 per card for super admin handling.';
+  if (/fee|balance/.test(q)) return schoolPortal ? 'Open Fees to upload a CSV from Excel. Parent notifications can be queued from fee balances.' : 'Fees are hidden for this portal because they are school/university features.';
+  if (/gate|scan|attendance|work|job/.test(q)) return schoolPortal ? 'Open Gate to register gate staff and scan entry/exit. Entry and exit times are saved by the system timestamp.' : 'Open Gate to register supervisors, agent leaders, sales leaders, or gate staff. When employees scan in, the admin dashboard shows who is at work today.';
+  if (/report|daily|weekly|monthly|year/.test(q)) return schoolPortal ? 'Open Reports, choose daily, weekly, monthly, or yearly, then download the report file.' : 'Reports are currently focused on school attendance, fees, notifications, and security logs.';
+  return 'Start from Dashboard for status, Records for approvals, Master Card for QR registration, Set Front/Back for card design, Gate for scanning, and Teams AI whenever you need the next step.';
+}
+
+function responseOutputText(response) {
+  if (response?.output_text) return normalizeText(response.output_text);
+  const parts = [];
+  for (const item of response?.output || []) {
+    for (const content of item.content || []) {
+      if (content.type === 'output_text' || content.type === 'text') parts.push(content.text || '');
+    }
+  }
+  return normalizeText(parts.join('\n'));
+}
+
+async function teamsAiResponse(org, messages = [], question = '') {
+  const fallback = teamsAiFallbackAnswer(org, question);
+  if (!process.env.OPENAI_API_KEY) return { answer: fallback, mode: 'local' };
+  const history = messages.slice(-10).map((message) => `${message.role === 'user' ? 'Admin' : 'Teams AI'}: ${normalizeText(message.content)}`).join('\n');
+  const prompt = [
+    `Organization: ${org.name}`,
+    `Type: ${organizationTypes[org.type]?.label || org.type}`,
+    `Subscription: ${org.subscription_status}`,
+    '',
+    'Conversation:',
+    history,
+    '',
+    `Current admin question: ${normalizeText(question)}`
+  ].join('\n');
+  const instructions = [
+    'You are Teams AI, a concise assistant inside VeriCard.',
+    'Help organization admins use this exact portal.',
+    'Answer like a practical operator: name the drawer page or button to use.',
+    'Do not invent features outside VeriCard.',
+    'For schools, explain parent notifications for student entry and exit.',
+    'For companies and other organizations, explain employee/staff attendance and who is at work today.',
+    'Keep replies short, clear, and action-focused.'
+  ].join(' ');
+  const response = await fetch('https://api.openai.com/v1/responses', {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+      Authorization: `Bearer ${process.env.OPENAI_API_KEY}`
+    },
+    body: JSON.stringify({
+      model: process.env.OPENAI_MODEL || 'gpt-4o-mini',
+      instructions,
+      input: prompt
+    })
+  });
+  const data = await response.json().catch(() => ({}));
+  if (!response.ok) return { answer: fallback, mode: 'local', warning: data.error?.message || 'OpenAI request failed.' };
+  return { answer: responseOutputText(data) || fallback, mode: 'openai' };
+}
+
 async function deliverParentNotification(row) {
   if ((row.delivery_status || row.status) !== 'Queued') return row;
   const endpoint = row.channel === 'email' ? process.env.EMAIL_WEBHOOK_URL : process.env.SMS_WEBHOOK_URL;
@@ -1945,6 +2013,23 @@ app.get('/api/org/dashboard-summary', requireOrg, async (req, res) => {
     },
     recentScans: recentRows.slice(0, 10).map(toAttendance)
   });
+});
+
+app.post('/api/org/assistant', requireOrg, async (req, res) => {
+  const org = await getOrg(req.orgId);
+  if (!org) return res.status(404).json({ error: 'Organization not found.' });
+  const rawMessages = Array.isArray(req.body.messages) ? req.body.messages : [];
+  const messages = rawMessages.slice(-12).map((message) => ({
+    role: message.role === 'user' ? 'user' : 'assistant',
+    content: normalizeText(message.content).slice(0, 1200)
+  })).filter((message) => message.content);
+  const question = normalizeText(req.body.question || messages[messages.length - 1]?.content).slice(0, 1200);
+  if (!question) return res.status(400).json({ error: 'Ask Teams AI a question first.' });
+  try {
+    res.json(await teamsAiResponse(org, messages, question));
+  } catch (error) {
+    res.json({ answer: teamsAiFallbackAnswer(org, question), mode: 'local', warning: error.message });
+  }
 });
 
 app.get('/api/org/fees', requireOrg, async (req, res) => {

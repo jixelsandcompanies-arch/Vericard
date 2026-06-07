@@ -1,4 +1,4 @@
-const state = { token: '', org: null, rules: null, orgRegistrationFields: {}, cards: [], templates: [], locked: false, palette: { primary: '#061a30', accent: '#149ee8', colors: ['#061a30', '#149ee8'] }, masterToken: new URLSearchParams(location.search).get('master') || '', dashboardDeviceId: localStorage.getItem('vericardDashboardDeviceId') || '' };
+const state = { token: '', org: null, rules: null, orgRegistrationFields: {}, cards: [], templates: [], locked: false, assistantMessages: [], palette: { primary: '#061a30', accent: '#149ee8', colors: ['#061a30', '#149ee8'] }, masterToken: new URLSearchParams(location.search).get('master') || '', dashboardDeviceId: localStorage.getItem('vericardDashboardDeviceId') || '' };
     const els = {
       sessionStatus: document.getElementById('sessionStatus'), logoutBtn: document.getElementById('logoutBtn'), drawerToggle: document.getElementById('drawerToggle'), dashboardDrawer: document.getElementById('dashboardDrawer'), drawerScrim: document.getElementById('drawerScrim'),
       portalTitle: document.getElementById('portalTitle'),
@@ -24,7 +24,7 @@ const state = { token: '', org: null, rules: null, orgRegistrationFields: {}, ca
       gateStaffForm: document.getElementById('gateStaffForm'), gateStaffBody: document.getElementById('gateStaffBody'), gateDevicesBody: document.getElementById('gateDevicesBody'),
       feePanel: document.getElementById('feePanel'), feeUploadFile: document.getElementById('feeUploadFile'), uploadFeesBtn: document.getElementById('uploadFeesBtn'), refreshFeesBtn: document.getElementById('refreshFeesBtn'), feeNotice: document.getElementById('feeNotice'), feesBody: document.getElementById('feesBody'),
       reportsPanel: document.getElementById('reportsPanel'), reportsSummary: document.getElementById('reportsSummary'), reportPeriod: document.getElementById('reportPeriod'), downloadReportBtn: document.getElementById('downloadReportBtn'), securityLogResult: document.getElementById('securityLogResult'), securityLogAlert: document.getElementById('securityLogAlert'), notificationsBody: document.getElementById('notificationsBody'), securityLogsBody: document.getElementById('securityLogsBody'),
-      assistantGreeting: document.getElementById('assistantGreeting'), assistantAnswer: document.getElementById('assistantAnswer'), assistantForm: document.getElementById('assistantForm'), assistantQuestion: document.getElementById('assistantQuestion'),
+      assistantGreeting: document.getElementById('assistantGreeting'), assistantMessages: document.getElementById('assistantMessages'), assistantForm: document.getElementById('assistantForm'), assistantQuestion: document.getElementById('assistantQuestion'),
       backSettingsForm: document.getElementById('backSettingsForm'), previewEmpty: document.getElementById('previewEmpty'), idCardStage: document.getElementById('idCardStage'),
       schoolBackFields: document.getElementById('schoolBackFields'), schoolHourFields: document.getElementById('schoolHourFields'),
       idFrontLogo: document.getElementById('idFrontLogo'), idBackLogo: document.getElementById('idBackLogo'), idPhoto: document.getElementById('idPhoto'),
@@ -467,9 +467,29 @@ const state = { token: '', org: null, rules: null, orgRegistrationFields: {}, ca
       if (/report|daily|weekly|monthly|year/.test(q)) return schoolPortal ? 'Open Reports, choose daily, weekly, monthly, or yearly, then download the report file.' : 'Reports are currently focused on school attendance, fees, notifications, and security logs.';
       return 'Start from Dashboard for status, Records for approvals, Master Card for QR registration, Set Front/Back for card design, and Teams AI whenever you need the next step.';
     }
-    function askTeamsAi(question) {
+    function renderAssistantMessages() {
       els.assistantGreeting.textContent = `${state.org?.name || 'VeriCard'} Teams AI`;
-      els.assistantAnswer.textContent = teamsAiAnswer(question);
+      const messages = state.assistantMessages.length ? state.assistantMessages : [{ role: 'assistant', content: 'Ask me about approvals, master cards, QR registration, gate scans, parent notifications, reports, fees, bulk printing, or who is at work today.' }];
+      els.assistantMessages.innerHTML = messages.map((message) => `<div class="assistant-message ${message.role === 'user' ? 'assistant-message-user' : 'assistant-message-ai'}">${escapeHtml(message.content)}</div>`).join('');
+      els.assistantMessages.scrollTop = els.assistantMessages.scrollHeight;
+    }
+    async function askTeamsAi(question) {
+      const text = String(question || '').trim();
+      if (!text) return;
+      state.assistantMessages.push({ role: 'user', content: text });
+      state.assistantMessages.push({ role: 'assistant', content: 'Thinking...' });
+      renderAssistantMessages();
+      try {
+        const data = await api('/api/org/assistant', {
+          method: 'POST',
+          headers: headers(),
+          body: JSON.stringify({ messages: state.assistantMessages.slice(0, -1), question: text })
+        });
+        state.assistantMessages[state.assistantMessages.length - 1] = { role: 'assistant', content: data.answer || teamsAiAnswer(text) };
+      } catch (error) {
+        state.assistantMessages[state.assistantMessages.length - 1] = { role: 'assistant', content: `${teamsAiAnswer(text)}\n\nLive AI is unavailable right now: ${friendlyError(error)}` };
+      }
+      renderAssistantMessages();
     }
     function reportDateRange(period) {
       const now = new Date();
@@ -1540,12 +1560,14 @@ const state = { token: '', org: null, rules: null, orgRegistrationFields: {}, ca
     els.logoutBtn.addEventListener('click', () => location.reload());
     els.assistantForm.addEventListener('submit', (event) => {
       event.preventDefault();
-      askTeamsAi(els.assistantQuestion.value);
+      const question = els.assistantQuestion.value;
+      els.assistantQuestion.value = '';
+      askTeamsAi(question);
     });
     document.querySelectorAll('[data-ai-prompt]').forEach((button) => {
       button.addEventListener('click', () => {
         els.assistantQuestion.value = button.dataset.aiPrompt;
-        askTeamsAi(button.dataset.aiPrompt);
+        els.assistantForm.requestSubmit();
       });
     });
     els.cardsBody.addEventListener('click', async (event) => {

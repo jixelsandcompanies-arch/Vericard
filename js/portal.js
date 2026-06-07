@@ -97,6 +97,87 @@ const state = { token: '', org: null, rules: null, orgRegistrationFields: {}, ca
     function hasRegisteredOrganization() { return localStorage.getItem('mapphexOrganizationRegistered') === 'true'; }
     function rememberRegisteredOrganization() { localStorage.setItem('mapphexOrganizationRegistered', 'true'); }
     function isSchoolType(type) { return type === 'school' || type === 'university'; }
+    function orgWorkflowProfile(type = state.org?.type) {
+      const profiles = {
+        company: {
+          personLabel: 'People',
+          visitorLabel: 'Visitors',
+          activeLabel: 'At work now',
+          approvalLabel: 'Host approvals',
+          zoneLabel: 'Sites / zones',
+          expiringLabel: 'Contracts expiring',
+          reportPrefix: 'Department / branch',
+          scanNoun: 'Work access',
+          assistantScan: 'Use Gate to scan employees, contractors, interns, and visitors as entering, reporting at a work area, or leaving. Current location stops when they leave.'
+        },
+        hospital: {
+          personLabel: 'Personnel',
+          visitorLabel: 'Visitors',
+          activeLabel: 'On site now',
+          approvalLabel: 'Host approvals',
+          zoneLabel: 'Restricted zones',
+          expiringLabel: 'Credentials expiring',
+          reportPrefix: 'Ward / department',
+          scanNoun: 'Clinical access',
+          assistantScan: 'Use Gate to scan doctors, nurses, staff, and visitors into wards, lab, pharmacy, ICU, theatre, or exit. Restricted zones and credential expiry are checked.'
+        },
+        security: {
+          personLabel: 'Personnel',
+          visitorLabel: 'Visitors',
+          activeLabel: 'On duty now',
+          approvalLabel: 'Supervisor approvals',
+          zoneLabel: 'Deployment sites',
+          expiringLabel: 'Licenses expiring',
+          reportPrefix: 'Site / rank',
+          scanNoun: 'Duty proof',
+          assistantScan: 'Use Gate to confirm guard deployment, shifts, report points, and exits. Deployment site, supervisor approval, license expiry, and GPS movement are checked.'
+        },
+        government: {
+          personLabel: 'Records',
+          visitorLabel: 'Visitors',
+          activeLabel: 'In office now',
+          approvalLabel: 'Host clearances',
+          zoneLabel: 'Departments',
+          expiringLabel: 'Passes expiring',
+          reportPrefix: 'Department / office',
+          scanNoun: 'Office access',
+          assistantScan: 'Use Gate to scan officers, contract staff, and visitors through reception, departments, records, finance, and exit. Appointment and visit purpose are checked.'
+        },
+        ngo: {
+          personLabel: 'Members',
+          visitorLabel: 'Visitors',
+          activeLabel: 'Checked in now',
+          approvalLabel: 'Screening pending',
+          zoneLabel: 'Events / areas',
+          expiringLabel: 'Access expiring',
+          reportPrefix: 'Event / ministry',
+          scanNoun: 'Event access',
+          assistantScan: 'Use Gate to scan members, volunteers, leaders, and visitors for events, youth areas, volunteer desks, and exits. Screening and event names are checked.'
+        },
+        custom: {
+          personLabel: 'Records',
+          visitorLabel: 'Visitors',
+          activeLabel: 'Active inside',
+          approvalLabel: 'Approvals pending',
+          zoneLabel: 'Access zones',
+          expiringLabel: 'Access expiring',
+          reportPrefix: 'Group / role',
+          scanNoun: 'Custom access',
+          assistantScan: 'Use Gate to scan custom members, staff, and visitors into areas, report points, and exits using your custom access zones and rules.'
+        }
+      };
+      return profiles[type] || {
+        personLabel: 'Total students',
+        visitorLabel: 'Visitors',
+        activeLabel: 'Inside now',
+        approvalLabel: 'Pending approvals',
+        zoneLabel: 'Access zones',
+        expiringLabel: 'Expiring soon',
+        reportPrefix: 'Group',
+        scanNoun: 'Gate scan',
+        assistantScan: 'Open Gate to scan entry, report/update location, and exit.'
+      };
+    }
     function registrationRule(type) { return state.orgRegistrationFields[type] || state.orgRegistrationFields.custom || {}; }
     function toggleOrgDependentFields(show) {
       const children = Array.from(els.orgRegisterForm.children);
@@ -456,17 +537,18 @@ const state = { token: '', org: null, rules: null, orgRegistrationFields: {}, ca
     function teamsAiAnswer(question = '') {
       const q = question.toLowerCase();
       const schoolPortal = isSchoolType(state.org?.type);
+      const profile = orgWorkflowProfile();
       if (/notif|parent|arriv|enter|leave|left|time|morning|evening/.test(q)) {
         return schoolPortal
           ? 'Parent notifications are queued as push notifications when a student is scanned in or out. VeriCard uses the scan timestamp in the background, so the message includes morning, afternoon, or evening with the exact time. Set ONESIGNAL_APP_ID and ONESIGNAL_REST_API_KEY in Vercel for real push delivery. Email and SMS can be added later.'
-          : 'Notifications are mainly for school and university portals. This organization can still approve cards, print cards, and verify QR codes.';
+          : `${profile.scanNoun} logs are saved when people scan in, report at an area, or leave. Use Records for approvals and Reports for movement/security history.`;
       }
       if (/approve|reject|inactive|record/.test(q)) return 'Open Records, review each submitted person, then approve, reject, or mark inactive. Approved cards can be viewed, downloaded in bulk, or sent to super admin for printing.';
       if (/master|qr|register/.test(q)) return 'Open Master Card, load the master card, then share or print its QR. Scanning that QR opens the registration form for students, teachers, staff, employees, or the roles for this organization.';
       if (/print|download|bulk|card/.test(q)) return 'Open Records, tick approved cards, then use Download Selected Approved or Request Admin Print. Printing requests are priced at KES 100 per card for super admin handling.';
       if (/fee|balance/.test(q)) return schoolPortal ? 'Open Fees to upload a CSV from Excel. Parent notifications can be queued from fee balances.' : 'Fees are hidden for this portal because they are school/university features.';
-      if (/gate|scan|attendance|work|job/.test(q)) return schoolPortal ? 'Open Gate to register gate staff and scan entry/exit. Entry and exit times are saved by the system timestamp.' : 'Open Gate to register supervisors, agent leaders, sales leaders, or gate staff. When employees scan in, the admin dashboard shows who is at work today.';
-      if (/report|daily|weekly|monthly|year/.test(q)) return schoolPortal ? 'Open Reports, choose daily, weekly, monthly, or yearly, then download the report file.' : 'Reports are currently focused on school attendance, fees, notifications, and security logs.';
+      if (/gate|scan|attendance|work|job|location|area/.test(q)) return schoolPortal ? 'Open Gate to register gate staff and scan entry, report/update location, or exit. Entry and exit times are saved by the system timestamp.' : profile.assistantScan;
+      if (/report|daily|weekly|monthly|year/.test(q)) return schoolPortal ? 'Open Reports, choose daily, weekly, monthly, or yearly, then download the report file.' : `Open Reports to download ${profile.reportPrefix.toLowerCase()} movement, active-location, and security-log history.`;
       return 'Start from Dashboard for status, Records for approvals, Master Card for QR registration, Set Front/Back for card design, and Teams AI whenever you need the next step.';
     }
     function renderAssistantMessages() {
@@ -1115,6 +1197,7 @@ const state = { token: '', org: null, rules: null, orgRegistrationFields: {}, ca
     async function loadOrgSummary() {
       const data = await api('/api/org/dashboard-summary', { headers: headers() });
       const summary = data.summary || {};
+      const profile = orgWorkflowProfile();
       const cards = isSchoolType(state.org?.type)
         ? [
             ['Total students', summary.totalStudents || 0],
@@ -1123,17 +1206,17 @@ const state = { token: '', org: null, rules: null, orgRegistrationFields: {}, ca
             ['Suspended students', summary.suspendedStudents || 0]
           ]
         : [
-            ['Total cards', summary.totalCards || 0],
+            [profile.personLabel, summary.totalCards || 0],
             ['Active cards', summary.activeCards || 0],
-            ['Visitors', summary.visitors || 0],
-            ['Expiring soon', summary.expiringSoon || 0],
-            ['Pending approvals', summary.pendingApprovals || 0],
-            ['Access zones', summary.accessZones || 0],
-            ['Inside now', summary.insideNow || 0],
+            [profile.visitorLabel, summary.visitors || 0],
+            [profile.expiringLabel, summary.expiringSoon || 0],
+            [profile.approvalLabel, summary.pendingApprovals || 0],
+            [profile.zoneLabel, summary.accessZones || 0],
+            [profile.activeLabel, summary.insideNow || 0],
             ['At work today', summary.atWorkToday || 0]
           ];
       els.orgDashboardSummary.innerHTML = cards.map(([label, value]) => `<div class="dash-card"><strong>${escapeHtml(value)}</strong>${escapeHtml(label)}</div>`).join('');
-      const branchCards = Array.isArray(summary.branchReports) ? summary.branchReports.map((item) => [`${item.label}`, item.count]) : [];
+      const branchCards = Array.isArray(summary.branchReports) ? summary.branchReports.map((item) => [`${profile.reportPrefix}: ${item.label}`, item.count]) : [];
       els.reportsSummary.innerHTML = cards.concat(branchCards).map(([label, value]) => `<div class="dash-card"><strong>${escapeHtml(value)}</strong>${escapeHtml(label)}</div>`).join('');
       const scans = data.recentScans || [];
       els.recentScansBody.innerHTML = scans.length ? scans.map((scan) => `
@@ -1298,6 +1381,7 @@ const state = { token: '', org: null, rules: null, orgRegistrationFields: {}, ca
     async function downloadPeriodReport() {
       const period = els.reportPeriod.value || 'daily';
       const { start, end } = reportDateRange(period);
+      const profile = orgWorkflowProfile();
       const adminPassword = promptOrgPassword('download this report');
       const data = await api('/api/org/backup', {
         method: 'POST',
@@ -1313,6 +1397,11 @@ const state = { token: '', org: null, rules: null, orgRegistrationFields: {}, ca
       const filteredFees = fees.filter((row) => inDateRange(row.updated_at || row.created_at || row.due_date, start, end));
       const filteredNotifications = notifications.filter((row) => inDateRange(row.created_at, start, end));
       const filteredSecurityLogs = securityLogs.filter((row) => inDateRange(row.created_at, start, end));
+      const areaBreakdown = filteredAttendance.reduce((acc, row) => {
+        const label = row.gate_name || row.class_grade || row.scan_source || 'General';
+        acc[label] = (acc[label] || 0) + 1;
+        return acc;
+      }, {});
       const report = {
         organization: data.organization,
         period,
@@ -1327,7 +1416,10 @@ const state = { token: '', org: null, rules: null, orgRegistrationFields: {}, ca
           feeRows: filteredFees.length,
           feeBalanceTotal: filteredFees.reduce((sum, fee) => sum + Number(fee.balance || 0), 0),
           notifications: filteredNotifications.length,
-          securityEvents: filteredSecurityLogs.length
+          securityEvents: filteredSecurityLogs.length,
+          activeInside: filteredAttendance.filter((row) => row.status === 'Inside').length,
+          reportBreakdownLabel: profile.reportPrefix,
+          areaBreakdown
         },
         cards,
         attendance: filteredAttendance,

@@ -12,6 +12,8 @@
           "super-admin.html",
           "manifest.webmanifest",
           "sw.js",
+          "OneSignalSDKWorker.js",
+          "OneSignalSDKUpdaterWorker.js",
           "css/**",
           "js/**",
           "assets/**",

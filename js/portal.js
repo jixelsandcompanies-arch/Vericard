@@ -24,6 +24,7 @@ const state = { token: '', org: null, rules: null, orgRegistrationFields: {}, ca
       gateStaffForm: document.getElementById('gateStaffForm'), gateStaffBody: document.getElementById('gateStaffBody'), gateDevicesBody: document.getElementById('gateDevicesBody'),
       feePanel: document.getElementById('feePanel'), feeUploadFile: document.getElementById('feeUploadFile'), uploadFeesBtn: document.getElementById('uploadFeesBtn'), refreshFeesBtn: document.getElementById('refreshFeesBtn'), feeNotice: document.getElementById('feeNotice'), feesBody: document.getElementById('feesBody'),
       reportsPanel: document.getElementById('reportsPanel'), reportsSummary: document.getElementById('reportsSummary'), reportPeriod: document.getElementById('reportPeriod'), downloadReportBtn: document.getElementById('downloadReportBtn'), securityLogResult: document.getElementById('securityLogResult'), securityLogAlert: document.getElementById('securityLogAlert'), notificationsBody: document.getElementById('notificationsBody'), securityLogsBody: document.getElementById('securityLogsBody'),
+      assistantGreeting: document.getElementById('assistantGreeting'), assistantAnswer: document.getElementById('assistantAnswer'), assistantForm: document.getElementById('assistantForm'), assistantQuestion: document.getElementById('assistantQuestion'),
       backSettingsForm: document.getElementById('backSettingsForm'), previewEmpty: document.getElementById('previewEmpty'), idCardStage: document.getElementById('idCardStage'),
       schoolBackFields: document.getElementById('schoolBackFields'), schoolHourFields: document.getElementById('schoolHourFields'),
       idFrontLogo: document.getElementById('idFrontLogo'), idBackLogo: document.getElementById('idBackLogo'), idPhoto: document.getElementById('idPhoto'),
@@ -409,7 +410,7 @@ const state = { token: '', org: null, rules: null, orgRegistrationFields: {}, ca
     }
     function availableDashboardViews() {
       const schoolPortal = isSchoolType(state.org?.type);
-      const views = ['dashboard', 'front', 'back', 'master', 'records'];
+      const views = ['dashboard', 'front', 'back', 'master', 'records', 'assistant'];
       if (schoolPortal) views.push('gate', 'fees', 'reports');
       return views;
     }
@@ -449,6 +450,26 @@ const state = { token: '', org: null, rules: null, orgRegistrationFields: {}, ca
     function selectedApprovedCards() {
       const ids = Array.from(document.querySelectorAll('[data-card-select]:checked')).map((input) => input.value);
       return state.cards.filter((card) => ids.includes(card.id) && (card.status || 'Pending') === 'Approved');
+    }
+    function teamsAiAnswer(question = '') {
+      const q = question.toLowerCase();
+      const schoolPortal = isSchoolType(state.org?.type);
+      if (/notif|parent|arriv|enter|leave|left|time|morning|evening/.test(q)) {
+        return schoolPortal
+          ? 'Parent notifications are queued when a student is scanned in or out. VeriCard uses the scan timestamp in the background, so the message includes morning, afternoon, or evening with the exact time. Set SMS_WEBHOOK_URL or EMAIL_WEBHOOK_URL in Vercel for real delivery.'
+          : 'Notifications are mainly for school and university portals. This organization can still approve cards, print cards, and verify QR codes.';
+      }
+      if (/approve|reject|inactive|record/.test(q)) return 'Open Records, review each submitted person, then approve, reject, or mark inactive. Approved cards can be viewed, downloaded in bulk, or sent to super admin for printing.';
+      if (/master|qr|register/.test(q)) return 'Open Master Card, load the master card, then share or print its QR. Scanning that QR opens the registration form for students, teachers, staff, employees, or the roles for this organization.';
+      if (/print|download|bulk|card/.test(q)) return 'Open Records, tick approved cards, then use Download Selected Approved or Request Admin Print. Printing requests are priced at KES 100 per card for super admin handling.';
+      if (/fee|balance/.test(q)) return schoolPortal ? 'Open Fees to upload a CSV from Excel. Parent notifications can be queued from fee balances.' : 'Fees are hidden for this portal because they are school/university features.';
+      if (/gate|scan|attendance/.test(q)) return schoolPortal ? 'Open Gate to register gate staff and scan entry/exit. Entry and exit times are saved by the system timestamp.' : 'Gate and attendance tools are hidden for this organization type to keep the portal simple.';
+      if (/report|daily|weekly|monthly|year/.test(q)) return schoolPortal ? 'Open Reports, choose daily, weekly, monthly, or yearly, then download the report file.' : 'Reports are currently focused on school attendance, fees, notifications, and security logs.';
+      return 'Start from Dashboard for status, Records for approvals, Master Card for QR registration, Set Front/Back for card design, and Teams AI whenever you need the next step.';
+    }
+    function askTeamsAi(question) {
+      els.assistantGreeting.textContent = `${state.org?.name || 'VeriCard'} Teams AI`;
+      els.assistantAnswer.textContent = teamsAiAnswer(question);
     }
     function reportDateRange(period) {
       const now = new Date();
@@ -1516,6 +1537,16 @@ const state = { token: '', org: null, rules: null, orgRegistrationFields: {}, ca
       setDashboardView(button.dataset.drawerView);
     });
     els.logoutBtn.addEventListener('click', () => location.reload());
+    els.assistantForm.addEventListener('submit', (event) => {
+      event.preventDefault();
+      askTeamsAi(els.assistantQuestion.value);
+    });
+    document.querySelectorAll('[data-ai-prompt]').forEach((button) => {
+      button.addEventListener('click', () => {
+        els.assistantQuestion.value = button.dataset.aiPrompt;
+        askTeamsAi(button.dataset.aiPrompt);
+      });
+    });
     els.cardsBody.addEventListener('click', async (event) => {
       const button = event.target.closest('button[data-id]');
       if (!button) return;

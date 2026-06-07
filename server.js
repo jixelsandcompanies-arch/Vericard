@@ -1130,20 +1130,33 @@ async function denyScan(res, status, message, context) {
   return res.status(status).json({ error: message });
 }
 
-function notificationMessage(type, studentName, balance) {
+function notificationTimeText(value = new Date()) {
+  const date = value instanceof Date ? value : new Date(value);
+  const timeZone = process.env.NOTIFICATION_TIME_ZONE || 'Africa/Nairobi';
+  const hour = Number(new Intl.DateTimeFormat('en-US', { timeZone, hour: '2-digit', hour12: false }).format(date));
+  const period = hour < 12 ? 'morning' : hour < 17 ? 'afternoon' : 'evening';
+  const stamp = new Intl.DateTimeFormat('en-KE', {
+    timeZone,
+    dateStyle: 'medium',
+    timeStyle: 'short'
+  }).format(date);
+  return `${period} at ${stamp}`;
+}
+
+function notificationMessage(type, studentName, balance, eventAt = new Date()) {
   const name = studentName || 'your child';
   const amount = Number(balance || 0).toLocaleString();
   if (type === 'fees_cleared') return `Dear Parent, fees for ${name} have been cleared. Thank you.`;
-  if (type === 'student_entered') return `Dear Parent, ${name} has entered school/campus.`;
-  if (type === 'student_returns') return `Dear Parent, ${name} has returned to school.`;
-  if (type === 'student_left') return `Dear Parent, ${name} has left the campus.`;
+  if (type === 'student_entered') return `Dear Parent, ${name} has entered school/campus this ${notificationTimeText(eventAt)}.`;
+  if (type === 'student_returns') return `Dear Parent, ${name} has returned to school this ${notificationTimeText(eventAt)}.`;
+  if (type === 'student_left') return `Dear Parent, ${name} has left the campus this ${notificationTimeText(eventAt)}.`;
   if (type === 'sent_home_fees') return `Dear Parent, ${name} has been sent home because of outstanding fees. Kindly contact the school.`;
   return `Dear Parent, your child ${name} has an outstanding balance of KES ${amount}. Kindly clear the fees balance.`;
 }
 
-async function logParentNotification(org, card, type, balance = 0) {
+async function logParentNotification(org, card, type, balance = 0, eventAt = new Date()) {
   const fields = card?.fields || {};
-  const message = notificationMessage(type, card?.name || fields.name, balance);
+  const message = notificationMessage(type, card?.name || fields.name, balance, eventAt);
   const parentEmail = normalizeEmail(fields.parentGuardianEmail || fields.email || '');
   const parentPhone = normalizePhone(fields.parentGuardianPhone);
   const channel = parentEmail ? 'email' : 'sms';
@@ -2250,7 +2263,7 @@ app.post('/api/gate/confirm', gateRateLimit, async (req, res) => {
     if (error) return res.status(400).json({ error: error.message });
     await audit('Gate entry confirmed', card.id, session.staff_name);
     await logScanSecurity({ ...context, result: 'allowed', reason: 'Gate entry confirmed.' });
-    if (card.role_type === 'student') await logParentNotification(org, card, 'student_entered', 0);
+    if (card.role_type === 'student') await logParentNotification(org, card, 'student_entered', 0, data.entry_at);
     return res.json({ attendance: toAttendance(data), message: `${card.name} entry saved.` });
   }
   if (!openRecord) return denyScan(res, 409, `${card.name} is already marked outside.`, context);
@@ -2271,7 +2284,7 @@ app.post('/api/gate/confirm', gateRateLimit, async (req, res) => {
   if (error) return res.status(400).json({ error: error.message });
   await audit('Gate exit confirmed', card.id, session.staff_name);
   await logScanSecurity({ ...context, result: 'allowed', reason: 'Gate exit confirmed.' });
-  if (card.role_type === 'student') await logParentNotification(org, card, 'student_left', 0);
+  if (card.role_type === 'student') await logParentNotification(org, card, 'student_left', 0, data.exit_at);
   res.json({ attendance: toAttendance(data), message: `${card.name} exit saved.` });
 });
 
@@ -2332,7 +2345,7 @@ app.post('/api/org/gate-scan', requireOrg, gateRateLimit, async (req, res) => {
     if (insertError) return res.status(400).json({ error: insertError.message });
     await audit('Gate entry scanned by admin', card.id, org.name);
     await logScanSecurity({ ...context, result: 'allowed', reason: 'Admin dashboard entry confirmed.' });
-    if (card.role_type === 'student') await logParentNotification(org, card, 'student_entered', 0);
+    if (card.role_type === 'student') await logParentNotification(org, card, 'student_entered', 0, data.entry_at);
     return res.json({ attendance: toAttendance(data), message: `${card.name} entered at ${new Date(data.entry_at).toLocaleTimeString()}.` });
   }
   if (!openRecord) return denyScan(res, 409, `${card.name} is already marked outside. Scan entering first.`, context);
@@ -2353,7 +2366,7 @@ app.post('/api/org/gate-scan', requireOrg, gateRateLimit, async (req, res) => {
   if (updateError) return res.status(400).json({ error: updateError.message });
   await audit('Gate exit scanned by admin', card.id, org.name);
   await logScanSecurity({ ...context, result: 'allowed', reason: 'Admin dashboard exit confirmed.' });
-  if (card.role_type === 'student') await logParentNotification(org, card, 'student_left', 0);
+  if (card.role_type === 'student') await logParentNotification(org, card, 'student_left', 0, data.exit_at);
   res.json({ attendance: toAttendance(data), message: `${card.name} left at ${new Date(data.exit_at).toLocaleTimeString()}.` });
 });
 

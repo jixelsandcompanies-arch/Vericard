@@ -140,6 +140,7 @@
           <button type="button" data-drawer-view="back">Set Back</button>
           <button type="button" data-drawer-view="master">Master Card</button>
           <button type="button" data-drawer-view="records">Records</button>
+          <button type="button" data-drawer-view="assistant">Teams AI</button>
           <button type="button" data-drawer-view="gate" data-nav-scope="school">Gate</button>
           <button type="button" data-drawer-view="fees" data-nav-scope="school">Fees</button>
           <button type="button" data-drawer-view="reports" data-nav-scope="school">Reports</button>
@@ -159,6 +160,28 @@
             <tbody id="recentScansBody"><tr><td colspan="5">No recent scans loaded.</td></tr></tbody>
           </table>
         </div>
+      </div>
+
+      <div class="panel" data-dashboard-view="assistant">
+        <h2>Teams AI</h2>
+        <div class="notice">Teams AI helps organization admins find the right VeriCard action quickly.</div>
+        <div class="assistant-box">
+          <div class="assistant-avatar">AI</div>
+          <div>
+            <strong id="assistantGreeting">Teams AI</strong>
+            <p id="assistantAnswer">Ask about approvals, master cards, QR registration, gate scans, parent notifications, reports, fees, or bulk printing.</p>
+          </div>
+        </div>
+        <div class="assistant-prompts">
+          <button type="button" data-ai-prompt="How do I approve cards?">Approve Cards</button>
+          <button type="button" data-ai-prompt="How do parent notifications work?">Notifications</button>
+          <button type="button" data-ai-prompt="How do I download or print cards?">Printing</button>
+          <button type="button" data-ai-prompt="How do reports work?">Reports</button>
+        </div>
+        <form id="assistantForm" class="row">
+          <input id="assistantQuestion" placeholder="Ask Teams AI what to do next">
+          <button type="submit">Ask</button>
+        </form>
       </div>
 
       <div class="panel" data-dashboard-view="front">

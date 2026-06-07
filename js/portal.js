@@ -17,7 +17,7 @@ const state = { token: '', org: null, rules: null, orgRegistrationFields: {}, ca
       orgDashboardSummary: document.getElementById('orgDashboardSummary'), recentScansBody: document.getElementById('recentScansBody'),
       masterLogo: document.getElementById('masterLogo'), masterOrgName: document.getElementById('masterOrgName'), masterOrgType: document.getElementById('masterOrgType'),
       masterNumber: document.getElementById('masterNumber'), masterBusiness: document.getElementById('masterBusiness'), masterAuthority: document.getElementById('masterAuthority'), masterQr: document.getElementById('masterQr'), masterBackLogo: document.getElementById('masterBackLogo'),
-      masterBackMission: document.getElementById('masterBackMission'), masterBackVision: document.getElementById('masterBackVision'), masterBackReturnTitle: document.getElementById('masterBackReturnTitle'), masterBackReturnName: document.getElementById('masterBackReturnName'), masterBackPoBox: document.getElementById('masterBackPoBox'), masterBackPhone: document.getElementById('masterBackPhone'), masterBackResponsibilityTitle: document.getElementById('masterBackResponsibilityTitle'), masterBackLostInstruction: document.getElementById('masterBackLostInstruction'),
+      masterBackMission: document.getElementById('masterBackMission'), masterBackVision: document.getElementById('masterBackVision'), masterBackReturnTitle: document.getElementById('masterBackReturnTitle'), masterBackReturnName: document.getElementById('masterBackReturnName'), masterBackPoBox: document.getElementById('masterBackPoBox'), masterBackPhone: document.getElementById('masterBackPhone'), masterBackLostInstruction: document.getElementById('masterBackLostInstruction'),
       cardsBody: document.getElementById('cardsBody'), selectApprovedCards: document.getElementById('selectApprovedCards'), downloadSelectedCardsBtn: document.getElementById('downloadSelectedCardsBtn'), requestPrintCardsBtn: document.getElementById('requestPrintCardsBtn'), scanPanel: document.getElementById('scanPanel'), scanNotice: document.getElementById('scanNotice'),
       applyForm: document.getElementById('applyForm'), roleType: document.getElementById('roleType'), dynamicFields: document.getElementById('dynamicFields'),
       gateScanPanel: document.getElementById('gateScanPanel'), gateScanForm: document.getElementById('gateScanForm'), gateScanNotice: document.getElementById('gateScanNotice'), attendanceBody: document.getElementById('attendanceBody'),
@@ -32,7 +32,7 @@ const state = { token: '', org: null, rules: null, orgRegistrationFields: {}, ca
       frontAuthorityName: document.getElementById('frontAuthorityName'),
       backMission: document.getElementById('backMission'), backVision: document.getElementById('backVision'), backIdentityNumber: document.getElementById('backIdentityNumber'),
       backReturnName: document.getElementById('backReturnName'), backPoBox: document.getElementById('backPoBox'), backAddress1: document.getElementById('backAddress1'),
-      backPhone: document.getElementById('backPhone'), backDesk: document.getElementById('backDesk'), backResponsibilityTitle: document.getElementById('backResponsibilityTitle'),
+      backPhone: document.getElementById('backPhone'), backDesk: document.getElementById('backDesk'),
       backLostInstruction: document.getElementById('backLostInstruction'), backResponsibilities: document.getElementById('backResponsibilities')
     };
 
@@ -735,7 +735,6 @@ const state = { token: '', org: null, rules: null, orgRegistrationFields: {}, ca
       els.backLostInstruction.textContent = settings.lostInstruction || '';
       els.backAddress1.textContent = '';
       els.backDesk.textContent = '';
-      els.backResponsibilityTitle.textContent = settings.responsibilityTitle || '';
       els.backResponsibilities.textContent = '';
     }
 
@@ -889,7 +888,6 @@ const state = { token: '', org: null, rules: null, orgRegistrationFields: {}, ca
       els.masterBackReturnName.textContent = settings.returnName || card.organization.name;
       els.masterBackPoBox.textContent = settings.poBox ? `P.O. Box: ${settings.poBox}` : '';
       els.masterBackPhone.textContent = settings.phone ? `Phone: ${settings.phone}` : '';
-      els.masterBackResponsibilityTitle.textContent = settings.responsibilityTitle || '';
       els.masterBackLostInstruction.textContent = settings.lostInstruction || '';
     }
 

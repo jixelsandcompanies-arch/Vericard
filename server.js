@@ -451,6 +451,17 @@ function normalizeText(value) {
   return String(value || '').trim();
 }
 
+function escapeHtml(value) {
+  return String(value ?? '').replace(/[&<>"']/g, (char) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[char]));
+}
+
+function safeImageSrc(value) {
+  const src = normalizeText(value);
+  if (/^data:image\/(?:png|jpeg|jpg|webp|gif);base64,/i.test(src)) return src;
+  if (/^https?:\/\//i.test(src)) return src;
+  return '';
+}
+
 function oneMonthFromNow() {
   const date = new Date();
   date.setMonth(date.getMonth() + 1);
@@ -660,16 +671,18 @@ function buildVerificationHtml(result) {
   const valid = result.valid;
   const title = valid ? 'VALID ID CARD' : 'INVALID ID CARD';
   const color = valid ? '#166534' : '#991b1b';
+  const photo = safeImageSrc(result.photo);
+  const photoHtml = photo ? `<div class="photo-wrap"><img src="${escapeHtml(photo)}" alt="Passport photo"></div>` : '';
   const details = Object.entries(result.details || {})
     .filter(([, value]) => value)
-    .map(([key, value]) => `<div><span>${key}</span><strong>${value}</strong></div>`)
+    .map(([key, value]) => `<div><span>${escapeHtml(key)}</span><strong>${escapeHtml(value)}</strong></div>`)
     .join('');
   return `<!doctype html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1"><title>${title}</title><style>
     body{margin:0;min-height:100vh;display:grid;place-items:center;background:#eef2f6;font-family:Arial,Helvetica,sans-serif;color:#202938}
     main{width:min(520px,calc(100% - 28px));background:#fff;border:1px solid #d9e0ea;border-radius:8px;padding:22px;display:grid;gap:14px}
-    h1{margin:0;color:${color};font-size:28px}p{margin:0;font-weight:700;line-height:1.45}.details{display:grid;gap:8px}
+    h1{margin:0;color:${color};font-size:28px}p{margin:0;font-weight:700;line-height:1.45}.photo-wrap{width:132px;height:156px;border:3px solid ${color};border-radius:8px;background:#f8fafc;overflow:hidden;justify-self:center;display:grid;place-items:center}.photo-wrap img{width:100%;height:100%;object-fit:cover;object-position:center top}.details{display:grid;gap:8px}
     .details div{display:grid;grid-template-columns:150px 1fr;gap:10px;border-top:1px solid #e5eaf0;padding-top:8px}.details span{color:#657489;font-weight:800}.details strong{overflow-wrap:anywhere}
-  </style></head><body><main><h1>${title}</h1><p>${result.reason || ''}</p><section class="details">${details}</section></main></body></html>`;
+  </style></head><body><main><h1>${escapeHtml(title)}</h1>${photoHtml}<p>${escapeHtml(result.reason || '')}</p><section class="details">${details}</section></main></body></html>`;
 }
 
 function toAttendance(row) {
@@ -1302,7 +1315,7 @@ async function verifyCardToken(token) {
     Subscription: org?.subscription_status || '',
     Reason: validity.reason
   };
-  return { ...validity, details };
+  return { ...validity, photo: card.photo || fields.photo || '', details };
 }
 
 function sanitizeBackSettings(settings, org = {}) {

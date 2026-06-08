@@ -7,7 +7,9 @@
 .bc-template-choice.active, .bc-type.active { border-color: var(--blue); box-shadow: 0 0 0 3px color-mix(in srgb, var(--blue) 16%, transparent); }
 .bc-order-grid { display: grid; grid-template-columns: 1fr; gap: 16px; align-items: start; }
 .bc-fields, .bc-design { display: grid; gap: 10px; min-width: 0; }
+.bc-template-head { display: flex; justify-content: space-between; align-items: center; gap: 10px; flex-wrap: wrap; }
 .bc-design h3 { font-size: 18px; line-height: 1.2; }
+.bc-template-head button { width: auto; }
 .bc-quantity-step { max-width: 320px; }
 .bc-upload { border: 2px dashed #abc4dd; border-radius: 8px; background: #f8fafc; padding: 12px; display: grid; grid-template-columns: 96px 1fr; gap: 12px; align-items: center; cursor: pointer; }
 .bc-upload:hover, .bc-upload:focus-within { border-color: var(--blue); box-shadow: 0 0 0 3px rgba(6,26,48,.12); }

@@ -9,7 +9,7 @@ window.VeriCardFeatures = window.VeriCardFeatures || {};
     'Hotel / Travel', 'Agriculture', 'Security Service', 'NGO / Community', 'Interior Design',
     'Music / Entertainment', 'Printing / Branding', 'Bakery', 'Phone / Electronics', 'General Business'
   ];
-  const styleNames = ['Signature', 'Elite', 'Studio', 'Executive', 'Fresh', 'Classic', 'Prime', 'Urban', 'Clean', 'Bold'];
+  const styleNames = ['Classic Stripe', 'Circle Luxe', 'Box Mark', 'Plain Executive', 'Corner Pro', 'Minimal White', 'Split Brand', 'QR Footer', 'Gold Line', 'Clean Contact'];
   const layouts = ['primary', 'clean', 'bold', 'qr'];
   const logoShapes = ['circle', 'box', 'plain'];
   const previewFormats = ['classic', 'corner', 'minimal', 'split'];
@@ -51,7 +51,7 @@ window.VeriCardFeatures = window.VeriCardFeatures || {};
       layout: layouts[index % layouts.length],
       logoShape: logoShapes[index % logoShapes.length],
       previewFormat: previewFormats[index % previewFormats.length],
-      description: index % 3 === 0 ? 'Round logo mark with classic contact layout.' : index % 3 === 1 ? 'Boxed logo with modern brand layout.' : 'Plain logo placement with clean visibility.'
+      description: index % 3 === 0 ? 'Sample-style front with contact details and footer QR.' : index % 3 === 1 ? 'Modern brand card with balanced logo and contact spacing.' : 'Clean professional layout with services on the back.'
     }));
   }
   function values() {
@@ -139,12 +139,20 @@ window.VeriCardFeatures = window.VeriCardFeatures || {};
     const quantityStep = $('bcQuantityStep');
     const submitActions = $('bcSubmitActions');
     const continueBtn = $('bcContinueBtn');
+    const templateTitle = $('bcTemplateTitle');
+    const changeTemplateBtn = $('bcChangeTemplateBtn');
+    const templateGrid = $('bcTemplateGrid');
+    const previewStage = $('bcPreviewStage');
     if (continueBtn) continueBtn.disabled = !readyForTemplates;
     if (designStep) designStep.classList.toggle('hidden', !state.continued);
     if (quantityStep) quantityStep.classList.toggle('hidden', !state.templateId);
     if (submitActions) submitActions.classList.toggle('hidden', !state.templateId);
-    if (state.continued && !$('bcTemplateGrid')?.children.length) renderTemplates();
-    if (!state.continued) $('bcTemplateGrid').innerHTML = '';
+    if (templateTitle) templateTitle.textContent = state.templateId ? 'Selected Template' : 'Choose Template';
+    if (changeTemplateBtn) changeTemplateBtn.classList.toggle('hidden', !state.templateId);
+    if (templateGrid) templateGrid.classList.toggle('hidden', Boolean(state.templateId));
+    if (previewStage) previewStage.classList.toggle('hidden', !state.templateId);
+    if (state.continued && !state.templateId && !templateGrid?.children.length) renderTemplates();
+    if (!state.continued && templateGrid) templateGrid.innerHTML = '';
     $('bcTemplateId').value = state.templateId;
     if ($('bcNotice') && !state.submitted) {
       $('bcNotice').textContent = !readyForTemplates
@@ -347,6 +355,12 @@ window.VeriCardFeatures = window.VeriCardFeatures || {};
       $('bcContinueBtn')?.addEventListener('click', () => {
         if (!formReadyForTemplates()) return;
         state.continued = true;
+        renderTemplates();
+        updatePreview();
+      });
+      $('bcChangeTemplateBtn')?.addEventListener('click', () => {
+        state.templateId = '';
+        state.submitted = false;
         renderTemplates();
         updatePreview();
       });

@@ -43,7 +43,10 @@
       </div>
 
       <div class="bc-design hidden" id="bcDesignStep">
-        <h3>Choose Template</h3>
+        <div class="bc-template-head">
+          <h3 id="bcTemplateTitle">Choose Template</h3>
+          <button type="button" class="secondary hidden" id="bcChangeTemplateBtn">Change Template</button>
+        </div>
         <div class="bc-template-grid" id="bcTemplateGrid"></div>
         <div class="bc-quantity-step hidden" id="bcQuantityStep">
           <label>Quantity needed<input id="bcQuantity" name="quantity" type="number" min="1" step="1" required></label>

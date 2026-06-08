@@ -11,6 +11,8 @@ window.VeriCardFeatures = window.VeriCardFeatures || {};
   ];
   const styleNames = ['Signature', 'Elite', 'Studio', 'Executive', 'Fresh', 'Classic', 'Prime', 'Urban', 'Clean', 'Bold'];
   const layouts = ['primary', 'clean', 'bold', 'qr'];
+  const logoShapes = ['circle', 'box', 'plain'];
+  const previewFormats = ['classic', 'corner', 'minimal', 'split'];
   const state = {
     type: '',
     templateId: '',
@@ -47,7 +49,9 @@ window.VeriCardFeatures = window.VeriCardFeatures || {};
       id: `${prefix}-${index + 1}`,
       name: `${type} ${styleNames[index % styleNames.length]}`,
       layout: layouts[index % layouts.length],
-      description: index % 3 === 0 ? 'Luxury centered logo with footer QR.' : index % 3 === 1 ? 'Modern brand-forward front layout.' : 'Premium contrast card for strong visibility.'
+      logoShape: logoShapes[index % logoShapes.length],
+      previewFormat: previewFormats[index % previewFormats.length],
+      description: index % 3 === 0 ? 'Round logo mark with classic contact layout.' : index % 3 === 1 ? 'Boxed logo with modern brand layout.' : 'Plain logo placement with clean visibility.'
     }));
   }
   function values() {
@@ -156,7 +160,11 @@ window.VeriCardFeatures = window.VeriCardFeatures || {};
     const stage = $('bcPreviewStage');
     if (stage) {
       stage.classList.remove('bc-template-primary', 'bc-template-clean', 'bc-template-bold', 'bc-template-qr');
+      stage.classList.remove('bc-logo-circle', 'bc-logo-box', 'bc-logo-plain');
+      stage.classList.remove('bc-format-classic', 'bc-format-corner', 'bc-format-minimal', 'bc-format-split');
       stage.classList.add(`bc-template-${activeTemplate?.layout || 'primary'}`);
+      stage.classList.add(`bc-logo-${activeTemplate?.logoShape || 'circle'}`);
+      stage.classList.add(`bc-format-${activeTemplate?.previewFormat || 'classic'}`);
     }
     setCardColors();
     const submit = $('bcSubmitBtn');
@@ -184,16 +192,24 @@ window.VeriCardFeatures = window.VeriCardFeatures || {};
     if (state.templateId && !list.some((template) => template.id === state.templateId)) state.templateId = '';
     grid.innerHTML = list.map((template) => `
       <button type="button" class="bc-template-choice ${template.id === state.templateId ? 'active' : ''}" data-bc-template="${escapeHtml(template.id)}" style="--template-color:${state.colors.primary};--template-accent:${state.colors.accent};">
-        <span class="template-preview template-${escapeHtml(template.layout)}">
-          <span class="template-logo">${formValues.logo ? `<img src="${escapeAttr(formValues.logo)}" alt="">` : '<b>ID</b>'}</span>
-          <span class="template-org">${escapeHtml(formValues.businessName || template.name)}</span>
-          <span class="template-photo"></span>
-          <span class="template-band">
-            <span></span>
-            <span></span>
-            <span></span>
+        <span class="bc-template-sides">
+          <span class="bc-template-card bc-template-front template-${escapeHtml(template.layout)} bc-thumb-logo-${escapeHtml(template.logoShape)} bc-thumb-format-${escapeHtml(template.previewFormat)}">
+            <span class="template-logo">${formValues.logo ? `<img src="${escapeAttr(formValues.logo)}" alt="">` : '<b>LOGO</b>'}</span>
+            <span class="bc-thumb-business">${escapeHtml(formValues.businessName || template.name)}</span>
+            <span class="bc-thumb-tagline">${escapeHtml(formValues.tagline || 'Tagline')}</span>
+            <span class="bc-thumb-contact">
+              <b>${escapeHtml(formValues.contactName || 'Name')}</b>
+              <i>${escapeHtml(formValues.phone ? `Phone: ${formValues.phone}` : 'Phone:')}</i>
+              <i>${escapeHtml(formValues.email ? `Email: ${formValues.email}` : 'Email:')}</i>
+              <i>${escapeHtml(formValues.whatsapp ? `WhatsApp: ${formValues.whatsapp}` : 'WhatsApp:')}</i>
+              <i>${escapeHtml(formValues.website ? `Web: ${formValues.website}` : 'Website:')}</i>
+            </span>
+            <span class="template-qr-mark"></span>
           </span>
-          <span class="template-qr-mark"></span>
+          <span class="bc-template-card bc-template-back bc-thumb-logo-${escapeHtml(template.logoShape)}">
+            <span class="template-logo">${formValues.logo ? `<img src="${escapeAttr(formValues.logo)}" alt="">` : '<b>LOGO</b>'}</span>
+            <span class="bc-thumb-services">${escapeHtml(formValues.services || 'Services appear here')}</span>
+          </span>
         </span>
         <strong>${escapeHtml(template.name)}</strong>
         <span>${escapeHtml(template.description)}</span>

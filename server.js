@@ -560,7 +560,7 @@ function roleSpecificUniqueFields(roleType) {
 function displayNumberFor(fields, roleType, orgType) {
   const ordered = isStudentRole(roleType)
     ? [studentUniqueField(orgType), 'admissionNumber', 'matricNumber']
-    : ['employeeId', 'staffId', 'contractorId', 'internId', 'membershipId', 'workerId', 'leaderId', 'guardId', 'supervisorId', 'officerId', 'contractId', 'memberId', 'nationalId'];
+    : ['employeeId', 'staffId', 'contractorId', 'internId', 'membershipId', 'workerId', 'leaderId', 'guardId', 'supervisorId', 'officerId', 'contractId', 'memberId', 'licenseNumber', 'queueNumber', 'appointmentReference', 'studentAdmissionNumber', 'studentMatricNumber', 'nationalId'];
   for (const field of ordered) {
     if (fields[field]) return fields[field];
   }
@@ -2878,11 +2878,11 @@ function cardRow(input, includeGenerated = true) {
     fields,
     name: input.name || fields.name || '',
     location: input.location || fields.location || '',
-    branch: input.branch || fields.branch || fields.department || fields.classGrade || fields.faculty || fields.site || '',
+    branch: input.branch || fields.branch || fields.department || fields.classGrade || fields.faculty || fields.site || fields.assignedSite || fields.deploymentSite || fields.officeBranch || fields.accessZone || fields.visitTo || '',
     national_id: normalizeIdentifier(input.nationalId || input.national_id || fields.nationalId || ''),
     phone: input.phone || fields.phone || '',
     email: input.email || fields.email || '',
-    position: input.position || fields.position || fields.role || fields.department || roleType || '',
+    position: input.position || fields.position || fields.role || fields.rank || fields.specialty || fields.department || fields.visitPurpose || fields.purposeOfVisit || roleType || '',
     photo: input.photo || fields.photo || '',
     ...(number && !fields.displayNumber ? { fields: { ...fields, displayNumber: number } } : {}),
     status: input.status || 'Pending',

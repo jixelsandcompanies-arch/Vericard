@@ -114,21 +114,21 @@
     .photo-ring { position: absolute; left: 89px; top: 144px; width: 152px; height: 152px; border-radius: 50%; border: 5px solid var(--gold); background: #f8fbff; display: grid; place-items: center; overflow: hidden; z-index: 1; }
     .photo-ring img { width: 100%; height: 100%; object-fit: cover; object-position: center top; }
     .photo-ring span { color: #8ca3be; font-size: 26px; font-weight: 800; }
-    .front-info { position: absolute; left: 40px; right: 40px; top: 332px; z-index: 2; }
+    .front-info { position: absolute; left: 40px; right: 40px; top: 332px; z-index: 2; display: grid; gap: 2px; }
     .front-authority { position: absolute; left: 42px; right: 42px; bottom: 20px; display: grid; gap: 8px; align-items: end; font-size: 11px; font-weight: 800; color: var(--ink); overflow-wrap: anywhere; max-height: 28px; overflow: hidden; }
     .front-authority img { max-width: 92px; max-height: 42px; object-fit: contain; justify-self: end; }
-    .detail-line { display: grid; grid-template-columns: 74px 1fr; gap: 7px; padding: 5px 0; border-bottom: 1px solid rgba(255,255,255,.18); }
+    .detail-line { display: grid; grid-template-columns: 60px minmax(0, 1fr); gap: 6px; padding: 4px 0; border-bottom: 1px solid rgba(255,255,255,.18); min-width: 0; }
     .detail-label { color: rgba(255,255,255,.78); font-size: 11px; font-weight: 900; text-transform: uppercase; }
-    .person-name { color: var(--gold); font-size: 18px; font-weight: 800; overflow-wrap: anywhere; }
-    .id-number, .person-role { color: #fff; font-size: 14px; font-weight: 800; overflow-wrap: anywhere; }
+    .person-name { color: var(--gold); font-size: clamp(13px, 5.2cqw, 18px); font-weight: 800; overflow-wrap: anywhere; word-break: break-word; line-height: 1.08; max-height: 39px; overflow: hidden; }
+    .id-number, .person-role { color: #fff; font-size: clamp(11px, 4.2cqw, 14px); font-weight: 800; overflow-wrap: anywhere; word-break: break-word; line-height: 1.12; max-height: 32px; overflow: hidden; }
     .card-qr { position: absolute; left: 50%; top: 22px; transform: translateX(-50%); width: 150px; height: 150px; padding: 4px; border: 2px solid var(--blue); background: #fff; }
     .card-qr img { width: 100%; height: 100%; object-fit: contain; }
-    .back-text { position: absolute; left: 32px; right: 32px; top: 178px; bottom: 98px; font-weight: 700; font-size: 12.5px; line-height: 1.32; display: grid; align-content: start; gap: 4px; overflow: hidden; overflow-wrap: anywhere; }
-    .back-text .indent { margin-left: 22px; }
-    .mission-block { color: var(--blue); font-size: 11px; font-weight: 900; line-height: 1.25; text-align: center; overflow-wrap: anywhere; }
+    .back-text { position: absolute; left: 28px; right: 28px; top: 178px; bottom: 92px; font-weight: 700; font-size: clamp(9.5px, 3.5cqw, 12.5px); line-height: 1.22; display: grid; align-content: start; gap: 3px; overflow: hidden; overflow-wrap: anywhere; word-break: break-word; }
+    .back-text .indent { margin-left: 16px; }
+    .mission-block { color: var(--blue); font-size: clamp(9px, 3.2cqw, 11px); font-weight: 900; line-height: 1.18; text-align: center; overflow-wrap: anywhere; word-break: break-word; max-height: 30px; overflow: hidden; }
     .responsibility-title { color: var(--blue); margin-top: 16px; font-weight: 900; }
-    .rules { margin: 6px 0 0 18px; padding: 0; display: grid; gap: 5px; }
-    #backResponsibilities { margin-top: 7px; font-size: 12px; }
+    .rules { margin: 4px 0 0 14px; padding: 0; display: grid; gap: 3px; }
+    #backResponsibilities { margin-top: 5px; font-size: clamp(9px, 3.4cqw, 12px); line-height: 1.25; overflow-wrap: anywhere; word-break: break-word; max-height: 58px; overflow: hidden; }
     .logo-back { position: absolute; left: 50%; bottom: 22px; transform: translateX(-50%); width: 92px; height: 58px; object-fit: contain; opacity: .9; }
     .master-front .logo-front { top: 22px; width: 170px; height: 104px; }
     .master-front .master-band { top: 158px; }

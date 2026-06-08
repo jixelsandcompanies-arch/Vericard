@@ -1070,9 +1070,9 @@ const state = { token: '', org: null, rules: null, orgRegistrationFields: {}, ca
       els.backPoBox.textContent = settings.poBox ? `P.O. Box: ${settings.poBox}` : '';
       els.backPhone.textContent = settings.phone ? `Phone: ${settings.phone}` : '';
       els.backLostInstruction.textContent = settings.lostInstruction || '';
-      els.backAddress1.textContent = '';
-      els.backDesk.textContent = '';
-      els.backResponsibilities.textContent = '';
+      els.backAddress1.textContent = settings.addressLine1 || '';
+      els.backDesk.textContent = settings.returnDesk || '';
+      els.backResponsibilities.textContent = settings.cardholderResponsibilities || '';
     }
 
     function frontCardNumber(card) {
@@ -1092,6 +1092,11 @@ const state = { token: '', org: null, rules: null, orgRegistrationFields: {}, ca
         || fields.officerId
         || fields.contractId
         || fields.memberId
+        || fields.licenseNumber
+        || fields.queueNumber
+        || fields.appointmentReference
+        || fields.studentAdmissionNumber
+        || fields.studentMatricNumber
         || fields.nationalId
         || card?.id
         || '';
@@ -1099,7 +1104,19 @@ const state = { token: '', org: null, rules: null, orgRegistrationFields: {}, ca
 
     function frontCardRole(card) {
       const fields = card?.fields || {};
-      return card?.position || fields.position || fields.role || fields.rank || fields.department || card?.roleType || '';
+      return card?.position
+        || fields.position
+        || fields.role
+        || fields.rank
+        || fields.specialty
+        || fields.assignedSite
+        || fields.deploymentSite
+        || fields.officeBranch
+        || fields.visitTo
+        || fields.purposeOfVisit
+        || fields.department
+        || card?.roleType
+        || '';
     }
 
     function frontCardExpiry(card) {

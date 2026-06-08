@@ -1,2 +1,4 @@
 html[data-organization-feature="security"] .feature-security { border-left: 4px solid var(--gold); }
 html[data-organization-feature="security"] #gateScanPanel h2::after { content: " - Duty proof"; color: var(--muted); font-size: 12px; }
+html[data-organization-feature="security"] .id-card { border-radius: 10px; }
+html[data-organization-feature="security"] .front-shape { clip-path: polygon(0 0, 100% 0, 92% 100%, 0 100%); }

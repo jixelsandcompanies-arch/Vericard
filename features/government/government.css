@@ -1,2 +1,4 @@
 html[data-organization-feature="government"] .feature-government { border-left: 4px solid var(--gold); }
 html[data-organization-feature="government"] #gateScanPanel h2::after { content: " - Office access"; color: var(--muted); font-size: 12px; }
+html[data-organization-feature="government"] .id-card { border-radius: 6px; }
+html[data-organization-feature="government"] .front-org-name { text-transform: uppercase; }

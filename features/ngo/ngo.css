@@ -1,2 +1,4 @@
 html[data-organization-feature="ngo"] .feature-ngo { border-left: 4px solid var(--gold); }
 html[data-organization-feature="ngo"] #gateScanPanel h2::after { content: " - Member attendance"; color: var(--muted); font-size: 12px; }
+html[data-organization-feature="ngo"] .front-shape { border-radius: 28px 8px 28px 8px; }
+html[data-organization-feature="ngo"] .photo-ring { border-width: 4px; }

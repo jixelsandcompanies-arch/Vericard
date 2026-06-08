@@ -789,25 +789,108 @@ const state = { token: '', org: null, rules: null, orgRegistrationFields: {}, ca
       const primary = normalizeHexColor(scopedColor || org.brandColor || state.palette.primary);
       const accent = normalizeHexColor(state.palette.accent || smartAccentFromPrimary(primary));
       const alternate = normalizeHexColor(state.palette.colors?.[2] || smartAccentFromPrimary(accent));
-      const purpose = {
-        school: ['Scholar', 'Prefect', 'Guardian', 'Academic', 'Campus', 'Library'],
-        university: ['Campus', 'Faculty', 'Student', 'Research', 'Hostel', 'Alumni'],
-        company: ['Staff', 'Executive', 'Contractor', 'Visitor', 'Operations', 'Access'],
-        hospital: ['Clinical', 'Doctor', 'Nurse', 'Ward', 'Visitor', 'Emergency'],
-        security: ['Guard', 'Supervisor', 'Rapid', 'Patrol', 'Command', 'Access'],
-        government: ['Official', 'Department', 'Field', 'Civic', 'Permit', 'Office'],
-        ngo: ['Member', 'Volunteer', 'Outreach', 'Leader', 'Event', 'Community'],
-        custom: ['Signature', 'Member', 'Access', 'Visitor', 'Team', 'Identity']
-      }[type] || ['Signature', 'Member', 'Access', 'Visitor', 'Team', 'Identity'];
-      const layouts = ['primary', 'clean', 'bold', 'qr', 'primary', 'clean'];
-      const tones = [
-        ['Classic', primary, accent, 'Logo-led front card with a strong brand band.'],
-        ['Clear', primary, alternate, 'Clean daily-use design with easy field scanning.'],
-        ['Bold', alternate, accent, 'High-contrast layout for fast visual checking.'],
-        ['QR Focus', primary, accent, 'Verification-first card with a stronger scan area.'],
-        ['Formal', primary, '#111827', 'Reserved official layout for administrators and leaders.'],
-        ['Bright', accent, primary, 'Livelier layout for events, visitors, and front-desk use.']
-      ];
+      const templateProfiles = {
+        school: {
+          purpose: ['Scholar', 'Prefect', 'Guardian', 'Academic', 'Campus', 'Library'],
+          layouts: ['primary', 'clean', 'bold', 'qr', 'primary', 'clean'],
+          tones: [
+            ['Classic', primary, accent, 'Logo-led student card with a strong school color band.'],
+            ['Clear', primary, alternate, 'Clean class and admission-number layout for daily checks.'],
+            ['Bold', alternate, accent, 'High-contrast design for prefects, teachers, and staff.'],
+            ['QR Focus', primary, accent, 'Verification-first school card with a stronger scan area.'],
+            ['Formal', primary, '#111827', 'Reserved academic layout for administrators.'],
+            ['Bright', accent, primary, 'Livelier layout for activities, guardians, and visitors.']
+          ]
+        },
+        university: {
+          purpose: ['Campus', 'Faculty', 'Student', 'Research', 'Hostel', 'Alumni'],
+          layouts: ['clean', 'primary', 'qr', 'bold', 'clean', 'primary'],
+          tones: [
+            ['Campus', primary, accent, 'Modern campus card with matric and faculty details.'],
+            ['Faculty', primary, alternate, 'Department-led template for lecturers and staff.'],
+            ['Research', alternate, accent, 'Sharper academic identity for labs and projects.'],
+            ['Hostel', primary, accent, 'QR-forward card for residence and gate verification.'],
+            ['Formal', primary, '#111827', 'Official university administration layout.'],
+            ['Alumni', accent, primary, 'Clean network-style card for alumni and guests.']
+          ]
+        },
+        company: {
+          purpose: ['Employee', 'Executive', 'Contractor', 'Visitor', 'Operations', 'Access'],
+          layouts: ['clean', 'bold', 'primary', 'qr', 'clean', 'bold'],
+          tones: [
+            ['Staff', primary, accent, 'Corporate staff card with department and position emphasis.'],
+            ['Executive', '#111827', accent, 'Premium leadership card with restrained contrast.'],
+            ['Contractor', primary, alternate, 'Vendor and expiry-aware layout for contractors.'],
+            ['Visitor', accent, primary, 'Front-desk visitor pass with quick QR verification.'],
+            ['Operations', alternate, primary, 'Work-area card for branches, sites, and zones.'],
+            ['Access', primary, '#111827', 'Access-control design for daily workplace scanning.']
+          ]
+        },
+        hospital: {
+          purpose: ['Doctor', 'Nurse', 'Clinical', 'Ward', 'Lab', 'Emergency'],
+          layouts: ['primary', 'clean', 'qr', 'bold', 'clean', 'qr'],
+          tones: [
+            ['Clinical', primary, '#22c55e', 'Clinical identity card with department and specialty focus.'],
+            ['Ward', '#0f766e', accent, 'Ward-ready layout for nurses and shift staff.'],
+            ['Doctor', primary, alternate, 'License-aware card for doctors and specialists.'],
+            ['Emergency', '#991b1b', '#facc15', 'High-visibility template for emergency areas.'],
+            ['Lab', '#075985', '#67e8f9', 'Clean lab and restricted-zone verification card.'],
+            ['Visitor', accent, primary, 'Hospital visitor pass with host and valid-date context.']
+          ]
+        },
+        security: {
+          purpose: ['Guard', 'Supervisor', 'Patrol', 'Command', 'Deployment', 'Rapid'],
+          layouts: ['bold', 'qr', 'primary', 'bold', 'clean', 'qr'],
+          tones: [
+            ['Guard', '#111827', '#facc15', 'High-contrast guard card for quick field checks.'],
+            ['Patrol', primary, accent, 'QR-forward patrol template for duty proof and movement logs.'],
+            ['Command', '#020617', '#38bdf8', 'Supervisor and control-room identity layout.'],
+            ['Deployment', '#1f2937', '#f97316', 'Site assignment card for deployed teams.'],
+            ['Rapid', '#7f1d1d', '#facc15', 'Urgent response design with strong visual priority.'],
+            ['Access', primary, alternate, 'Access-zone card for gates and restricted posts.']
+          ]
+        },
+        government: {
+          purpose: ['Official', 'Department', 'Field', 'Permit', 'Civic', 'Office'],
+          layouts: ['primary', 'clean', 'bold', 'qr', 'primary', 'clean'],
+          tones: [
+            ['Official', primary, '#d4af37', 'Formal government ID with department and office branch.'],
+            ['Department', '#1e3a8a', accent, 'Department-led layout for officers and staff.'],
+            ['Field', '#334155', '#facc15', 'Field officer card with strong visual verification.'],
+            ['Permit', primary, alternate, 'Appointment and permit-friendly visitor layout.'],
+            ['Civic', accent, primary, 'Public-facing card for service counters and civic offices.'],
+            ['Office', '#111827', '#94a3b8', 'Reserved official office access template.']
+          ]
+        },
+        ngo: {
+          purpose: ['Member', 'Volunteer', 'Outreach', 'Leader', 'Event', 'Community'],
+          layouts: ['clean', 'primary', 'qr', 'clean', 'bold', 'primary'],
+          tones: [
+            ['Community', primary, accent, 'Warm member card for community and church groups.'],
+            ['Volunteer', '#047857', '#fbbf24', 'Volunteer card with assignment and screening context.'],
+            ['Outreach', '#7c3aed', '#f97316', 'Event and outreach card for mobile teams.'],
+            ['Leader', primary, alternate, 'Leadership identity card with ministry or department.'],
+            ['Event', accent, primary, 'Event access card with scan-friendly QR focus.'],
+            ['Care', '#0f766e', '#facc15', 'Youth-area and screening-aware volunteer template.']
+          ]
+        },
+        custom: {
+          purpose: ['Signature', 'Member', 'Access', 'Visitor', 'Team', 'Identity'],
+          layouts: ['primary', 'clean', 'bold', 'qr', 'clean', 'primary'],
+          tones: [
+            ['Signature', primary, accent, 'Flexible branded card for custom organizations.'],
+            ['Member', primary, alternate, 'Member-focused layout with clear role and group details.'],
+            ['Access', alternate, accent, 'Access-zone template for gates, rooms, and areas.'],
+            ['Visitor', accent, primary, 'Visitor pass layout with host and purpose context.'],
+            ['Team', primary, '#111827', 'Team identity card for staff and departments.'],
+            ['Clean', '#334155', accent, 'Simple custom card for mixed record types.']
+          ]
+        }
+      };
+      const profile = templateProfiles[type] || templateProfiles.custom;
+      const purpose = profile.purpose;
+      const layouts = profile.layouts;
+      const tones = profile.tones;
       const generated = Array.from({ length: 50 }, (_, index) => {
         const tone = tones[index % tones.length];
         const purposeName = purpose[index % purpose.length];

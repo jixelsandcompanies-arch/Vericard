@@ -1,2 +1,4 @@
 html[data-organization-feature="company"] .feature-company { border-left: 4px solid var(--gold); }
 html[data-organization-feature="company"] #gateScanPanel h2::after { content: " - Work hours"; color: var(--muted); font-size: 12px; }
+html[data-organization-feature="company"] .card-front .front-shape { border-radius: 8px; }
+html[data-organization-feature="company"] .detail-label { letter-spacing: .03em; }
